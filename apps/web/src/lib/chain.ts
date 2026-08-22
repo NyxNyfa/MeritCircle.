@@ -71,6 +71,49 @@ export async function readHasWon(poolIdOnChain: number, account: string): Promis
   })
 }
 
+export async function readIsSettleable(poolIdOnChain: number): Promise<boolean> {
+  const client = getPublicClient()
+  const result = await client.readContract({
+    address: getMeritPoolAddress(),
+    abi: MERITPOOL_ABI,
+    functionName: 'isSettleable',
+    args: [BigInt(poolIdOnChain)],
+  } as never)
+  return Boolean(result)
+}
+
+/** Baca konfigurasi pool on-chain. */
+export async function readPoolConfig(poolIdOnChain: number): Promise<{
+  poolId: number
+  name: string
+  tierRequired: number
+  contributionAmount: number
+  maxMembers: number
+  totalCycles: number
+  cycleDurationSec: number
+  isAuctionMode: boolean
+  maxDiscountBps: number
+}> {
+  const client = getPublicClient()
+  const raw = (await client.readContract({
+    address: getMeritPoolAddress(),
+    abi: MERITPOOL_ABI,
+    functionName: 'pools',
+    args: [BigInt(poolIdOnChain)],
+  } as never)) as readonly unknown[]
+  return {
+    poolId: Number(raw[0]),
+    name: String(raw[1]),
+    tierRequired: Number(raw[2]),
+    contributionAmount: Number(raw[3]) / 1e18,
+    maxMembers: Number(raw[4]),
+    totalCycles: Number(raw[5]),
+    cycleDurationSec: Number(raw[6]),
+    isAuctionMode: Boolean(raw[7]),
+    maxDiscountBps: Number(raw[8]),
+  }
+}
+
 export async function readHasContributed(
   poolIdOnChain: number,
   cycle: bigint,

@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { AtSign, CheckCircle2, Copy, Crown, Edit3, Users } from 'lucide-react'
+import { AtSign, Bell, CheckCircle2, Copy, Crown, Edit3, Mail, ShieldCheck, Users } from 'lucide-react'
 import { useAccount, useBalance, useReadContract, useSignMessage } from 'wagmi'
 import { useQuery } from '@tanstack/react-query'
 import { formatUnits } from 'viem'
@@ -12,9 +12,14 @@ import { useContractAddresses } from '@/lib/use-contracts'
 import { useToast } from '@/components/Toast'
 import EditProfileModal, { type EditProfileValues } from '@/components/EditProfileModal'
 import type { UserProfile } from '@/components/Sidebar'
-import { createWalletAuthHeader } from '@/lib/wallet-auth-client'
+import { createWalletAuthHeader, getSessionAuthHeaders } from '@/lib/wallet-auth-client'
 import { calculateTier } from '@/lib/tier'
 const AVATAR_URL = 'https://api.dicebear.com/7.x/avataaars/svg?seed=merit'
+
+const reasonOf = (error: unknown) => {
+  const e = error as { shortMessage?: string; message?: string }
+  return e.shortMessage || e.message || 'Terjadi kesalahan'
+}
 
 type HistoryItem = {
   id: string
@@ -150,6 +155,72 @@ export default function ProfilePage() {
     refetchProfile()
   }
 
+  // ===== Email verification =====
+  const [emailInput, setEmailInput] = useState('')
+  const [sendingVerify, setSendingVerify] = useState(false)
+  const [verifyDevLink, setVerifyDevLink] = useState<string | null>(null)
+
+  const handleSendVerification = async () => {
+    if (!address || !emailInput.trim()) {
+      toast('error', 'Email wajib diisi', 'Masukkan email yang ingin diverifikasi.')
+      return
+    }
+    setSendingVerify(true)
+    try {
+      const authHeader = await createWalletAuthHeader(address, signMessageAsync)
+      const res = await fetch('/api/auth/email/send-verification', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-mp-auth': authHeader },
+        body: JSON.stringify({ email: emailInput.trim() }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Gagal mengirim verifikasi')
+      setVerifyDevLink(data.devLink ?? null)
+      toast(
+        'success',
+        'Email verifikasi dikirim',
+        data.devLink ? 'Mode dev — link tersedia di bawah.' : `Cek inbox ${emailInput.trim()}.`,
+      )
+      refetchProfile()
+    } catch (error) {
+      toast('error', 'Verifikasi gagal', reasonOf(error))
+    } finally {
+      setSendingVerify(false)
+    }
+  }
+
+  // ===== Notifikasi feed =====
+  type NotificationItem = { id: string; type: string; title: string; body: string; read: boolean; createdAt: string }
+
+  const notificationsQuery = useQuery<{ items: NotificationItem[]; unreadCount: number }>({
+    queryKey: ['notifications', address],
+    queryFn: async () => {
+      if (!address) throw new Error('Wallet belum terhubung')
+      const headers = await getSessionAuthHeaders(address, signMessageAsync)
+      const res = await fetch('/api/me/notifications', { headers })
+      if (!res.ok) throw new Error('Gagal memuat notifikasi')
+      return res.json()
+    },
+    enabled: !!address,
+    refetchInterval: 30_000,
+    retry: false,
+  })
+
+  const handleMarkAllRead = async () => {
+    if (!address) return
+    try {
+      const headers = await getSessionAuthHeaders(address, signMessageAsync)
+      await fetch('/api/me/notifications/read', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...headers },
+        body: JSON.stringify({ all: true }),
+      })
+      notificationsQuery.refetch()
+    } catch {
+      toast('error', 'Gagal menandai notifikasi')
+    }
+  }
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 12 }}
@@ -263,6 +334,106 @@ export default function ProfilePage() {
                 </span>
               </div>
             </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ===== Email Verification & Notifikasi ===== */}
+      <div className="mt-8 px-4 sm:px-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Email verification */}
+        <div className="rounded-3xl border border-[#3e63ff]/20 bg-[#1D2027]/60 backdrop-blur-xl p-5">
+          <div className="flex items-center justify-between">
+            <h3 className="flex items-center gap-2 text-sm font-bold text-[#E2E2E9]">
+              <Mail className="h-4 w-4 text-[#3E63FF]" /> Email
+            </h3>
+            {userProfile?.isEmailVerified ? (
+              <span className="flex items-center gap-1 rounded-full border border-[#56ffa8]/30 bg-[#56ffa8]/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-[#56ffa8]">
+                <ShieldCheck className="h-3 w-3" /> Terverifikasi
+              </span>
+            ) : (
+              <span className="rounded-full border border-[#FFC857]/30 bg-[#FFC857]/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-[#FFC857]">
+                Belum verifikasi
+              </span>
+            )}
+          </div>
+
+          {userProfile?.email && (
+            <p className="mt-2 font-mono text-xs text-[#C3C6D3] truncate">{userProfile.email}</p>
+          )}
+
+          {!userProfile?.isEmailVerified && (
+            <div className="mt-3 flex gap-2">
+              <input
+                value={emailInput}
+                onChange={(e) => setEmailInput(e.target.value)}
+                placeholder={userProfile?.email ?? 'nama@email.com'}
+                inputMode="email"
+                className="min-w-0 flex-1 rounded-lg border border-outline-variant/40 bg-surface-container/50 px-3 py-2 text-xs text-on-surface placeholder:text-on-surface-variant focus:border-primary focus:outline-none"
+              />
+              <button
+                onClick={handleSendVerification}
+                disabled={sendingVerify}
+                className={cn(
+                  'rounded-lg px-3 py-2 text-xs font-semibold transition-all',
+                  sendingVerify
+                    ? 'loading-state cursor-wait bg-[#3E63FF] text-white'
+                    : 'bg-[#3E63FF] text-white hover:bg-[#5B7CFF]',
+                )}
+              >
+                Kirim
+              </button>
+            </div>
+          )}
+          {verifyDevLink && (
+            <a href={verifyDevLink} className="mt-2 block break-all font-mono text-[10px] text-[#5B7CFF] hover:underline">
+              [dev] Buka link verifikasi
+            </a>
+          )}
+        </div>
+
+        {/* Notifikasi */}
+        <div className="rounded-3xl border border-[#3e63ff]/20 bg-[#1D2027]/60 backdrop-blur-xl p-5">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="flex items-center gap-2 text-sm font-bold text-[#E2E2E9]">
+              <Bell className="h-4 w-4 text-[#3E63FF]" /> Notifikasi
+              {!!notificationsQuery.data?.unreadCount && (
+                <span className="rounded-full bg-[#3E63FF] px-2 py-0.5 text-[10px] font-bold text-white">
+                  {notificationsQuery.data.unreadCount}
+                </span>
+              )}
+            </h3>
+            {!!notificationsQuery.data?.unreadCount && (
+              <button
+                onClick={handleMarkAllRead}
+                className="font-mono text-[10px] uppercase tracking-wider text-[#A9C7FF] hover:text-[#3E63FF]"
+              >
+                Tandai dibaca
+              </button>
+            )}
+          </div>
+
+          <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
+            {notificationsQuery.isLoading ? (
+              <p className="text-xs text-[#C3C6D3]">Memuat…</p>
+            ) : (notificationsQuery.data?.items.length ?? 0) === 0 ? (
+              <p className="text-xs text-[#C3C6D3]">Belum ada notifikasi.</p>
+            ) : (
+              notificationsQuery.data!.items.map((n) => (
+                <div
+                  key={n.id}
+                  className={cn(
+                    'rounded-xl border px-3 py-2',
+                    n.read ? 'border-white/5 bg-transparent opacity-70' : 'border-[#3e63ff]/25 bg-[#10131A]/60',
+                  )}
+                >
+                  <p className="text-xs font-semibold text-[#E2E2E9]">{n.title}</p>
+                  <p className="text-[11px] leading-relaxed text-[#C3C6D3] mt-0.5">{n.body}</p>
+                  <p className="font-mono text-[9px] text-[#C3C6D3]/50 mt-1">
+                    {new Date(n.createdAt).toLocaleString('id-ID')}
+                  </p>
+                </div>
+              ))
+            )}
           </div>
         </div>
       </div>

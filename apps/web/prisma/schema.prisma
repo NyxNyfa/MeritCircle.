@@ -66,3 +66,132 @@ model PoolMember {
 
   @@id([userId, poolId])
 }
+
+// Iuran per cycle (mirror event PoolJoined/ContributionPaid + hasil cron default-check)
+model Contribution {
+  id            String    @id @default(cuid())
+  poolIdOnChain Int
+  round         Int       @default(0)
+  cycle         Int
+  userWallet    String
+  amount        Float
+  dueAt         DateTime?
+  paidAt        DateTime?
+  status        String    @default("PAID") // PAID | LATE | MISSED
+  txHash        String?
+  createdAt     DateTime  @default(now())
+
+  @@unique([poolIdOnChain, round, cycle, userWallet])
+  @@index([userWallet])
+}
+
+// Lelang per cycle untuk pool auction (Tier 4-5)
+model Auction {
+  id            String   @id @default(cuid())
+  poolIdOnChain Int
+  round         Int      @default(0)
+  cycle         Int
+  opensAt       DateTime @default(now())
+  closesAt      DateTime
+  status        String   @default("OPEN") // OPEN | CLOSED
+  winningBid    Float?
+  winnerWallet  String?
+  surplus       Float?
+
+  bids Bid[]
+
+  @@unique([poolIdOnChain, round, cycle])
+}
+
+// Bid auction (mirror event BidPlaced)
+model Bid {
+  id         String   @id @default(cuid())
+  auctionId  String
+  userWallet String
+  amount     Float
+  valid      Boolean  @default(true)
+  txHash     String?
+  createdAt  DateTime @default(now())
+
+  auction Auction @relation(fields: [auctionId], references: [id], onDelete: Cascade)
+
+  @@unique([auctionId, userWallet])
+}
+
+// Payout cycle (winner + konteks ekonomi; mirror event CycleSettled)
+model Payout {
+  id            String   @id @default(cuid())
+  poolIdOnChain Int
+  round         Int      @default(0)
+  cycle         Int
+  userWallet    String
+  nominalAmount Float
+  payoutAmount  Float
+  discount      Float    @default(0) // nominal - payout (auction)
+  surplus       Float    @default(0)
+  txHash        String?
+  status        String   @default("SETTLED")
+  createdAt     DateTime @default(now())
+
+  @@unique([poolIdOnChain, round, cycle])
+  @@index([userWallet])
+}
+
+// Komitmen anggota terhadap satu pool-round penuh (spesifikasi §22)
+model Obligation {
+  id                String   @id @default(cuid())
+  poolIdOnChain     Int
+  round             Int      @default(0)
+  userWallet        String
+  totalCycles       Int
+  contributedCycles Int      @default(0)
+  missedCycles      Int      @default(0)
+  status            String   @default("ACTIVE") // ACTIVE | COMPLETED | DEFAULTED
+  updatedAt         DateTime @updatedAt
+
+  @@unique([poolIdOnChain, round, userWallet])
+  @@index([userWallet])
+}
+
+// Notifikasi in-app feed
+model Notification {
+  id         String   @id @default(cuid())
+  userWallet String
+  type       String // contribution_due | payment_success | auction_open | auction_result | default_warning | merit_change | payout
+  title      String
+  body       String
+  read       Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  @@index([userWallet, read])
+}
+
+// Ledger perubahan merit (audit trail skor reputasi)
+model ReputationEvent {
+  id          String   @id @default(cuid())
+  userWallet  String
+  eventType   String // contribution_on_time | contribution_late | pool_completed | default | payout_received | adjustment
+  pointsDelta Int
+  detail      String?
+  createdAt   DateTime @default(now())
+
+  @@index([userWallet])
+}
+
+// Token verifikasi email (single-use, kadaluarsa 24 jam)
+model EmailToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  email     String
+  wallet    String
+  expiresAt DateTime
+  consumed  Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+// Kursor indexer per stream agar tidak memproses blok dua kali
+model IndexerCursor {
+  id        String   @id // nama stream, mis. "meritpool-events"
+  lastBlock Int
+  updatedAt DateTime @updatedAt
+}

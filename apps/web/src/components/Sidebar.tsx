@@ -16,6 +16,7 @@ export type UserProfile = {
   meritScore: number
   tier: number
   isVerified: boolean
+  isEmailVerified?: boolean
   email?: string | null
   socialMedia?: string | null
   avatarUrl?: string | null

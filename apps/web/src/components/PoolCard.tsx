@@ -53,8 +53,6 @@ type PoolCardProps = {
   onSettle?: (poolId: string) => void
 }
 
-const STATUS_LABELS = ['Open', 'Active', 'Completed'] as const
-
 function formatCountdown(deadlineSec?: number): string | null {
   if (!deadlineSec) return null
   const remaining = deadlineSec - Math.floor(Date.now() / 1000)

@@ -232,6 +232,13 @@ export const MERITPOOL_ABI = [
   },
   {
     "type": "function",
+    "name": "isSettleable",
+    "inputs": [{"name": "poolId", "type": "uint256"}],
+    "outputs": [{"name": "", "type": "bool"}],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "getBidCount",
     "inputs": [{"name": "poolId", "type": "uint256"}],
     "outputs": [{"name": "", "type": "uint256"}],
