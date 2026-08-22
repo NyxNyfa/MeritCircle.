@@ -159,12 +159,12 @@ export default function DashboardPage() {
   })
   const cycles = cyclesRead.data ?? []
 
-  // hasJoined[poolId][cycleId][user] — apakah user sudah join di siklus aktif pool tersebut
+  // hasContributed[poolId][cycleId][user] — apakah user sudah bayar iuran di cycle aktif pool tersebut
   const joinedRead = useReadContracts({
     contracts: POOL_REGISTRY.map((cfg) => ({
       address: MERITPOOL_ADDRESS as `0x${string}`,
       abi: MERITPOOL_ABI,
-      functionName: 'hasJoined',
+      functionName: 'hasContributed',
       args: [
         BigInt(cfg.poolIdOnChain),
         resultOf<bigint>(cycles[cfg.poolIdOnChain]) ?? BigInt(0),
@@ -174,6 +174,65 @@ export default function DashboardPage() {
     query: { enabled: !!address && cycles.some((c) => resultOf<bigint>(c) !== undefined) },
   })
   const joinedFlags = joinedRead.data?.map((r) => resultOf<boolean>(r) === true) ?? []
+
+  // ---- MeritPool v2: status/round/cycle/deadline per pool ----
+  const statesRead = useReadContracts({
+    contracts: POOL_REGISTRY.map((cfg) => ({
+      address: MERITPOOL_ADDRESS as `0x${string}`,
+      abi: MERITPOOL_ABI,
+      functionName: 'getPoolState' as const,
+      args: [BigInt(cfg.poolIdOnChain)],
+    })),
+  })
+  type PoolStateTuple = [number, bigint, bigint, bigint, bigint, bigint]
+  const poolStates = POOL_REGISTRY.map((cfg) => {
+    const r = resultOf<PoolStateTuple>(statesRead.data?.[cfg.poolIdOnChain])
+    if (!r) return undefined
+    return {
+      status: Number(r[0]),
+      round: Number(r[1]),
+      cycle: Number(r[2]),
+      deadlineSec: Number(r[3]),
+      collected: Number(r[4]) / 1e18,
+      memberCount: Number(r[5]),
+    }
+  })
+
+  // Settleable per pool (deadline tercapai atau semua anggota sudah bayar)
+  const settleableRead = useReadContracts({
+    contracts: POOL_REGISTRY.map((cfg) => ({
+      address: MERITPOOL_ADDRESS as `0x${string}`,
+      abi: MERITPOOL_ABI,
+      functionName: 'isSettleable' as const,
+      args: [BigInt(cfg.poolIdOnChain)],
+    })),
+  })
+
+  // ---- Auction data (Tier 4-5) ----
+  const minBidRead = useReadContracts({
+    contracts: POOL_REGISTRY.map((cfg) => ({
+      address: MERITPOOL_ADDRESS as `0x${string}`,
+      abi: MERITPOOL_ABI,
+      functionName: 'minValidBid' as const,
+      args: [BigInt(cfg.poolIdOnChain)],
+    })),
+  })
+  const lowestBidRead = useReadContracts({
+    contracts: POOL_REGISTRY.map((cfg) => ({
+      address: MERITPOOL_ADDRESS as `0x${string}`,
+      abi: MERITPOOL_ABI,
+      functionName: 'getLowestBid' as const,
+      args: [BigInt(cfg.poolIdOnChain)],
+    })),
+  })
+  const bidCountRead = useReadContracts({
+    contracts: POOL_REGISTRY.map((cfg) => ({
+      address: MERITPOOL_ADDRESS as `0x${string}`,
+      abi: MERITPOOL_ABI,
+      functionName: 'getBidCount' as const,
+      args: [BigInt(cfg.poolIdOnChain)],
+    })),
+  })
 
   // Resolve alamat pemenang -> username dari database
   const { data: winnerUsernames, refetch: refetchWinners } = useQuery<Record<string, string>>({
@@ -263,6 +322,78 @@ export default function DashboardPage() {
   const { data: receipt, isError: isReceiptError } = useWaitForTransactionReceipt({
     hash: pendingReceipt?.hash,
   })
+
+  // ---------- Handler v2: kontribusi cycle, bid auction, settle keeper-lite ----------
+  const handleContribute = async (poolId: string) => {
+    if (!address) return
+    try {
+      const pool = pools.find((p) => p.id === poolId)
+      if (!pool) return
+      setJoiningPoolId(poolId)
+      const hash = await joinWrite.writeContractAsync({
+        address: MERITPOOL_ADDRESS,
+        abi: MERITPOOL_ABI,
+        functionName: 'contribute',
+        args: [BigInt(pool.poolIdOnChain)],
+      })
+      setPendingReceipt({ hash, label: `Iuran ${pool.name} dibayar` })
+    } catch (error) {
+      toast('error', 'Kontribusi gagal', reasonOf(error))
+    } finally {
+      setJoiningPoolId(null)
+    }
+  }
+
+  const handleBid = async (poolId: string, amountMc: number) => {
+    if (!address) return
+    try {
+      const pool = pools.find((p) => p.id === poolId)
+      if (!pool) return
+      setJoiningPoolId(poolId)
+      const hash = await joinWrite.writeContractAsync({
+        address: MERITPOOL_ADDRESS,
+        abi: MERITPOOL_ABI,
+        functionName: 'placeBid',
+        args: [BigInt(pool.poolIdOnChain), parseUnits(amountMc.toString(), 18)],
+      })
+      setPendingReceipt({ hash, label: `Bid ${amountMc.toLocaleString()} MC tercatat` })
+    } catch (error) {
+      toast('error', 'Bid ditolak', reasonOf(error))
+    } finally {
+      setJoiningPoolId(null)
+    }
+  }
+
+  // Keeper-lite: minta designation Merit Queue dari backend, lalu settle
+  // (kontrak memakai fallback bila tidak ada bid auction; kalau ada bid, bid terendah yang menang).
+  const handleSettle = async (poolId: string) => {
+    try {
+      const pool = pools.find((p) => p.id === poolId)
+      if (!pool) return
+      setJoiningPoolId(poolId)
+      const res = await fetch('/api/pools/designation', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ poolIdOnChain: pool.poolIdOnChain }),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data.error || 'Gagal mengambil designation')
+      }
+      const data = (await res.json()) as { winner: string; signature: `0x${string}` }
+      const hash = await joinWrite.writeContractAsync({
+        address: MERITPOOL_ADDRESS,
+        abi: MERITPOOL_ABI,
+        functionName: 'settleCycle',
+        args: [BigInt(pool.poolIdOnChain), data.winner as `0x${string}`, data.signature],
+      })
+      setPendingReceipt({ hash, label: `${pool.name} — cycle ditutup` })
+    } catch (error) {
+      toast('error', 'Settle gagal', reasonOf(error))
+    } finally {
+      setJoiningPoolId(null)
+    }
+  }
 
   useEffect(() => {
     if (receipt && pendingReceipt) {
@@ -371,7 +502,38 @@ export default function DashboardPage() {
                 isJoinPending={joinWrite.isPending}
                 isApprovePending={approveWrite.isPending}
                 onJoin={handleJoinPool}
-                onApprove={handleApprove}                onOpenRegister={openRegister}
+                onApprove={handleApprove}
+                onOpenRegister={openRegister}
+                // ---- v2 ----
+                poolStatus={poolStates[pool.poolIdOnChain]?.status}
+                deadlineSec={poolStates[pool.poolIdOnChain]?.deadlineSec}
+                isPoolMember={!!userProfile?.memberPoolIds?.includes(pool.id)}
+                isContributePending={joinWrite.isPending && joiningPoolId === pool.id}
+                onContribute={handleContribute}
+                minBidNum={
+                  (() => {
+                    const v = resultOf<bigint>(minBidRead.data?.[pool.poolIdOnChain])
+                    return typeof v === 'bigint' ? Number(v) / 1e18 : undefined
+                  })()
+                }
+                lowestBid={
+                  (() => {
+                    const r = resultOf<[string, bigint]>(lowestBidRead.data?.[pool.poolIdOnChain])
+                    if (!r || typeof r[1] !== 'bigint' || r[1] === BigInt(0)) return null
+                    return { bidder: r[0], amount: (Number(r[1]) / 1e18).toString() }
+                  })()
+                }
+                bidCount={
+                  (() => {
+                    const v = resultOf<bigint>(bidCountRead.data?.[pool.poolIdOnChain])
+                    return typeof v === 'bigint' ? Number(v) : 0
+                  })()
+                }
+                isBidPending={joinWrite.isPending && joiningPoolId === pool.id}
+                onBid={handleBid}
+                settleable={resultOf<boolean>(settleableRead.data?.[pool.poolIdOnChain]) === true}
+                isSettlingThis={joinWrite.isPending && joiningPoolId === pool.id}
+                onSettle={handleSettle}
               />
             )
           })}

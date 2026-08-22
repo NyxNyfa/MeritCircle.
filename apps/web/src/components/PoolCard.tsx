@@ -19,6 +19,8 @@ export type Pool = {
   memberCount: number
 }
 
+type LowestBid = { bidder: string; amount: string } | null
+
 type PoolCardProps = {
   pool: Pool
   index: number
@@ -35,6 +37,31 @@ type PoolCardProps = {
   onJoin: (poolId: string) => void
   onApprove: (poolId: string, amount: number) => void
   onOpenRegister: () => void
+  // ---- MeritPool v2 ----
+  poolStatus?: number // 0 OPEN · 1 ACTIVE · 2 COMPLETED
+  deadlineSec?: number // unix detik — deadline cycle berjalan
+  isPoolMember?: boolean
+  isContributePending?: boolean
+  onContribute?: (poolId: string) => void
+  minBidNum?: number // MC — batas bawah bid valid
+  lowestBid?: LowestBid
+  bidCount?: number
+  isBidPending?: boolean
+  onBid?: (poolId: string, amountMc: number) => void
+  settleable?: boolean
+  isSettlingThis?: boolean
+  onSettle?: (poolId: string) => void
+}
+
+const STATUS_LABELS = ['Open', 'Active', 'Completed'] as const
+
+function formatCountdown(deadlineSec?: number): string | null {
+  if (!deadlineSec) return null
+  const remaining = deadlineSec - Math.floor(Date.now() / 1000)
+  if (remaining <= 0) return 'Deadline tercapai'
+  const mins = Math.floor(remaining / 60)
+  const secs = remaining % 60
+  return mins > 0 ? `${mins}m ${secs}s lagi` : `${secs}s lagi`
 }
 
 // Backdrop artistik per tier (berbasis gradient + glow)
@@ -63,9 +90,29 @@ export default function PoolCard({
   onJoin,
   onApprove,
   onOpenRegister,
+  poolStatus,
+  deadlineSec,
+  isPoolMember,
+  isContributePending,
+  onContribute,
+  minBidNum,
+  lowestBid,
+  bidCount,
+  isBidPending,
+  onBid,
+  settleable,
+  isSettlingThis,
+  onSettle,
 }: PoolCardProps) {
   const cardRef = React.useRef<HTMLDivElement>(null)
   const [tiltStyle, setTiltStyle] = React.useState<React.CSSProperties>({})
+  // Tick tiap 30 detik agar countdown ter-refresh
+  const [, setTick] = React.useState(0)
+  React.useEffect(() => {
+    const t = setInterval(() => setTick((n) => n + 1), 30_000)
+    return () => clearInterval(t)
+  }, [])
+  const [bidInput, setBidInput] = React.useState('')
 
   // --- MOUSE MOVE HANDLER (3D Tilt) ---
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -108,11 +155,19 @@ export default function PoolCard({
         ? 'Requires VIP Status'
         : 'Insufficient Balance'
 
-  const statusChip = isJoined ? (
+  const isCompleted = poolStatus === 2
+  const isOpen = poolStatus === undefined || poolStatus === 0
+
+  const statusChip = isCompleted ? (
+    <span className="flex items-center gap-1 rounded-full border border-white/15 bg-[#10131A]/60 px-2 py-1 backdrop-blur-sm">
+      <Icon name="flag_circle" className="text-sm text-[#C3C6D3]" />
+      <span className="font-mono-label text-mono-label text-[#C3C6D3] uppercase">Selesai</span>
+    </span>
+  ) : isJoined ? (
     <span className="flex items-center gap-1 rounded-full border border-secondary-fixed/50 bg-secondary-fixed/10 px-2 py-1 backdrop-blur-sm">
       <Icon name="check_circle" fill className="text-sm text-secondary-fixed" />
       <span className="font-mono-label text-mono-label text-secondary-fixed uppercase">
-        In Cycle {cycleId ?? '—'} · Member
+        Cycle {cycleId ?? '—'} · Member
       </span>
     </span>
   ) : isLocked ? (
@@ -123,7 +178,9 @@ export default function PoolCard({
   ) : (
     <span className="flex items-center gap-1.5 rounded-full border border-[#3e63ff]/30 bg-[#10131A]/60 px-2 py-1 backdrop-blur-sm">
       <span className="w-2 h-2 rounded-full bg-[#3E63FF] animate-pulse shadow-[0_0_8px_rgba(62,99,255,0.9)]" />
-      <span className="font-mono-label text-mono-label text-[#3E63FF] uppercase">Live</span>
+      <span className="font-mono-label text-mono-label text-[#3E63FF] uppercase">
+        {isOpen ? 'Live' : 'Aktif'}
+      </span>
     </span>
   )
 
@@ -137,7 +194,8 @@ export default function PoolCard({
       animate={{ opacity: 1, filter: 'blur(0px)' }}
       transition={{ duration: 0.45, delay: 0.05 * index }}
       className={cn(
-        'group relative w-full max-w-[320px] h-[470px] rounded-3xl bg-[#1d2027]/60 border border-[#3e63ff]/30 backdrop-blur-[12px] shadow-[0px_25px_50px_-12px_rgba(0,0,0,0.25)] transform-style-3d will-change-transform',
+        'group relative w-full max-w-[320px] rounded-3xl bg-[#1d2027]/60 border border-[#3e63ff]/30 backdrop-blur-[12px] shadow-[0px_25px_50px_-12px_rgba(0,0,0,0.25)] transform-style-3d will-change-transform',
+        pool.isAuctionMode ? 'h-[640px]' : 'h-[530px]',
         'transition-all duration-300 hover:border-[#3e63ff]/60 hover:shadow-[0px_25px_60px_-12px_rgba(62,99,255,0.25)]',
         isLocked && 'opacity-75 grayscale-[0.45] hover:opacity-100 hover:grayscale-0',
         isJoined && 'border-[#56ffa8]/40 shadow-[0px_25px_50px_-12px_rgba(0,236,145,0.15)]'
@@ -216,9 +274,68 @@ export default function PoolCard({
             <span className="text-sm">🏆</span>
             <span className="text-[#C3C6D3]">Last Winner:</span>
             <span className="font-semibold text-[#E2E2E9] truncate">
-              {lastWinnerName ? `@${lastWinnerName}` : 'None'}
+              {lastWinnerName ? `@${lastWinnerName}` : '—'}
             </span>
           </div>
+
+          {/* Cycle & countdown (v2) */}
+          {poolStatus === 1 && cycleId !== undefined && (
+            <div className="flex items-center justify-between text-[11px] mt-1 px-1">
+              <span className="text-[#C3C6D3] font-mono-label uppercase">Cycle {cycleId}</span>
+              <span className="text-[#5B7CFF] font-mono">{formatCountdown(deadlineSec) ?? '—'}</span>
+            </div>
+          )}
+
+          {/* Panel auction (v2 — hanya pool auction saat ACTIVE) */}
+          {pool.isAuctionMode && poolStatus === 1 && (
+            <div className="mt-1.5 rounded-xl border border-[#ffb020]/25 bg-[#10131A]/60 px-3 py-2 space-y-1.5">
+              <div className="flex justify-between text-[11px]">
+                <span className="text-[#C3C6D3]">Lelang · bid terendah menang</span>
+                <span className="text-[#C3C6D3] font-mono">{bidCount ?? 0} bid</span>
+              </div>
+              <div className="flex justify-between text-[11px]">
+                <span className="text-[#C3C6D3]">Min bid</span>
+                <span className="text-[#ffb020] font-mono">{(minBidNum ?? 0).toLocaleString()} MC</span>
+              </div>
+              <div className="flex justify-between text-[11px]">
+                <span className="text-[#C3C6D3]">Bid terendah</span>
+                <span className="text-[#E2E2E9] font-mono truncate max-w-[140px]">
+                  {lowestBid
+                    ? `${Number(lowestBid.amount).toLocaleString()} MC`
+                    : 'Belum ada'}
+                </span>
+              </div>
+              {/* Form bid: member yang sudah bayar iuran cycle ini */}
+              {isPoolMember && isJoinedThisCycle && !isCompleted && onBid && (
+                <div className="flex gap-1.5 pt-0.5">
+                  <input
+                    value={bidInput}
+                    onChange={(e) => setBidInput(e.target.value.replace(/[^0-9.]/g, ''))}
+                    placeholder={`${minBidNum?.toFixed(0) ?? '—'}+`}
+                    inputMode="decimal"
+                    className="min-w-0 flex-1 rounded-lg border border-outline-variant/40 bg-surface-container/50 px-2 py-1.5 text-xs text-on-surface placeholder:text-on-surface-variant focus:border-primary focus:outline-none"
+                  />
+                  <button
+                    onClick={() => {
+                      const v = parseFloat(bidInput)
+                      if (!Number.isFinite(v) || v <= 0) return
+                      onBid(pool.id, v)
+                      setBidInput('')
+                    }}
+                    disabled={isBidPending || !bidInput}
+                    className={cn(
+                      'rounded-lg px-3 py-1.5 text-xs font-semibold transition-all',
+                      isBidPending || !bidInput
+                        ? 'bg-white/10 text-white/50 cursor-not-allowed'
+                        : 'bg-[#ffb020]/90 text-black hover:bg-[#ffb020]',
+                    )}
+                  >
+                    {isBidPending ? '…' : 'Bid'}
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
 
           {isJoined && (
             <div className="flex justify-between items-center text-xs mt-1">
@@ -230,9 +347,41 @@ export default function PoolCard({
           )}
         </div>
 
-        {/* Actions — satu tombol pintar (Approve → otomatis Join) */}
+        {/* Actions — satu tombol pintar (Approve → otomatis Join) + aksi v2 */}
         <div className="mt-auto flex flex-col gap-1.5">
-          {isJoined ? (
+          {/* Bayar iuran cycle berjalan (member, cycle >= 2, belum bayar) */}
+          {poolStatus === 1 && isPoolMember && !isJoinedThisCycle && onContribute && (
+            <button
+              onClick={() => onContribute(pool.id)}
+              disabled={isContributePending}
+              className={cn(
+                'w-full py-2 rounded-full text-sm font-semibold transition-all duration-300',
+                isContributePending
+                  ? 'loading-state cursor-wait bg-[#3E63FF] text-white'
+                  : 'bg-secondary-fixed/15 border border-secondary-fixed/40 text-secondary-fixed hover:bg-secondary-fixed/25',
+              )}
+            >
+              {isContributePending ? 'Confirming…' : `Bayar Iuran ${pool.contributionAmount.toLocaleString()} MC`}
+            </button>
+          )}
+
+          {/* Keeper-lite: tutup cycle saat settleable */}
+          {settleable && poolStatus === 1 && onSettle && (
+            <button
+              onClick={() => onSettle(pool.id)}
+              disabled={isSettlingThis}
+              className={cn(
+                'w-full py-2 rounded-full text-sm font-semibold transition-all duration-300',
+                isSettlingThis
+                  ? 'loading-state cursor-wait bg-[#3E63FF] text-white'
+                  : 'bg-[#10131A]/70 border border-[#3e63ff]/40 text-[#E2E2E9] hover:border-[#3E63FF] hover:text-[#3E63FF]',
+              )}
+            >
+              {isSettlingThis ? 'Menutup cycle…' : 'Tutup Cycle (Settle)'}
+            </button>
+          )}
+
+          {!isCompleted && poolStatus !== 1 && (isJoined ? (
             <div className="w-full py-2.5 rounded-full bg-secondary-fixed/10 border border-secondary-fixed/30 text-secondary-fixed text-sm font-semibold text-center">
               Menunggu siklus selesai…
             </div>
@@ -284,7 +433,7 @@ export default function PoolCard({
                 <Icon name="progress_activity" className="text-xl animate-spin text-on-primary" />
               </span>
             </button>
-          )}
+          ))}
           {anyStepPending && (
             <p className="font-mono-label text-mono-label text-secondary-fixed text-center mc-pulse-soft">
               Waiting for Wallet Confirmation…

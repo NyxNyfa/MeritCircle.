@@ -30,10 +30,10 @@ export const CHAIN_CONTRACTS: Record<number, ContractAddresses> = {
     meritPool: "0x0000000000000000000000000000000000000002" as `0x${string}`,
   },
   31337: {
-    // Deploy terakhir (MCircle onlyMinter + TokenSwap minter role + nama pool spec)
-    mcToken: normalizeAddress("0x5FbDB2315678afecb367f032d93F642f64180aa3"),
-    tokenSwap: normalizeAddress("0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512"),
-    meritPool: normalizeAddress("0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9"),
+    // Deploy MeritPool v2 (cycle scheduling + Merit Queue + auction + surplus split)
+    mcToken: normalizeAddress("0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9"),
+    tokenSwap: normalizeAddress("0x5FC8d32690cc91D4c39d9d3abcBD16989F875707"),
+    meritPool: normalizeAddress("0xa513E6E4b8f2a923D98304ec87F64353C4D5C853"),
   },
 };
 
@@ -104,7 +104,7 @@ export const TOKEN_SWAP_ABI = [
   }
 ] as const;
 
-// 3. ABI untuk MeritPool Arisan (multi-pool: 6 pool + lastWinner + currentCycle)
+// 3. ABI MeritPool v2 (multi-pool + cycle scheduling + auction)
 export const MERITPOOL_ABI = [
   {
     "type": "function",
@@ -113,6 +113,45 @@ export const MERITPOOL_ABI = [
       {"name": "poolId", "type": "uint256"},
       {"name": "userTier", "type": "uint256"},
       {"name": "signature", "type": "bytes"}
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "contribute",
+    "inputs": [{"name": "poolId", "type": "uint256"}],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "placeBid",
+    "inputs": [
+      {"name": "poolId", "type": "uint256"},
+      {"name": "amount", "type": "uint256"}
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "designateWinner",
+    "inputs": [
+      {"name": "poolId", "type": "uint256"},
+      {"name": "winner", "type": "address"},
+      {"name": "signature", "type": "bytes"}
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "settleCycle",
+    "inputs": [
+      {"name": "poolId", "type": "uint256"},
+      {"name": "fallbackWinner", "type": "address"},
+      {"name": "fallbackSignature", "type": "bytes"}
     ],
     "outputs": [],
     "stateMutability": "nonpayable"
@@ -133,7 +172,7 @@ export const MERITPOOL_ABI = [
   },
   {
     "type": "function",
-    "name": "hasJoined",
+    "name": "hasContributed",
     "inputs": [
       {"name": "poolId", "type": "uint256"},
       {"name": "cycleId", "type": "uint256"},
@@ -144,7 +183,56 @@ export const MERITPOOL_ABI = [
   },
   {
     "type": "function",
+    "name": "cycleWinner",
+    "inputs": [
+      {"name": "poolId", "type": "uint256"},
+      {"name": "round", "type": "uint256"},
+      {"name": "cycle", "type": "uint256"}
+    ],
+    "outputs": [{"name": "", "type": "address"}],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "getCurrentMembersCount",
+    "inputs": [{"name": "poolId", "type": "uint256"}],
+    "outputs": [{"name": "", "type": "uint256"}],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getPoolState",
+    "inputs": [{"name": "poolId", "type": "uint256"}],
+    "outputs": [
+      {"name": "status", "type": "uint8"},
+      {"name": "round", "type": "uint256"},
+      {"name": "activeCycle", "type": "uint256"},
+      {"name": "deadline", "type": "uint256"},
+      {"name": "collectedThisCycle", "type": "uint256"},
+      {"name": "memberCount", "type": "uint256"}
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "minValidBid",
+    "inputs": [{"name": "poolId", "type": "uint256"}],
+    "outputs": [{"name": "", "type": "uint256"}],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getLowestBid",
+    "inputs": [{"name": "poolId", "type": "uint256"}],
+    "outputs": [
+      {"name": "bidder", "type": "address"},
+      {"name": "amount", "type": "uint256"}
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getBidCount",
     "inputs": [{"name": "poolId", "type": "uint256"}],
     "outputs": [{"name": "", "type": "uint256"}],
     "stateMutability": "view"
@@ -159,8 +247,10 @@ export const MERITPOOL_ABI = [
       {"name": "tierRequired", "type": "uint256"},
       {"name": "contributionAmount", "type": "uint256"},
       {"name": "maxMembers", "type": "uint256"},
-      {"name": "totalYield", "type": "uint256"},
-      {"name": "isAuctionMode", "type": "bool"}
+      {"name": "totalCycles", "type": "uint256"},
+      {"name": "cycleDuration", "type": "uint256"},
+      {"name": "isAuctionMode", "type": "bool"},
+      {"name": "maxDiscountBps", "type": "uint256"}
     ],
     "stateMutability": "view"
   }

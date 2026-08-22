@@ -21,6 +21,7 @@ export type UserProfile = {
   avatarUrl?: string | null
   twitterHandle?: string | null
   bio?: string | null
+  memberPoolIds?: string[]
 }
 
 type SidebarProps = {

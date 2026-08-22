@@ -36,6 +36,7 @@ export async function GET(
     // Alur normal: cari user di database
     const user = await prisma.user.findUnique({
       where: { walletAddress: address },
+      include: { memberships: { select: { poolId: true } } },
     });
 
     if (!user) {
@@ -43,8 +44,12 @@ export async function GET(
     }
 
     const tier = calculateTier(user.meritScore);
+    const { memberships, ...userData } = user;
 
-    return NextResponse.json({ ...user, tier }, { status: 200 });
+    return NextResponse.json(
+      { ...userData, tier, memberPoolIds: memberships.map((m) => m.poolId) },
+      { status: 200 },
+    );
   } catch (error) {
     console.error("API Error:", error);
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
