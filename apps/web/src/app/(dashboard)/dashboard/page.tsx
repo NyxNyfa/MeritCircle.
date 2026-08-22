@@ -7,23 +7,24 @@ import {
   useReadContracts,
   useWriteContract,
   useWaitForTransactionReceipt,
+  useSignMessage,
 } from 'wagmi'
 import { useQuery } from '@tanstack/react-query'
 import { formatUnits, parseUnits } from 'viem'
 import {
-  MC_TOKEN_ADDRESS as MCIRCLE_ADDRESS,
   MCIRCLE_ABI,
-  MERIT_POOL_ADDRESS as MERITPOOL_ADDRESS,
   MERITPOOL_ABI,
 } from '@/config/contracts'
+import { useContractAddresses } from '@/lib/use-contracts'
 import { POOL_REGISTRY } from '@/config/pools'
 import { useToast } from '@/components/Toast'
 import { Icon } from '@/components/Icon'
 import PoolCard, { type Pool } from '@/components/PoolCard'
 import type { UserProfile } from '@/components/Sidebar'
 import { useRegisterModal } from '@/lib/register-modal'
+import { createWalletAuthHeader } from '@/lib/wallet-auth-client'
+import { calculateTier } from '@/lib/tier'
 
-const MERIT_POINTS_PER_TIER = 20
 const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000'
 
 const reasonOf = (error: unknown) => {
@@ -60,6 +61,8 @@ export default function DashboardPage() {
   const { address } = useAccount()
   const { toast } = useToast()
   const { openRegister } = useRegisterModal()
+  const { signMessageAsync } = useSignMessage()
+  const { mcToken: MCIRCLE_ADDRESS, meritPool: MERITPOOL_ADDRESS } = useContractAddresses()
 
   const [joiningPoolId, setJoiningPoolId] = useState<string | null>(null)
   const [pendingReceipt, setPendingReceipt] = useState<ReceiptTicket | null>(null)
@@ -202,14 +205,19 @@ export default function DashboardPage() {
 
   // ---------- Handlers (di-deklarasikan sebelum receipt effect agar bisa dirantai) ----------
   const handleJoinPool = async (poolId: string) => {
+    if (!address) {
+      toast('error', 'Wallet belum terhubung', 'Sambungkan wallet Anda terlebih dahulu.')
+      return
+    }
     try {
       const pool = pools.find((p) => p.id === poolId)
       if (!pool) return
       setJoiningPoolId(poolId)
-      const res = await fetch('/api/sign', {
+      // Endpoint resmi penandatanganan backend (risk gate tier + auction di sisi server)
+      const res = await fetch('/api/pools/signature', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userAddress: address, poolId }),
+        body: JSON.stringify({ walletAddress: address, poolId }),
       })
       const data = await res.json()
       if (!res.ok) {
@@ -222,11 +230,12 @@ export default function DashboardPage() {
         functionName: 'joinPool',
         args: [BigInt(pool.poolIdOnChain), BigInt(data.userTier as number), data.signature as `0x${string}`],
       })
-      // Catat keanggotaan off-chain agar progress bar member ter-update
+      // Catat keanggotaan off-chain agar progress bar member ter-update (wajib tanda tangan wallet)
+      const authHeader = await createWalletAuthHeader(address, signMessageAsync)
       await fetch('/api/pools/join', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ walletAddress: address, poolId }),
+        headers: { 'Content-Type': 'application/json', 'x-mp-auth': authHeader },
+        body: JSON.stringify({ poolId }),
       })
       setPendingReceipt({ hash, label: 'Berhasil masuk pool' })
     } catch (error) {
@@ -285,7 +294,7 @@ export default function DashboardPage() {
   }, [isReceiptError])
 
   // ---------- Derived ----------
-  const userTier = userProfile ? Math.floor(userProfile.meritScore / MERIT_POINTS_PER_TIER) : 0
+  const userTier = userProfile ? calculateTier(userProfile.meritScore) : 0
 
   return (
     <>

@@ -17,14 +17,22 @@ model User {
   avatarUrl       String?
   twitterHandle   String?
   bio             String?
-  meritScore      Int      @default(0) // Poin dimulai dari 0 (Tier 0)
-  tier            Int      @default(0) // Tier snapshot (1 Tier = 20 Merit Points)
+  meritScore      Int      @default(0) // Merit Score 0-100
+  tier            Int      @default(0) // Snapshot tier (band spec: 0 | 1-20 | 21-50 | 51-75 | 76-90 | 91-100)
   nonce           String   @default(cuid())
 
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
   memberships     PoolMember[]
+}
+
+// Challenge nonce single-use untuk verifikasi kepemilikan wallet (auth endpoint mutasi)
+model AuthChallenge {
+  address   String   @id
+  nonce     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Pool {

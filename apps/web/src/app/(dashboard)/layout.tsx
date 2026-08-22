@@ -2,13 +2,15 @@
 
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { useRouter } from 'next/navigation'
-import { useAccount, useDisconnect } from 'wagmi'
+import { useAccount, useDisconnect, useSignMessage } from 'wagmi'
 import { useQuery } from '@tanstack/react-query'
 import { useToast } from '@/components/Toast'
 import Sidebar, { type UserProfile } from '@/components/Sidebar'
 import RegistrationModal, { type RegisterValues } from '@/components/RegistrationModal'
 import { Icon } from '@/components/Icon'
 import { RegisterModalContext } from '@/lib/register-modal'
+import { createWalletAuthHeader } from '@/lib/wallet-auth-client'
+import { calculateTier } from '@/lib/tier'
 
 const truncateAddress = (addr: string) => (addr ? `${addr.slice(0, 6)}…${addr.slice(-4)}` : '')
 
@@ -17,6 +19,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const { address, isConnected } = useAccount()
   const { disconnect } = useDisconnect()
   const { toast } = useToast()
+  const { signMessageAsync } = useSignMessage()
 
   const [registerOpen, setRegisterOpen] = useState(false)
   const autoOpenRegisterRef = useRef<string | null>(null)
@@ -70,11 +73,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   const handleRegister = async (values: RegisterValues) => {
     if (!address) throw new Error('Wallet belum terhubung')
+    // Bukti kepemilikan wallet (challenge-response) — server menolak tanpa ini
+    const authHeader = await createWalletAuthHeader(address, signMessageAsync)
     const res = await fetch('/api/users/register', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'x-mp-auth': authHeader },
       body: JSON.stringify({
-        walletAddress: address,
         username: values.username,
         email: values.email || null,
         socialMedia: values.socialMedia || null,
@@ -89,7 +93,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     setRegisterOpen(false)
   }
 
-  const userTier = userProfile ? Math.floor(userProfile.meritScore / 20) : 0
+  const userTier = userProfile ? calculateTier(userProfile.meritScore) : 0
 
   return (
     <div className="flex min-h-screen bg-[#10131A] text-[#E2E2E9] font-sans selection:bg-[#3E63FF]/30">

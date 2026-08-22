@@ -22,7 +22,11 @@ contract DeployScript is Script {
         TokenSwap tokenSwap = new TokenSwap(address(mcToken));
         console.log("TokenSwap deployed at:", address(tokenSwap));
 
-        // C. Deploy MeritPool
+        // C. Beri TokenSwap hak mint MC (satu-satunya jalur pencetakan selain owner)
+        mcToken.setMinter(address(tokenSwap), true);
+        console.log("TokenSwap granted minter role");
+
+        // D. Deploy MeritPool
         MeritPool meritPool = new MeritPool(address(mcToken), backendSigner);
         console.log("MeritPool deployed at:", address(meritPool));
 

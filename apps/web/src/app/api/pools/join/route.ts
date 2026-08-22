@@ -3,17 +3,26 @@
 
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { authenticateRequest } from '@/lib/auth';
 
 export async function POST(req: Request) {
   try {
-    const { walletAddress, poolId } = await req.json();
+    // Wajib bukti kepemilikan wallet — catatan keanggotaan hanya atas nama wallet sendiri
+    const authedAddress = await authenticateRequest(req);
+    if (!authedAddress) {
+      return NextResponse.json({ error: 'Verifikasi wallet dibutuhkan' }, { status: 401 });
+    }
 
-    if (!walletAddress || !poolId) {
+    const { poolId } = await req.json();
+
+    if (!poolId) {
       return NextResponse.json({ error: "Data tidak lengkap" }, { status: 400 });
     }
 
+    const walletAddress = authedAddress;
+
     const user = await prisma.user.findUnique({
-      where: { walletAddress: walletAddress.toLowerCase() },
+      where: { walletAddress },
     });
     const pool = await prisma.pool.findUnique({ where: { id: poolId } });
 

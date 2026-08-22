@@ -3,16 +3,17 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { AtSign, CheckCircle2, Copy, Crown, Edit3, Users } from 'lucide-react'
-import { useAccount, useBalance, useReadContract } from 'wagmi'
+import { useAccount, useBalance, useReadContract, useSignMessage } from 'wagmi'
 import { useQuery } from '@tanstack/react-query'
 import { formatUnits } from 'viem'
 import { cn } from '@/lib/utils'
-import { MC_TOKEN_ADDRESS as MCIRCLE_ADDRESS, MCIRCLE_ABI } from '@/config/contracts'
+import { MCIRCLE_ABI } from '@/config/contracts'
+import { useContractAddresses } from '@/lib/use-contracts'
 import { useToast } from '@/components/Toast'
 import EditProfileModal, { type EditProfileValues } from '@/components/EditProfileModal'
 import type { UserProfile } from '@/components/Sidebar'
-
-const MERIT_POINTS_PER_TIER = 20
+import { createWalletAuthHeader } from '@/lib/wallet-auth-client'
+import { calculateTier } from '@/lib/tier'
 const AVATAR_URL = 'https://api.dicebear.com/7.x/avataaars/svg?seed=merit'
 
 type HistoryItem = {
@@ -83,6 +84,8 @@ const ARISAN_HISTORY: HistoryItem[] = [
 export default function ProfilePage() {
   const { address } = useAccount()
   const { toast } = useToast()
+  const { signMessageAsync } = useSignMessage()
+  const { mcToken: MCIRCLE_ADDRESS } = useContractAddresses()
   const [editOpen, setEditOpen] = useState(false)
   const [copied, setCopied] = useState(false)
 
@@ -114,7 +117,7 @@ export default function ProfilePage() {
   const { data: ethBalanceData, isPending: isEthPending } = useBalance({ address })
   const ethBalance = ethBalanceData ? formatUnits(ethBalanceData.value, ethBalanceData.decimals) : '0'
 
-  const userTier = userProfile ? Math.floor(userProfile.meritScore / MERIT_POINTS_PER_TIER) : 0
+  const userTier = userProfile ? calculateTier(userProfile.meritScore) : 0
   const tierLabel = userTier >= 4 ? `Tier ${userTier} VIP Member` : `Tier ${userTier} Member`
   const displayName = userProfile?.username ?? (address ? `0x${address.slice(2, 5)}…${address.slice(-4)}` : 'Not Connected')
   const avatarSrc = userProfile?.avatarUrl || AVATAR_URL
@@ -135,9 +138,10 @@ export default function ProfilePage() {
 
   const handleEditSubmit = async (values: EditProfileValues) => {
     if (!address) throw new Error('Wallet belum terhubung')
+    const authHeader = await createWalletAuthHeader(address, signMessageAsync)
     const res = await fetch(`/api/users/${address}`, {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'x-mp-auth': authHeader },
       body: JSON.stringify(values),
     })
     const data = await res.json()

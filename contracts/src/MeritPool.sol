@@ -53,17 +53,17 @@ contract MeritPool {
         // Tier 1: Standard Pool (100 MC, 5 Orang)
         pools[1] = PoolConfig(1, "Standard Pool", 1, 100 ether, 5, 500 ether, false);
         
-        // Tier 2: Premium Pool (200 MC, 5 Orang)
-        pools[2] = PoolConfig(2, "Premium Pool", 2, 200 ether, 5, 1000 ether, false);
+        // Tier 2: Growth Pool (200 MC, 5 Orang)
+        pools[2] = PoolConfig(2, "Growth Pool", 2, 200 ether, 5, 1000 ether, false);
         
-        // Tier 3: Grand Pool (100 MC, 10 Orang)
-        pools[3] = PoolConfig(3, "Grand Pool", 3, 100 ether, 10, 1000 ether, false);
+        // Tier 3: Trusted Pool (100 MC, 10 Orang)
+        pools[3] = PoolConfig(3, "Trusted Pool", 3, 100 ether, 10, 1000 ether, false);
         
-        // Tier 4: Elite Auction Pool (100 MC, 5 Orang)
-        pools[4] = PoolConfig(4, "Elite Auction Pool", 4, 100 ether, 5, 500 ether, true);
+        // Tier 4: Elite Pool (100 MC, 5 Orang, Auction)
+        pools[4] = PoolConfig(4, "Elite Pool", 4, 100 ether, 5, 500 ether, true);
         
-        // Tier 5: VIP Auction Pool (500 MC, 5 Orang)
-        pools[5] = PoolConfig(5, "VIP Auction Pool", 5, 500 ether, 5, 2500 ether, true);
+        // Tier 5: Prime Pool (500 MC, 5 Orang, Auction)
+        pools[5] = PoolConfig(5, "Prime Pool", 5, 500 ether, 5, 2500 ether, true);
     }
 
     /**

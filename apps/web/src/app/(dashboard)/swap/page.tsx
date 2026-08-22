@@ -2,11 +2,13 @@
 
 import { useAccount, useBalance, useReadContract } from 'wagmi'
 import { formatUnits } from 'viem'
-import { MC_TOKEN_ADDRESS as MCIRCLE_ADDRESS, MCIRCLE_ABI } from '@/config/contracts'
+import { MCIRCLE_ABI } from '@/config/contracts'
+import { useContractAddresses } from '@/lib/use-contracts'
 import SwapWidget from '@/components/SwapWidget'
 
 export default function SwapPage() {
   const { address } = useAccount()
+  const { mcToken: MCIRCLE_ADDRESS } = useContractAddresses()
 
   const {
     data: balanceData,

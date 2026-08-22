@@ -10,11 +10,10 @@ import {
 } from 'wagmi'
 import { parseEther, parseUnits } from 'viem'
 import {
-  MC_TOKEN_ADDRESS as MCIRCLE_ADDRESS,
   MCIRCLE_ABI,
-  TOKEN_SWAP_ADDRESS,
   TOKEN_SWAP_ABI,
 } from '../config/contracts'
+import { useContractAddresses } from '../lib/use-contracts'
 import { cn } from '../lib/utils'
 import { useToast } from './Toast'
 
@@ -51,6 +50,7 @@ export default function SwapWidget({
 }: SwapWidgetProps) {
   const { chainId } = useAccount()
   const { toast } = useToast()
+  const { mcToken: MCIRCLE_ADDRESS, tokenSwap: TOKEN_SWAP_ADDRESS } = useContractAddresses()
 
   const [direction, setDirection] = useState<Direction>('ethToMc')
   const [amount, setAmount] = useState('')
@@ -71,7 +71,7 @@ export default function SwapWidget({
     address: MCIRCLE_ADDRESS,
     abi: MCIRCLE_ABI,
     functionName: 'allowance',
-    args: address ? [address as `0x${string}`, TOKEN_SWAP_ADDRESS] : undefined,
+    args: address && TOKEN_SWAP_ADDRESS ? [address as `0x${string}`, TOKEN_SWAP_ADDRESS] : undefined,
     query: { enabled: !!address },
   })
   const allowanceNum = Number(allowanceData ?? BigInt(0)) / 1e18
@@ -150,6 +150,10 @@ export default function SwapWidget({
 
   const handleApprove = async () => {
     if (!address) return
+    if (!TOKEN_SWAP_ADDRESS) {
+      toast('error', 'Swap tidak tersedia', 'Kontrak swap belum dideploy di jaringan ini.')
+      return
+    }
     try {
       setPhase('signing')
       const hash = await approveWrite.writeContractAsync({
@@ -170,6 +174,10 @@ export default function SwapWidget({
   const handleSwap = async () => {
     if (!address) {
       toast('info', 'Wallet belum terhubung', 'Sambungkan wallet Anda untuk melakukan swap token.')
+      return
+    }
+    if (!TOKEN_SWAP_ADDRESS) {
+      toast('error', 'Swap tidak tersedia', 'Kontrak swap belum dideploy di jaringan ini.')
       return
     }
     if (amount === '' || parseFloat(amount) <= 0) {

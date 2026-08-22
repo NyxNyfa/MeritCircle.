@@ -4,19 +4,19 @@ import { NextResponse } from 'next/server';
 import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { isWhitelisted, qaUsernameFor } from '@/config/whitelist';
-
-// 1 Tier = 20 Merit Points (Score 0-19 = Tier 0, 20-39 = Tier 1, dst.)
-const MERIT_POINTS_PER_TIER = 20;
+import { authenticateRequest } from '@/lib/auth';
+import { calculateTier } from '@/lib/tier';
 
 export async function POST(req: Request) {
   try {
-    const { walletAddress, username, email, socialMedia } = await req.json();
-
-    if (!walletAddress) {
-      return NextResponse.json({ error: "Wallet address dibutuhkan" }, { status: 400 });
+    // Wajib bukti kepemilikan wallet (challenge-response) — cegah registrasi atas nama wallet orang lain
+    const authedAddress = await authenticateRequest(req);
+    if (!authedAddress) {
+      return NextResponse.json({ error: 'Verifikasi wallet dibutuhkan' }, { status: 401 });
     }
 
-    const normalizedAddress = walletAddress.toLowerCase();
+    const { username, email, socialMedia } = await req.json();
+    const normalizedAddress = authedAddress;
 
     // QA bypass: wallet whitelist tidak perlu register manual — langsung QA_Tester Tier 5
     if (isWhitelisted(normalizedAddress)) {
@@ -25,14 +25,14 @@ export async function POST(req: Request) {
         update: {
           username: qaUsernameFor(normalizedAddress),
           meritScore: 100,
-          tier: Math.floor(100 / MERIT_POINTS_PER_TIER),
+          tier: calculateTier(100),
           isVerified: true,
         },
         create: {
           walletAddress: normalizedAddress,
           username: qaUsernameFor(normalizedAddress),
           meritScore: 100,
-          tier: Math.floor(100 / MERIT_POINTS_PER_TIER),
+          tier: calculateTier(100),
           isVerified: true,
         },
       });
@@ -70,7 +70,7 @@ export async function POST(req: Request) {
         email: email && typeof email === 'string' ? email.trim() : null,
         socialMedia: socialMedia && typeof socialMedia === 'string' ? socialMedia.trim() : null,
         meritScore: 0,
-        tier: Math.floor(0 / MERIT_POINTS_PER_TIER),
+        tier: calculateTier(0),
         isVerified: false,
       },
     });

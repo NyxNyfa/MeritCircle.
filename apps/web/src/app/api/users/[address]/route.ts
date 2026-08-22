@@ -1,9 +1,8 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { isWhitelisted, qaUsernameFor } from '@/config/whitelist';
-
-// 1 Tier = 20 Merit Points — tier selalu dihitung ulang dari score agar konsisten
-const MERIT_POINTS_PER_TIER = 20;
+import { authenticateRequest } from '@/lib/auth';
+import { calculateTier } from '@/lib/tier';
 
 export async function GET(
   request: Request,
@@ -20,14 +19,14 @@ export async function GET(
         update: {
           username: qaUsernameFor(address),
           meritScore: 100,
-          tier: Math.floor(100 / MERIT_POINTS_PER_TIER),
+          tier: calculateTier(100),
           isVerified: true,
         },
         create: {
           walletAddress: address,
           username: qaUsernameFor(address),
           meritScore: 100,
-          tier: Math.floor(100 / MERIT_POINTS_PER_TIER),
+          tier: calculateTier(100),
           isVerified: true,
         },
       });
@@ -43,7 +42,7 @@ export async function GET(
       return NextResponse.json({ error: "User tidak ditemukan" }, { status: 404 });
     }
 
-    const tier = Math.floor(user.meritScore / MERIT_POINTS_PER_TIER);
+    const tier = calculateTier(user.meritScore);
 
     return NextResponse.json({ ...user, tier }, { status: 200 });
   } catch (error) {
@@ -57,8 +56,18 @@ export async function PATCH(
   { params }: { params: Promise<{ address: string }> }
 ) {
   try {
+    // Wajib bukti kepemilikan wallet — hanya pemilik akun yang boleh edit profil
+    const authedAddress = await authenticateRequest(request);
+    if (!authedAddress) {
+      return NextResponse.json({ error: 'Verifikasi wallet dibutuhkan' }, { status: 401 });
+    }
+
     const resolvedParams = await params;
     const address = resolvedParams.address.toLowerCase();
+
+    if (authedAddress !== address) {
+      return NextResponse.json({ error: 'Tidak berhak mengubah profil ini' }, { status: 403 });
+    }
 
     const { avatarUrl, twitterHandle, bio } = await request.json();
 
@@ -83,7 +92,7 @@ export async function PATCH(
       },
     });
 
-    const tier = Math.floor(updated.meritScore / MERIT_POINTS_PER_TIER);
+    const tier = calculateTier(updated.meritScore);
     return NextResponse.json({ ...updated, tier }, { status: 200 });
   } catch (error) {
     console.error("Update Profile API Error:", error);
