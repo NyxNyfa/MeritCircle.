@@ -1,0 +1,59 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql" // Pastikan ini sesuai (postgresql/sqlite) dengan database yang Anda gunakan sebelumnya
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  walletAddress   String   @id
+  username        String   @unique
+  email           String?  @unique
+  isEmailVerified Boolean  @default(false)
+  isVerified      Boolean  @default(false)
+  socialMedia     String?
+  avatarUrl       String?
+  twitterHandle   String?
+  bio             String?
+  meritScore      Int      @default(0) // Poin dimulai dari 0 (Tier 0)
+  tier            Int      @default(0) // Tier snapshot (1 Tier = 20 Merit Points)
+  nonce           String   @default(cuid())
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  memberships     PoolMember[]
+}
+
+model Pool {
+  id                 String   @id @default(cuid())
+  poolIdOnChain      Int      @unique // ID pool yang akan sinkron dengan Smart Contract (0, 1, 2, dst)
+  name               String   // Nama pool (Basic Pool, Standard Pool, dll)
+  tierRequired       Int      @default(0)
+  contributionAmount Float    // Jumlah iuran (50, 100, 200, 500)
+  poolSize           Int      // Kapasitas member (3, 5, 10)
+  totalYield         Float    @default(0) // Total hadiah (150, 500, 1000, 2500)
+  isAuctionMode      Boolean  @default(false)
+
+  // Fitur baru: Melacak pemenang siklus sebelumnya
+  lastWinnerUsername String?
+  lastWinnerAddress  String?
+
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  members            PoolMember[]
+}
+
+// Keanggotaan user di pool (off-chain, disinkronkan setelah tx joinPool on-chain)
+model PoolMember {
+  userId String
+  poolId String
+
+  user   User @relation(fields: [userId], references: [walletAddress], onDelete: Cascade)
+  pool   Pool @relation(fields: [poolId], references: [id], onDelete: Cascade)
+
+  @@id([userId, poolId])
+}

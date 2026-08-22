@@ -1,0 +1,234 @@
+@import "@material-symbols/font-400/index.css";
+@import "tailwindcss";
+
+@theme inline {
+  /* ---- Merit Circle design system (Royal Blue / #10131A) ---- */
+  --color-background: #10131a;
+  --color-surface: #10131a;
+  --color-surface-container: #1d2027;
+  --color-surface-container-low: #191c22;
+  --color-surface-container-lowest: #0b0d12;
+  --color-surface-container-high: #262a33;
+  --color-surface-container-highest: #2e333e;
+  --color-surface-variant: #262a33;
+  --color-surface-dim: #10131a;
+  --color-surface-bright: #343a47;
+  --color-on-background: #e2e2e9;
+  --color-on-surface: #e2e2e9;
+  --color-on-surface-variant: #c3c6d3;
+  --color-primary: #3e63ff;
+  --color-on-primary: #ffffff;
+  --color-primary-container: #5b7cff;
+  --color-on-primary-container: #0d1b52;
+  --color-primary-fixed: #7d97ff;
+  --color-primary-fixed-dim: #3e63ff;
+  --color-secondary: #a0ffc3;
+  --color-secondary-container: #00ec91;
+  --color-on-secondary-container: #00653b;
+  --color-secondary-fixed: #56ffa8;
+  --color-secondary-fixed-dim: #00e38b;
+  --color-outline: #a08d84;
+  --color-outline-variant: #52443c;
+  --color-error: #ffb4ab;
+  --color-on-error: #690005;
+  --color-error-container: #93000a;
+  --color-on-error-container: #ffdad6;
+  --color-tertiary: #e3e0e1;
+  --color-tertiary-container: #c7c4c5;
+
+  /* ---- Radii ---- */
+  --radius: 1rem;
+  --radius-lg: 2rem;
+  --radius-xl: 3rem;
+
+  /* ---- Typography ---- */
+  --font-sans: var(--font-sora), "Sora", ui-sans-serif, system-ui, sans-serif;
+  --font-display-lg: var(--font-sora), "Sora", ui-sans-serif, system-ui, sans-serif;
+  --font-display-lg-mobile: var(--font-sora), "Sora", ui-sans-serif, system-ui, sans-serif;
+  --font-headline-md: var(--font-sora), "Sora", ui-sans-serif, system-ui, sans-serif;
+  --font-body-lg: var(--font-sora), "Sora", ui-sans-serif, system-ui, sans-serif;
+  --font-body-md: var(--font-sora), "Sora", ui-sans-serif, system-ui, sans-serif;
+  --font-price-display: var(--font-sora), "Sora", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains-mono), "JetBrains Mono", ui-monospace, monospace;
+  --font-mono-label: var(--font-jetbrains-mono), "JetBrains Mono", ui-monospace, monospace;
+
+  --text-display-lg: 48px;
+  --text-display-lg--line-height: 56px;
+  --text-display-lg--letter-spacing: -0.02em;
+  --text-display-lg--font-weight: 700;
+  --text-display-lg-mobile: 32px;
+  --text-display-lg-mobile--line-height: 40px;
+  --text-display-lg-mobile--letter-spacing: -0.02em;
+  --text-display-lg-mobile--font-weight: 700;
+  --text-headline-md: 24px;
+  --text-headline-md--line-height: 32px;
+  --text-headline-md--font-weight: 600;
+  --text-body-lg: 18px;
+  --text-body-lg--line-height: 28px;
+  --text-body-lg--font-weight: 400;
+  --text-body-md: 16px;
+  --text-body-md--line-height: 24px;
+  --text-body-md--font-weight: 400;
+  --text-price-display: 20px;
+  --text-price-display--line-height: 24px;
+  --text-price-display--letter-spacing: -0.01em;
+  --text-price-display--font-weight: 600;
+  --text-mono-label: 12px;
+  --text-mono-label--line-height: 16px;
+  --text-mono-label--letter-spacing: 0.05em;
+  --text-mono-label--font-weight: 500;
+}
+
+html {
+  color-scheme: dark;
+  scrollbar-color: rgba(62, 99, 255, 0.35) transparent;
+}
+
+body {
+  background: var(--color-background);
+  color: var(--color-on-surface);
+  font-family: var(--font-sora), "Sora", ui-sans-serif, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: rgba(62, 99, 255, 0.35);
+  color: #fff;
+}
+
+html {
+  color-scheme: dark;
+  scrollbar-color: rgba(255, 216, 198, 0.35) transparent;
+}
+
+body {
+  background: var(--color-background);
+  color: var(--color-on-surface);
+  font-family: var(--font-inter), "Inter", ui-sans-serif, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: rgba(255, 179, 138, 0.35);
+  color: #fff;
+}
+
+/* ---- Dot grid & ambient glows ---- */
+.dot-grid {
+  background-image: radial-gradient(rgba(255, 255, 255, 0.1) 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
+.bg-grid-pattern {
+  background-image: radial-gradient(rgba(255, 255, 255, 0.1) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+.glow-primary {
+  background: radial-gradient(circle at 50% 50%, rgba(62, 99, 255, 0.18) 0%, transparent 70%);
+}
+
+.glow-secondary {
+  background: radial-gradient(circle at 50% 50%, rgba(99, 132, 255, 0.12) 0%, transparent 70%);
+}
+
+.glowing-aura {
+  background: radial-gradient(circle at 0% 0%, rgba(62, 99, 255, 0.15) 0%, rgba(16, 19, 26, 0) 50%);
+}
+
+/* ---- Glass panels ---- */
+.glass-panel {
+  background: rgba(29, 32, 39, 0.6);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(62, 99, 255, 0.3);
+}
+
+.glass-panel-hover {
+  transition: border-color 0.3s ease, box-shadow 0.3s ease, transform 0.3s ease;
+}
+
+.glass-panel-hover:hover {
+  border-color: rgba(62, 99, 255, 0.55);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  transform: scale(1.01);
+}
+
+/* ---- Buttons & inputs ---- */
+.btn-primary-glow {
+  box-shadow: 0 0 15px rgba(62, 99, 255, 0.4);
+}
+
+.btn-primary-glow:hover {
+  box-shadow: 0 0 25px rgba(62, 99, 255, 0.6);
+}
+
+.input-glow:focus {
+  box-shadow: 0 0 0 1px #3e63ff, 0 0 15px rgba(62, 99, 255, 0.2);
+}
+
+/* ---- Loading state swap (design pattern) ---- */
+.loading-state .btn-content {
+  opacity: 0;
+}
+
+.loading-state .btn-spinner {
+  opacity: 1;
+}
+
+/* ---- 3D tilt cards ---- */
+.transform-style-3d {
+  transform-style: preserve-3d;
+}
+
+/* ---- Skeleton shimmer ---- */
+.mc-skeleton {
+  position: relative;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 0.5rem;
+}
+
+.mc-skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.08), transparent);
+  animation: mc-shimmer 1.6s infinite;
+}
+
+@keyframes mc-shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+/* ---- Ambient pulse for waiting states ---- */
+@keyframes mc-pulse-soft {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.mc-pulse-soft {
+  animation: mc-pulse-soft 1.4s ease-in-out infinite;
+}
+
+/* ---- Scrollbar ---- */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(62, 99, 255, 0.35);
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(62, 99, 255, 0.55);
+}
