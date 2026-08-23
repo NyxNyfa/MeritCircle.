@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { ArrowLeftRight, BookOpen, Clock, Copy, Edit3, Home, LogOut, Menu, Shield, Users, Zap } from 'lucide-react'
+import { ArrowLeftRight, BookOpen, Clock, Copy, Edit3, Home, LogOut, Menu, Users, Zap } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -38,7 +38,7 @@ const NAV_ITEMS = [
   { href: '/swap', label: 'Swap Token', icon: ArrowLeftRight },
   { href: '/profile', label: 'Profile & Tier', icon: Users },
   { href: '/help', label: 'Help Center', icon: BookOpen },
-  { href: '/admin', label: 'Admin', icon: Shield },
+  // Admin sengaja tidak ada di nav — akses manual via URL /admin (guard ADMIN_WALLET)
 ]
 
 const AVATAR_URL = 'https://api.dicebear.com/7.x/avataaars/svg?seed=merit'

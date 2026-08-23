@@ -27,6 +27,10 @@ export async function createWalletAuthHeader(
 
 const sessionKey = (address: string) => `mp_session_${address.toLowerCase()}`
 
+// Promise in-flight per address — mencegah double-popup saat beberapa query
+// meminta session secara paralel (race condition sumber sign berulang).
+const inflightSessions = new Map<string, Promise<Record<string, string>>>()
+
 function cachedSession(address: string): string | null {
   try {
     if (typeof window === 'undefined') return null
@@ -45,26 +49,48 @@ function cachedSession(address: string): string | null {
   }
 }
 
-/** Header Authorization Bearer — pakai session cache, minta challenge hanya bila perlu. */
+/** Hapus session cache (mis. server menolak Bearer 401). */
+export function clearSession(address: string): void {
+  try {
+    window.localStorage.removeItem(sessionKey(address.toLowerCase()))
+  } catch {
+    // abaikan
+  }
+}
+
+async function createSession(address: string, signMessageAsync: SignFn): Promise<Record<string, string>> {
+  const normalized = address.toLowerCase()
+  const authHeader = await createWalletAuthHeader(normalized, signMessageAsync)
+  const res = await fetch('/api/auth/session', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-mp-auth': authHeader },
+  })
+  if (!res.ok) throw new Error('Gagal membuat sesi')
+  const data = (await res.json()) as { token: string }
+  try {
+    window.localStorage.setItem(sessionKey(normalized), data.token)
+  } catch {
+    // storage penuh/blocked — token tetap dipakai di memori panggilan ini
+  }
+  return { Authorization: `Bearer ${data.token}` }
+}
+
+/** Header Authorization Bearer — pakai session cache; challenge hanya SEKALI per 24 jam. */
 export async function getSessionAuthHeaders(
   address: string,
   signMessageAsync: SignFn,
 ): Promise<Record<string, string>> {
-  let token = cachedSession(address)
-  if (!token) {
-    const authHeader = await createWalletAuthHeader(address, signMessageAsync)
-    const res = await fetch('/api/auth/session', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-mp-auth': authHeader },
-    })
-    if (!res.ok) throw new Error('Gagal membuat sesi')
-    const data = (await res.json()) as { token: string }
-    token = data.token
-    try {
-      window.localStorage.setItem(sessionKey(address), token)
-    } catch {
-      // storage penuh/blocked — token tetap dipakai di memori panggilan ini
-    }
-  }
-  return { Authorization: `Bearer ${token}` }
+  const key = address.toLowerCase()
+  const token = cachedSession(key)
+  if (token) return { Authorization: `Bearer ${token}` }
+
+  // Anti-race: panggilan paralel berbagi satu promise → satu popup saja
+  const existing = inflightSessions.get(key)
+  if (existing) return existing
+
+  const promise = createSession(address, signMessageAsync).finally(() => {
+    inflightSessions.delete(key)
+  })
+  inflightSessions.set(key, promise)
+  return promise
 }

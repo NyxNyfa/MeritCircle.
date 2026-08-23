@@ -1,9 +1,12 @@
 'use client'
 
 import { useState } from 'react'
-import { useAccount } from 'wagmi'
+import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi'
 import { useQuery } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
+import { parseUnits } from 'viem'
+import { MCIRCLE_ABI } from '@/config/contracts'
+import { useContractAddresses } from '@/lib/use-contracts'
 
 type Metrics = {
   users: number
@@ -40,6 +43,81 @@ type Analytics = {
 }
 
 const STATUS_TEXT = ['OPEN', 'ACTIVE', 'COMPLETED']
+
+// ABI MCircle + fungsi mint (owner-only di kontrak)
+const MINT_ABI = [
+  ...MCIRCLE_ABI,
+  {
+    type: 'function',
+    name: 'mint',
+    inputs: [
+      { name: 'to', type: 'address' },
+      { name: 'amount', type: 'uint256' },
+    ],
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+] as const
+
+function OwnerMintCard() {
+  const { address } = useAccount()
+  const { mcToken } = useContractAddresses()
+  const ownerQ = useReadContract({
+    address: mcToken,
+    abi: [{ type: 'function', name: 'owner', inputs: [], outputs: [{ name: '', type: 'address' }], stateMutability: 'view' }] as const,
+    functionName: 'owner',
+  })
+  const isOwner = !!address && !!ownerQ.data && address.toLowerCase() === (ownerQ.data as string).toLowerCase()
+
+  const [to, setTo] = useState('')
+  const [amount, setAmount] = useState('100')
+  const writeMint = useWriteContract()
+  const { data: mintReceipt } = useWaitForTransactionReceipt({ hash: writeMint.data ?? undefined })
+
+  if (!isOwner) return null
+
+  return (
+    <div className="glass-panel rounded-2xl p-5">
+      <h2 className="font-mono-label text-mono-label uppercase text-[#56ffa8] mb-3">Mint MC (khusus owner token)</h2>
+      <div className="flex flex-col sm:flex-row gap-2">
+        <input
+          value={to}
+          onChange={(e) => setTo(e.target.value.trim())}
+          placeholder="0x… alamat tujuan"
+          className="min-w-0 flex-1 rounded-lg border border-outline-variant/40 bg-surface-container/50 px-3 py-2 text-xs font-mono text-on-surface placeholder:text-on-surface-variant focus:border-primary focus:outline-none"
+        />
+        <input
+          value={amount}
+          onChange={(e) => setAmount(e.target.value.replace(/[^0-9.]/g, ''))}
+          inputMode="decimal"
+          className="w-full sm:w-28 rounded-lg border border-outline-variant/40 bg-surface-container/50 px-3 py-2 text-xs font-mono text-on-surface focus:border-primary focus:outline-none"
+        />
+        <button
+          onClick={async () => {
+            if (!/^0x[a-fA-F0-9]{40}$/.test(to) || !amount || parseFloat(amount) <= 0) return
+            try {
+              await writeMint.writeContractAsync({
+                address: mcToken,
+                abi: MINT_ABI,
+                functionName: 'mint',
+                args: [to as `0x${string}`, parseUnits(amount, 18)],
+              } as never)
+            } catch {
+              // kesalahan dikirim ke pengamat receipt di bawah
+            }
+          }}
+          disabled={writeMint.isPending}
+          className="rounded-lg bg-[#56ffa8]/90 px-4 py-2 text-xs font-bold text-black hover:bg-[#56ffa8] transition-colors disabled:opacity-50"
+        >
+          {writeMint.isPending ? 'Mengirim…' : 'Mint'}
+        </button>
+      </div>
+      {mintReceipt?.status === 'success' && (
+        <p className="mt-2 font-mono text-[11px] text-[#56ffa8]">✓ Mint sukses — saldo tujuan bertambah.</p>
+      )}
+    </div>
+  )
+}
 
 export default function AdminPage() {
   const { address } = useAccount()
@@ -94,6 +172,7 @@ export default function AdminPage() {
 
       {data && !denied && (
         <div className="mt-6 space-y-4">
+          <OwnerMintCard />
           {/* Treasury / exposure */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {[

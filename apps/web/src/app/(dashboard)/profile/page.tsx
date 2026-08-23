@@ -12,7 +12,7 @@ import { useContractAddresses } from '@/lib/use-contracts'
 import { useToast } from '@/components/Toast'
 import EditProfileModal, { type EditProfileValues } from '@/components/EditProfileModal'
 import type { UserProfile } from '@/components/Sidebar'
-import { createWalletAuthHeader, getSessionAuthHeaders } from '@/lib/wallet-auth-client'
+import { getSessionAuthHeaders } from '@/lib/wallet-auth-client'
 import { calculateTier } from '@/lib/tier'
 const AVATAR_URL = 'https://api.dicebear.com/7.x/avataaars/svg?seed=merit'
 
@@ -127,10 +127,10 @@ export default function ProfilePage() {
 
   const handleEditSubmit = async (values: EditProfileValues) => {
     if (!address) throw new Error('Wallet belum terhubung')
-    const authHeader = await createWalletAuthHeader(address, signMessageAsync)
+    const headers = await getSessionAuthHeaders(address, signMessageAsync)
     const res = await fetch(`/api/users/${address}`, {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json', 'x-mp-auth': authHeader },
+      headers: { 'Content-Type': 'application/json', ...headers },
       body: JSON.stringify(values),
     })
     const data = await res.json()
@@ -151,10 +151,10 @@ export default function ProfilePage() {
     }
     setSendingVerify(true)
     try {
-      const authHeader = await createWalletAuthHeader(address, signMessageAsync)
+      const headers = await getSessionAuthHeaders(address, signMessageAsync)
       const res = await fetch('/api/auth/email/send-verification', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-mp-auth': authHeader },
+        headers: { 'Content-Type': 'application/json', ...headers },
         body: JSON.stringify({ email: emailInput.trim() }),
       })
       const data = await res.json()

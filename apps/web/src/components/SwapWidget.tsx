@@ -1,15 +1,18 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { ArrowDown, ArrowLeftRight, Coins } from 'lucide-react'
 import {
   useAccount,
+  usePublicClient,
   useReadContract,
+  useSwitchChain,
   useWaitForTransactionReceipt,
   useWriteContract,
 } from 'wagmi'
 import { parseEther, parseUnits } from 'viem'
 import {
+  hasDeployedContracts,
   MCIRCLE_ABI,
   TOKEN_SWAP_ABI,
 } from '../config/contracts'
@@ -49,14 +52,21 @@ export default function SwapWidget({
   onSwapSuccess,
 }: SwapWidgetProps) {
   const { chainId } = useAccount()
+  const { chains, switchChain } = useSwitchChain()
+  const publicClient = usePublicClient()
   const { toast } = useToast()
   const { mcToken: MCIRCLE_ADDRESS, tokenSwap: TOKEN_SWAP_ADDRESS } = useContractAddresses()
+
+  const contractsReady = hasDeployedContracts(chainId)
+  const NATIVE = chainId === 97 ? 'tBNB' : 'ETH'
 
   const [direction, setDirection] = useState<Direction>('ethToMc')
   const [amount, setAmount] = useState('')
   const [pendingHash, setPendingHash] = useState<`0x${string}` | null>(null)
   const [pendingTx, setPendingTx] = useState<'approve' | 'swap' | null>(null)
   const [phase, setPhase] = useState<Phase>('idle')
+  // Intent swap yang menunggu approve selesai → auto-continue tanpa tekan kedua
+  const queuedSwapRef = useRef(false)
 
   const ethNum = parseFloat(amount) || 0
   const mcNum = parseFloat(amount) || 0
@@ -88,61 +98,13 @@ export default function SwapWidget({
     hash: pendingHash ?? undefined,
   })
 
-  // --- Sukses: konfirmasi on-chain diterima (isSuccess) ---
+  // Mirror fase untuk akses dari timeout (hindari stale closure)
+  const phaseRef = useRef(phase)
   useEffect(() => {
-    if (!isReceiptSuccess || !receipt) return
-    if (pendingTx === 'approve') {
-      toast('success', 'Approve berhasil', 'Izin MC diberikan ke kontrak swap.', receipt.transactionHash)
-      queueMicrotask(() => {
-        setPendingHash(null)
-        setPendingTx(null)
-        setPhase('idle')
-      })
-      refetchAllowance()
-    }
-    if (pendingTx === 'swap') {
-      const label =
-        direction === 'ethToMc'
-          ? `${amount} ETH → ${output.toLocaleString('en-US', { maximumFractionDigits: 0 })} MC`
-          : `${amount} MC → ${output.toFixed(6)} ETH`
-      toast('success', 'Swap berhasil', `${label} selesai di on-chain.`, receipt.transactionHash)
-      queueMicrotask(() => {
-        setPendingHash(null)
-        setPendingTx(null)
-        setPhase('idle')
-      })
-      onSwapSuccess?.()
-      refetchAllowance()
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [receipt, pendingHash])
+    phaseRef.current = phase
+  }, [phase])
 
-  // --- Gagal di on-chain ---
-  useEffect(() => {
-    if (isReceiptError && pendingHash) {
-      toast('error', 'Swap gagal', 'Transaksi gagal / dibatalkan di on-chain.')
-      queueMicrotask(() => {
-        setPendingHash(null)
-        setPendingTx(null)
-        setPhase('idle')
-      })
-    }
-  }, [isReceiptError, pendingHash, toast])
-
-  // --- Reset otomatis jika wallet pindah jaringan / ganti akun (anti stuck) ---
-  useEffect(() => {
-    if (phase !== 'idle') {
-      queueMicrotask(() => {
-        setPendingHash(null)
-        setPendingTx(null)
-        setPhase('idle')
-      })
-      toast('info', 'Transaksi dibatalkan', 'Jaringan atau akun berubah.')
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [chainId, address])
-
-  const resetSwap = () => {
+  const resetToIdle = () => {
     setPendingHash(null)
     setPendingTx(null)
     setPhase('idle')
@@ -171,7 +133,7 @@ export default function SwapWidget({
     }
   }
 
-  const handleSwap = async () => {
+  const handleSwap = async (opts?: { skipApproveCheck?: boolean }) => {
     if (!address) {
       toast('info', 'Wallet belum terhubung', 'Sambungkan wallet Anda untuk melakukan swap token.')
       return
@@ -192,8 +154,8 @@ export default function SwapWidget({
       if (ethNum > ethNumBalance) {
         toast(
           'error',
-          'Saldo ETH tidak cukup',
-          `Saldo Anda ${ethNumBalance.toLocaleString('en-US')} ETH — biaya gas tidak termasuk.`,
+          `Saldo ${NATIVE} tidak cukup`,
+          `Saldo Anda ${ethNumBalance.toLocaleString('en-US')} ${NATIVE} — biaya gas tidak termasuk.`,
         )
         return
       }
@@ -202,7 +164,10 @@ export default function SwapWidget({
         toast('error', 'Saldo MC tidak cukup', `Saldo Anda ${mcNumBalance.toLocaleString('en-US')} MC.`)
         return
       }
-      if (needsApprove) {
+      // Auto-continue: tandai intent lalu approve — swap dieksekusi otomatis
+      // oleh finalizeReceipt begitu approve sukses.
+      if (needsApprove && !opts?.skipApproveCheck) {
+        queuedSwapRef.current = true
         await handleApprove()
         return
       }
@@ -232,6 +197,104 @@ export default function SwapWidget({
     }
   }
 
+  // --- Pemroses receipt bersama: dipakai watcher & watchdog ---
+  const finalizeReceipt = (rcpt: { status: 'success' | 'reverted' | string; transactionHash?: string }) => {
+    if (rcpt.status !== 'success') {
+      toast(
+        'error',
+        pendingTx === 'approve' ? 'Approve gagal (revert)' : 'Swap gagal (revert)',
+        'Transaksi ditolak kontrak di on-chain. Periksa saldo/likuiditas lalu coba lagi.',
+        rcpt.transactionHash,
+      )
+      queueMicrotask(resetToIdle)
+      return
+    }
+
+    if (pendingTx === 'approve') {
+      toast('success', 'Approve berhasil', 'Izin MC diberikan ke kontrak swap.', rcpt.transactionHash)
+      queueMicrotask(() => {
+        setPendingHash(null)
+        setPendingTx(null)
+        setPhase('idle')
+      })
+      refetchAllowance()
+      // AUTO-CONTINUE: lanjutkan swap yang mengantre tanpa tekan kedua
+      if (queuedSwapRef.current) {
+        queuedSwapRef.current = false
+        queueMicrotask(() => void handleSwap({ skipApproveCheck: true }))
+      }
+    }
+    if (pendingTx === 'swap') {
+      const label =
+        direction === 'ethToMc'
+          ? `${amount} ${NATIVE} → ${output.toLocaleString('en-US', { maximumFractionDigits: 0 })} MC`
+          : `${amount} MC → ${output.toFixed(6)} ${NATIVE}`
+      toast('success', 'Swap berhasil', `${label} selesai di on-chain.`, rcpt.transactionHash)
+      queueMicrotask(resetToIdle)
+      onSwapSuccess?.()
+      refetchAllowance()
+    }
+  }
+
+  useEffect(() => {
+    if (!isReceiptSuccess || !receipt) return
+    finalizeReceipt(receipt as unknown as { status: 'success' | 'reverted'; transactionHash: string })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isReceiptSuccess, receipt])
+
+  // --- Gagal di on-chain (watcher melaporkan error) ---
+  useEffect(() => {
+    if (isReceiptError && pendingHash) {
+      toast('error', 'Transaksi gagal', 'Transaksi gagal / dibatalkan di on-chain.', pendingHash)
+      queueMicrotask(resetToIdle)
+    }
+  }, [isReceiptError, pendingHash, toast])
+
+  // --- WATCHDOG: fase 'confirming' tidak boleh lebih dari ~15 dtk tanpa kepastian.
+  // Jika watcher diam, tarik receipt secara manual; jika tetap tak jelas, reset dengan pesan. ---
+  useEffect(() => {
+    if (!pendingHash || phaseRef.current !== 'confirming') return
+    const t = setTimeout(async () => {
+      if (phaseRef.current !== 'confirming') return
+      try {
+        const rcpt = await publicClient?.getTransactionReceipt({ hash: pendingHash })
+        if (!rcpt) return
+        finalizeReceipt(rcpt as unknown as { status: 'success' | 'reverted'; transactionHash: string })
+      } catch {
+        // Belum termine — beri tenggat kedua sebelum melepas kunci UI
+        setTimeout(() => {
+          if (phaseRef.current === 'confirming') {
+            toast(
+              'info',
+              'Konfirmasi lambat',
+              'Transaksi belum ditemukan node. Fase dilepas — cek riwayat di wallet Anda.',
+              pendingHash,
+            )
+            queueMicrotask(resetToIdle)
+          }
+        }, 15_000)
+      }
+    }, 15_000)
+    return () => clearTimeout(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingHash])
+
+  // --- Reset otomatis jika wallet pindah jaringan / ganti akun (anti stuck) ---
+  useEffect(() => {
+    if (phase !== 'idle') {
+      queueMicrotask(resetToIdle)
+      toast('info', 'Transaksi dibatalkan', 'Jaringan atau akun berubah.')
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chainId, address])
+
+  const resetSwap = () => {
+    setPendingHash(null)
+    setPendingTx(null)
+    setPhase('idle')
+  }
+
+
   const isBusy = phase === 'signing' || phase === 'confirming'
 
   const handleMax = () => {
@@ -247,7 +310,7 @@ export default function SwapWidget({
       : parseFloat(amount) <= 0
         ? 'Enter an Amount'
         : isEthToMc
-          ? `Swap ${amount} ETH → ${output.toLocaleString('en-US', { maximumFractionDigits: 0 })} MC`
+          ? `Swap ${amount} ${NATIVE} → ${output.toLocaleString('en-US', { maximumFractionDigits: 0 })} MC`
           : needsApprove
             ? '1. Approve MC'
             : `Swap ${amount} MC → ${output.toFixed(6)} ETH`
@@ -270,6 +333,36 @@ export default function SwapWidget({
           <ArrowLeftRight className="h-4 w-4 text-[#3E63FF]" />
         </div>
       </div>
+
+      {/* Banner jaringan: kontrak tidak tersedia di chain aktif */}
+      {!contractsReady && (
+        <div className="mb-4 rounded-2xl border border-[#FFC857]/40 bg-[#FFC857]/10 p-4">
+          <p className="text-sm font-semibold text-[#FFC857]">Jaringan belum didukung kontrak</p>
+          <p className="mt-1 text-xs leading-relaxed text-[#C3C6D3]">
+            Kontrak Merit Pool belum ter-deploy di jaringan aktif wallet Anda. Ganti ke jaringan
+            yang didukung untuk menggunakan swap dan pool.
+          </p>
+          <div className="mt-3 flex gap-2">
+            {chains.map((c) => (
+              <button
+                key={c.id}
+                onClick={() => switchChain({ chainId: c.id })}
+                className="rounded-lg border border-[#3e63ff]/40 bg-[#10131A]/70 px-3 py-1.5 text-xs font-semibold text-[#A9C7FF] hover:border-[#3E63FF] hover:text-on-surface transition-colors"
+              >
+                Ganti ke {c.name}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Catatan likuiditas arah Jual */}
+      {!isEthToMc && contractsReady && (
+        <p className="mb-3 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-[11px] leading-relaxed text-[#C3C6D3]">
+          Info: menjual MC memakai likuiditas {NATIVE} di kontrak. Lakukan <b>Beli MC</b> minimal
+          sekali lebih dulu agar kontrak punya cadangan {NATIVE}.
+        </p>
+      )}
 
       {/* From — ETH atau MC tergantung arah */}
       <div className="rounded-2xl border border-[#3e63ff]/20 bg-[#10131A]/70 p-4 transition-colors focus-within:border-[#3e63ff]/50">
@@ -300,7 +393,7 @@ export default function SwapWidget({
           />
           <span className="flex shrink-0 items-center gap-1.5 rounded-full border border-[#3e63ff]/30 bg-[#3E63FF]/10 px-3 py-1.5 font-mono text-xs font-semibold text-[#3E63FF]">
             {isEthToMc ? (
-              'ETH'
+              NATIVE
             ) : (
               <>
                 <Coins className="h-3.5 w-3.5" />
@@ -312,7 +405,7 @@ export default function SwapWidget({
         <p className="mt-1.5 font-mono text-[10px] text-[#C3C6D3]">
           Balance:{' '}
           {isEthToMc
-            ? `${ethNumBalance.toLocaleString('en-US', { maximumFractionDigits: 4 })} ETH`
+            ? `${ethNumBalance.toLocaleString('en-US', { maximumFractionDigits: 4 })} ${NATIVE}`
             : isBalancePending
               ? '…'
               : `${mcNumBalance.toLocaleString('en-US', { maximumFractionDigits: 2 })} MC`}
@@ -362,21 +455,21 @@ export default function SwapWidget({
                 MC
               </>
             ) : (
-              'ETH'
+              NATIVE
             )}
           </span>
         </div>
         <p className="mt-1.5 font-mono text-[10px] text-[#C3C6D3]">
-          1 ETH ≈ {ETH_TO_MC_RATE.toLocaleString('en-US')} MC
+          1 {NATIVE} ≈ {ETH_TO_MC_RATE.toLocaleString('en-US')} MC
           {!isEthToMc &&
-            ` · ${(ETH_TO_MC_RATE / 1000).toLocaleString('en-US')} MC ≈ 0.1 ETH`}
+            ` · ${(ETH_TO_MC_RATE / 1000).toLocaleString('en-US')} MC ≈ 0.1 ${NATIVE}`}
         </p>
       </div>
 
       {/* Action */}
       <button
-        onClick={handleSwap}
-        disabled={!address || parseFloat(amount) <= 0 || isBusy}
+        onClick={() => void handleSwap()}
+        disabled={!address || parseFloat(amount) <= 0 || isBusy || !contractsReady}
         className={cn(
           'mt-5 w-full rounded-full py-3 text-sm font-semibold text-white transition-all duration-300',
           !address || parseFloat(amount) <= 0 || isBusy

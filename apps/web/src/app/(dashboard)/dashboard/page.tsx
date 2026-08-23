@@ -22,7 +22,7 @@ import { Icon } from '@/components/Icon'
 import PoolCard, { type Pool } from '@/components/PoolCard'
 import type { UserProfile } from '@/components/Sidebar'
 import { useRegisterModal } from '@/lib/register-modal'
-import { createWalletAuthHeader } from '@/lib/wallet-auth-client'
+import { getSessionAuthHeaders } from '@/lib/wallet-auth-client'
 import { calculateTier } from '@/lib/tier'
 
 const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000'
@@ -289,11 +289,11 @@ export default function DashboardPage() {
         functionName: 'joinPool',
         args: [BigInt(pool.poolIdOnChain), BigInt(data.userTier as number), data.signature as `0x${string}`],
       })
-      // Catat keanggotaan off-chain agar progress bar member ter-update (wajib tanda tangan wallet)
-      const authHeader = await createWalletAuthHeader(address, signMessageAsync)
+      // Catat keanggotaan off-chain agar progress bar member ter-update (session Bearer, tanpa popup)
+      const authHeaders = await getSessionAuthHeaders(address, signMessageAsync)
       await fetch('/api/pools/join', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-mp-auth': authHeader },
+        headers: { 'Content-Type': 'application/json', ...authHeaders },
         body: JSON.stringify({ poolId }),
       })
       setPendingReceipt({ hash, label: 'Berhasil masuk pool' })

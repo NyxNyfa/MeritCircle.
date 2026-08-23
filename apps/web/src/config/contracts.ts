@@ -44,6 +44,17 @@ export function getContractAddresses(chainId?: number): ContractAddresses {
   return CHAIN_CONTRACTS[31337];
 }
 
+/**
+ * True bila chain aktif memiliki kontrak yang benar-benar ter-deploy
+ * (bukan placeholder). Dipakai untuk banner "ganti jaringan".
+ */
+export function hasDeployedContracts(chainId?: number): boolean {
+  const c = getContractAddresses(chainId);
+  const isPlaceholder = (a: `0x${string}` | null) =>
+    !a || /^0x0{40}$/i.test(a) || /^0x0{39}[12]$/i.test(a) || parseInt(a.slice(2, 6), 16) === 0;
+  return !isPlaceholder(c.mcToken) && !isPlaceholder(c.meritPool);
+}
+
 /** Alias kompatibel untuk pemakaian lama — SELALU utamakan getContractAddresses(useChainId()). */
 export const MC_TOKEN_ADDRESS = getContractAddresses().mcToken;
 export const TOKEN_SWAP_ADDRESS = getContractAddresses().tokenSwap;

@@ -97,9 +97,11 @@ const ARTICLES: Array<{ id: string; q: string; a: Array<string> }> = [
   },
   {
     id: 'wallet',
-    q: '12. Cara menghubungkan / memutus wallet',
+    q: '12. Cara menghubungkan / memutus wallet & verifikasi tanda tangan',
     a: [
       'Hubungkan wallet lewat tombol Connect Wallet di landing page atau sidebar. Gunakan MetaMask atau wallet injeksi lain yang mendukung jaringan testnet aktif.',
+      'Mengapa saya diminta menandatangani pesan? Itu adalah verifikasi kepemilikan wallet: server mengirim kode acak (nonce) dan Anda menandatanganinya. Dengan begitu sistem yakin address yang terdaftar benar-benar milik Anda — address saja bersifat publik, sehingga tanpa langkah ini siapa pun bisa mendaftar atau mengedit profil atas nama orang lain.',
+      'Anda hanya perlu melakukan ini SEKALI setiap 24 jam (saat pertama mendaftar atau saat sesi kedaluwarsa). Setelahnya semua aksi — bergabung pool, edit profil, notifikasi — berjalan otomatis tanpa popup tanda tangan.',
       'Untuk memutus: buka sidebar dan tekan Disconnect Wallet. Data profil Anda tetap tersimpan dan bisa dilanjutkan kapan saja dengan wallet yang sama.',
     ],
   },
