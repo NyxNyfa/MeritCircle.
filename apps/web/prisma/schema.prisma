@@ -44,6 +44,7 @@ model Pool {
   poolSize           Int      // Kapasitas member (3, 5, 10)
   totalYield         Float    @default(0) // Total hadiah (150, 500, 1000, 2500)
   isAuctionMode      Boolean  @default(false)
+  viewCount          Int      @default(0) // metrik engagement "pools viewed" (§65)
 
   // Fitur baru: Melacak pemenang siklus sebelumnya
   lastWinnerUsername String?

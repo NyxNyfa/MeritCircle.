@@ -14,6 +14,31 @@ type Metrics = {
   pools: Array<{ poolIdOnChain: number; status: number; round: number; cycle: number; memberCount: number; collected: number }>
 }
 
+type Analytics = {
+  acquisition: { walletsConnected: number; emailVerified: number; usernamesCreated: number }
+  engagement: {
+    poolsViewed: number
+    poolJoins: number
+    poolCompletions: number
+    completionRate: number | null
+    auctionBids: number
+    auctionParticipants: number
+  }
+  merit: { averageMerit: number; tierDistribution: Record<string, number>; reputationEvents: number }
+  financial: {
+    contributionSuccessRate: number | null
+    simulatedDefaultRate: number | null
+    totalContributedMc: number
+    payouts: number
+    totalPaidOutMc: number
+    totalSurplusMc: number
+    avgAuctionDiscount: number | null
+    reserveMc: number | null
+    treasuryMc: number | null
+    reserveUtilization: number | null
+  }
+}
+
 const STATUS_TEXT = ['OPEN', 'ACTIVE', 'COMPLETED']
 
 export default function AdminPage() {
@@ -31,6 +56,18 @@ export default function AdminPage() {
     },
     enabled: !!address,
     refetchInterval: 30_000,
+    retry: false,
+  })
+
+  const analyticsQ = useQuery<Analytics>({
+    queryKey: ['admin-analytics', address],
+    queryFn: async () => {
+      const res = await fetch(`/api/admin/analytics?wallet=${address}`)
+      if (!res.ok) throw new Error('Gagal memuat analytics')
+      return res.json()
+    },
+    enabled: !!address,
+    refetchInterval: 60_000,
     retry: false,
   })
 
@@ -111,6 +148,49 @@ export default function AdminPage() {
               </tbody>
             </table>
           </div>
+
+          {/* Analytics §65 */}
+          {analyticsQ.data && (
+            <div className="glass-panel rounded-2xl p-5 space-y-4">
+              <h2 className="font-mono-label text-mono-label uppercase text-[#5B7CFF]">Analytics KPI (§65)</h2>
+
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                {[
+                  ['Wallets connected', analyticsQ.data.acquisition.walletsConnected],
+                  ['Email verified', `${analyticsQ.data.acquisition.emailVerified}/${analyticsQ.data.acquisition.walletsConnected}`],
+                  ['Pools viewed', analyticsQ.data.engagement.poolsViewed],
+                  ['Pool joins', analyticsQ.data.engagement.poolJoins],
+                  ['Completion rate', analyticsQ.data.engagement.completionRate === null ? '—' : `${Math.round(analyticsQ.data.engagement.completionRate * 100)}%`],
+                  ['Auction bids', `${analyticsQ.data.engagement.auctionBids} (${analyticsQ.data.engagement.auctionParticipants} user)`],
+                  ['Avg merit', Math.round(analyticsQ.data.merit.averageMerit)],
+                  ['Reputation events', analyticsQ.data.merit.reputationEvents],
+                  ['Contribution success', analyticsQ.data.financial.contributionSuccessRate === null ? '—' : `${Math.round(analyticsQ.data.financial.contributionSuccessRate * 100)}%`],
+                  ['Default rate (sim)', analyticsQ.data.financial.simulatedDefaultRate === null ? '—' : `${(analyticsQ.data.financial.simulatedDefaultRate * 100).toFixed(1)}%`],
+                  ['Avg diskon auction', analyticsQ.data.financial.avgAuctionDiscount === null ? '—' : `${(analyticsQ.data.financial.avgAuctionDiscount * 100).toFixed(1)}%`],
+                  ['Reserve utilization', analyticsQ.data.financial.reserveUtilization === null ? '—' : `${Math.round(analyticsQ.data.financial.reserveUtilization * 100)}%`],
+                ].map(([label, value]) => (
+                  <div key={String(label)}>
+                    <p className="font-mono text-[10px] uppercase text-[#C3C6D3]">{label}</p>
+                    <p className="font-mono font-bold text-[#E2E2E9] mt-0.5">{value}</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Distribusi tier */}
+              <div>
+                <p className="font-mono text-[10px] uppercase text-[#C3C6D3] mb-1.5">Distribusi tier</p>
+                <div className="flex gap-2 flex-wrap">
+                  {Object.entries(analyticsQ.data.merit.tierDistribution)
+                    .sort(([a], [b]) => Number(a) - Number(b))
+                    .map(([tier, count]) => (
+                      <span key={tier} className="rounded-full border border-[#3e63ff]/30 bg-[#3E63FF]/10 px-3 py-1 font-mono text-[11px] text-[#A9C7FF]">
+                        T{tier}: {count}
+                      </span>
+                    ))}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </motion.div>

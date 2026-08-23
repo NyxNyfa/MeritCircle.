@@ -71,6 +71,12 @@ export default function PoolDetailPage() {
     () => 0,
   )
 
+  useEffect(() => {
+    if (!Number.isInteger(idOnChain)) return
+    // Metrik engagement §65 — fire and forget, sekali per kunjungan halaman
+    fetch(`/api/pools/${idOnChain}/view`, { method: 'POST' }).catch(() => undefined)
+  }, [idOnChain])
+
   // ---- Data DB ----
   const { data: detail, isLoading: isDetailLoading, refetch: refetchDetail } = useQuery({
     queryKey: ['pool-detail', idOnChain],

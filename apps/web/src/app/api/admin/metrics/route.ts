@@ -1,24 +1,18 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { checkAdminAccess } from '@/lib/admin-guard';
 import { getPublicClient, getServerChainId, readPoolState } from '@/lib/chain';
 import { getContractAddresses } from '@/config/contracts';
 
 /**
  * Metrik protokol untuk admin (spesifikasi §49/§53/§65).
- * Guard sederhana testnet: query param wallet harus sama dengan env ADMIN_WALLET.
+ * Guard testnet: query param wallet harus sama dengan env ADMIN_WALLET.
  */
 export async function GET(req: Request) {
-  try {
-    const adminWallet = process.env.ADMIN_WALLET?.toLowerCase();
-    if (!adminWallet) {
-      return NextResponse.json({ error: 'ADMIN_WALLET belum diset di server' }, { status: 503 });
-    }
-    const url = new URL(req.url);
-    const requester = (url.searchParams.get('wallet') ?? '').toLowerCase();
-    if (requester !== adminWallet) {
-      return NextResponse.json({ error: 'Akses ditolak' }, { status: 403 });
-    }
+  const denied = checkAdminAccess(req);
+  if (denied) return denied;
 
+  try {
     // ---- Agregat DB ----
     const [users, paidAgg, missedCount, payoutAgg, activeObligations, completedPools] = await Promise.all([
       prisma.user.count(),
