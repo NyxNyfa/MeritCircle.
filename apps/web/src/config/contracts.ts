@@ -30,10 +30,11 @@ export const CHAIN_CONTRACTS: Record<number, ContractAddresses> = {
     meritPool: "0x0000000000000000000000000000000000000002" as `0x${string}`,
   },
   31337: {
-    // Deploy MeritPool v2 (cycle scheduling + Merit Queue + auction + surplus split)
-    mcToken: normalizeAddress("0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9"),
-    tokenSwap: normalizeAddress("0x5FC8d32690cc91D4c39d9d3abcBD16989F875707"),
-    meritPool: normalizeAddress("0xa513E6E4b8f2a923D98304ec87F64353C4D5C853"),
+    // Alamat deterministik untuk Anvil fresh (deploy urutan nonce 0-2 via Deploy.s.sol).
+    // Jika anvil TIDAK fresh, jalankan ulang forge script dan perbarui alamat di sini.
+    mcToken: normalizeAddress("0x5FbDB2315678afecb367f032d93F642f64180aa3"),
+    tokenSwap: normalizeAddress("0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512"),
+    meritPool: normalizeAddress("0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9"),
   },
 };
 
