@@ -32,59 +32,45 @@ type HistoryItem = {
   settled: boolean
 }
 
-// Dummy — nanti diganti data riwayat on-chain (The Graph / event logs)
-const ARISAN_HISTORY: HistoryItem[] = [
-  {
-    id: 'h1',
-    type: 'win',
-    title: 'Menang Premium Pool',
-    pool: 'Premium Pool · Cycle 2',
-    amount: '+1.000 MC',
-    amountIn: true,
-    date: '12 Aug 2026',
-    settled: true,
-  },
-  {
-    id: 'h2',
-    type: 'join',
-    title: 'Joined Basic Pool',
-    pool: 'Basic Pool · Cycle 3',
-    amount: '−50 MC',
-    amountIn: false,
-    date: '5 Aug 2026',
-    settled: false,
-  },
-  {
-    id: 'h3',
-    type: 'join',
-    title: 'Joined Standard Pool',
-    pool: 'Standard Pool · Cycle 1',
-    amount: '−100 MC',
-    amountIn: false,
-    date: '28 Jul 2026',
-    settled: true,
-  },
-  {
-    id: 'h4',
-    type: 'win',
-    title: 'Menang Basic Pool',
-    pool: 'Basic Pool · Cycle 2',
-    amount: '+150 MC',
-    amountIn: true,
-    date: '14 Jul 2026',
-    settled: true,
-  },
-  {
-    id: 'h5',
-    type: 'join',
-    title: 'Joined Basic Pool',
-    pool: 'Basic Pool · Cycle 2',
-    amount: '−50 MC',
-    amountIn: false,
-    date: '30 Jun 2026',
-    settled: true,
-  },
-]
+type ActivityData = {
+  summary: {
+    onTimeRate: number | null
+    totalContributed: number
+    totalReceived: number
+    completedPools: number
+    activeObligations: number
+    missedCycles: number
+  }
+  contributions: Array<{
+    poolIdOnChain: number
+    round: number
+    cycle: number
+    poolName: string
+    amount: number
+    status: string
+    paidAt: string | null
+  }>
+  payouts: Array<{
+    poolIdOnChain: number
+    round: number
+    cycle: number
+    poolName: string
+    nominalAmount: number
+    payoutAmount: number
+    discount: number
+    surplus: number
+    createdAt: string
+  }>
+  obligations: Array<{
+    poolIdOnChain: number
+    round: number
+    poolName: string
+    status: string
+    contributedCycles: number
+    missedCycles: number
+    totalCycles: number
+  }>
+}
 
 export default function ProfilePage() {
   const { address } = useAccount()
@@ -126,8 +112,6 @@ export default function ProfilePage() {
   const tierLabel = userTier >= 4 ? `Tier ${userTier} VIP Member` : `Tier ${userTier} Member`
   const displayName = userProfile?.username ?? (address ? `0x${address.slice(2, 5)}…${address.slice(-4)}` : 'Not Connected')
   const avatarSrc = userProfile?.avatarUrl || AVATAR_URL
-  const joinedCount = ARISAN_HISTORY.filter((h) => h.type === 'join').length
-  const wonCount = ARISAN_HISTORY.filter((h) => h.type === 'win').length
 
   const handleCopy = async () => {
     if (!address) return
@@ -205,6 +189,58 @@ export default function ProfilePage() {
     refetchInterval: 30_000,
     retry: false,
   })
+
+  // ===== Riwayat aktivitas nyata (kontribusi + payout + obligations) =====
+  const activityQuery = useQuery<ActivityData>({
+    queryKey: ['activity', address],
+    queryFn: async () => {
+      if (!address) throw new Error('Wallet belum terhubung')
+      const headers = await getSessionAuthHeaders(address, signMessageAsync)
+      const res = await fetch('/api/me/activity', { headers })
+      if (!res.ok) throw new Error('Gagal memuat riwayat aktivitas')
+      return res.json()
+    },
+    enabled: !!address,
+    retry: false,
+  })
+
+  const historyItems: HistoryItem[] = (() => {
+    const a = activityQuery.data
+    if (!a) return []
+    const wins: HistoryItem[] = a.payouts.map((p) => ({
+      id: `win-${p.poolIdOnChain}-${p.round}-${p.cycle}`,
+      type: 'win',
+      title: 'Menang payout',
+      pool: `${p.poolName} · Cycle ${p.cycle}`,
+      amount: `+${p.payoutAmount.toLocaleString('id-ID')} MC`,
+      amountIn: true,
+      date: new Date(p.createdAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }),
+      settled: true,
+    }))
+    const joins: HistoryItem[] = [...a.contributions]
+      .reverse()
+      .map((c) => ({
+        id: `join-${c.poolIdOnChain}-${c.round}-${c.cycle}`,
+        type: 'join' as const,
+        title:
+          c.status === 'MISSED'
+            ? 'Iuran terlewat (default)'
+            : c.status === 'LATE'
+              ? 'Iuran dibayar terlambat'
+              : 'Iuran dibayar',
+        pool: `${c.poolName} · Cycle ${c.cycle}`,
+        amount: c.status === 'MISSED' ? `−${c.amount || 0} MC` : `−${(c.amount || 0).toLocaleString('id-ID')} MC`,
+        amountIn: false,
+        date: c.paidAt
+          ? new Date(c.paidAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })
+          : 'belum dibayar',
+        settled: c.status !== 'MISSED',
+      }))
+    return [...wins, ...joins].sort((x, y) => y.date.localeCompare(x.date))
+  })()
+
+  const joinedCount = activityQuery.data?.summary.completedPools ?? 0
+  const wonCount = historyItems.filter((h) => h.type === 'win').length
 
   const handleMarkAllRead = async () => {
     if (!address) return
@@ -319,21 +355,47 @@ export default function ProfilePage() {
               </div>
             </div>
 
-            {/* Ringkasan arisan */}
-            <div className="mt-4 flex items-center gap-6 rounded-2xl border border-[#3e63ff]/15 bg-[#10131A]/40 px-4 py-3 text-sm">
-              <div className="flex items-center gap-2 text-[#C3C6D3]">
-                <Users className="h-4 w-4 text-[#3E63FF]" />
-                <span>
-                  <b className="text-[#E2E2E9]">{joinedCount}</b> pool joined
-                </span>
-              </div>
-              <div className="flex items-center gap-2 text-[#C3C6D3]">
-                <Crown className="h-4 w-4 text-[#FFC857]" />
-                <span>
-                  <b className="text-[#E2E2E9]">{wonCount}</b> pool won
-                </span>
-              </div>
+            {/* Ringkasan merit & arisan — data nyata */}
+            <div className="mt-6 grid grid-cols-2 sm:grid-cols-4 gap-3">
+              {[
+                { label: 'On-Time Rate', value: activityQuery.data ? (activityQuery.data.summary.onTimeRate === null ? '—' : `${activityQuery.data.summary.onTimeRate}%`) : '…', accent: '#56ffa8' },
+                { label: 'Total Iuran', value: `${Math.round(activityQuery.data?.summary.totalContributed ?? 0).toLocaleString('id-ID')} MC`, accent: '#3E63FF' },
+                { label: 'Total Payout', value: `${Math.round(activityQuery.data?.summary.totalReceived ?? 0).toLocaleString('id-ID')} MC`, accent: '#FFC857' },
+                { label: 'Pool Tuntas', value: `${activityQuery.data?.summary.completedPools ?? 0}`, accent: '#A9C7FF' },
+              ].map((s) => (
+                <div key={s.label} className="rounded-2xl border border-[#3e63ff]/15 bg-[#10131A]/50 px-3 py-3">
+                  <p className="font-mono text-[10px] uppercase tracking-wider text-[#C3C6D3]">{s.label}</p>
+                  <p className="mt-1 font-mono text-base font-bold" style={{ color: s.accent }}>{s.value}</p>
+                </div>
+              ))}
             </div>
+
+            {/* Kewajiban aktif */}
+            {!!activityQuery.data?.obligations.length && (
+              <div className="mt-4 space-y-2">
+                <p className="font-mono text-[10px] uppercase tracking-wider text-[#C3C6D3]">Kewajiban Pool</p>
+                {activityQuery.data.obligations.slice(0, 3).map((o) => (
+                  <div key={`${o.poolIdOnChain}-${o.round}`} className="flex items-center justify-between rounded-xl border border-[#3e63ff]/15 bg-[#10131A]/40 px-3 py-2 text-xs">
+                    <div className="min-w-0">
+                      <span className="font-semibold text-[#E2E2E9]">{o.poolName}</span>
+                      <span className="ml-2 text-[#C3C6D3]">
+                        {o.contributedCycles}/{o.totalCycles} cycle{o.missedCycles > 0 ? ` · ${o.missedCycles} miss` : ''}
+                      </span>
+                    </div>
+                    <span
+                      className={cn(
+                        'rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider',
+                        o.status === 'COMPLETED'
+                          ? 'border border-[#56ffa8]/30 bg-[#56ffa8]/10 text-[#56ffa8]'
+                          : 'border border-[#3e63ff]/40 bg-[#3E63FF]/10 text-[#A9C7FF]',
+                      )}
+                    >
+                      {o.status === 'COMPLETED' ? 'Tuntas' : 'Berjalan'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -438,12 +500,12 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      {/* ===== Arisan History Feed ===== */}
+      {/* ===== Arisan History Feed (data nyata dari indexer) ===== */}
       <div className="mt-8 px-4 sm:px-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-bold tracking-tight text-[#E2E2E9]">Arisan History</h2>
           <span className="font-mono text-[10px] uppercase tracking-wider text-[#C3C6D3]">
-            {ARISAN_HISTORY.length} events · on-chain
+            {historyItems.length} events · on-chain
           </span>
         </div>
 
@@ -451,8 +513,13 @@ export default function ProfilePage() {
           {/* Timeline line */}
           <div className="absolute left-[27px] top-8 bottom-8 w-px bg-gradient-to-b from-[#3E63FF]/60 via-[#3e63ff]/25 to-transparent" />
 
-          <div className="space-y-6">
-            {ARISAN_HISTORY.map((item, i) => (
+          {historyItems.length === 0 ? (
+            <p className="text-sm text-[#C3C6D3]">
+              Belum ada aktivitas. Gabung pool pertama Anda untuk mulai membangun merit.
+            </p>
+          ) : (
+            <div className="space-y-6">
+              {historyItems.slice(0, 12).map((item, i) => (
               <motion.div
                 key={item.id}
                 initial={{ opacity: 0, x: -8 }}
@@ -512,7 +579,8 @@ export default function ProfilePage() {
                 </div>
               </motion.div>
             ))}
-          </div>
+            </div>
+          )}
         </div>
       </div>
 

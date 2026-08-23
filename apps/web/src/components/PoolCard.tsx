@@ -1,6 +1,7 @@
 'use client'
 
 import * as React from 'react'
+import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { cn } from '../lib/utils'
 import { Icon } from './Icon'
@@ -437,6 +438,13 @@ export default function PoolCard({
               Waiting for Wallet Confirmation…
             </p>
           )}
+
+          <Link
+            href={`/pools/${pool.poolIdOnChain}`}
+            className="w-full text-center font-mono-label text-mono-label text-[#A9C7FF] hover:text-[#3E63FF] transition-colors uppercase"
+          >
+            Lihat Detail →
+          </Link>
         </div>
       </div>
     </motion.article>
