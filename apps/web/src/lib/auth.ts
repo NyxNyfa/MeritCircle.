@@ -3,7 +3,7 @@
 // Alur session: satu challenge -> server menerbitkan HMAC session token (24 jam) untuk polling tanpa popup.
 import crypto from 'node:crypto'
 import { prisma } from '@/lib/prisma'
-import { verifyMessage } from 'viem'
+import { recoverMessageAddress } from 'viem'
 import { buildAuthMessage } from '@/lib/auth-message'
 
 function hmacSecret(): string {
@@ -69,12 +69,13 @@ export async function verifyWalletOwnership(proof: AuthProof): Promise<string | 
 
   let valid = false
   try {
-    const recovered = await verifyMessage({
-      address: proof.address as `0x${string}`,
+    // recoverMessageAddress mengembalikan ALAMAT penandatangan (async di viem 2.x) —
+    // bandingkan dengan address yang diklaim.
+    const recovered = await recoverMessageAddress({
       message: buildAuthMessage(normalized, challenge.nonce),
       signature: proof.signature as `0x${string}`,
     })
-    valid = String(recovered).toLowerCase() === normalized
+    valid = recovered.toLowerCase() === normalized
   } catch {
     valid = false
   }
