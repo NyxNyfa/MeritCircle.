@@ -19,7 +19,7 @@ export default function SwapPage() {
     abi: MCIRCLE_ABI,
     functionName: 'balanceOf',
     args: address ? [address] : undefined,
-    query: { enabled: !!address },
+    query: { enabled: !!address, refetchInterval: 10_000 },
   })
   const mcBalance = balanceData ? formatUnits(balanceData as bigint, 18) : '0'
 

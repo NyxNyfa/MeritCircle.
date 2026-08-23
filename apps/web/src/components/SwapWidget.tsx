@@ -44,6 +44,30 @@ const hasTooManyDecimals = (amount: string) => {
   return parts.length === 2 && parts[1].length > 18
 }
 
+type EthProvider = { request: (args: { method: string; params?: unknown[] }) => Promise<unknown> }
+
+/** Tambahkan/switch ke jaringan Anvil dengan RPC yang BENAR di MetaMask pengguna. */
+async function addAnvilNetwork(eth: EthProvider | undefined): Promise<boolean> {
+  if (!eth) return false
+  try {
+    await eth.request({
+      method: 'wallet_addEthereumChain',
+      params: [
+        {
+          chainId: '0x7a69', // 31337
+          chainName: 'Anvil (Local)',
+          nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
+          rpcUrls: ['http://127.0.0.1:8545'],
+        },
+      ],
+    })
+    await eth.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: '0x7a69' }] })
+    return true
+  } catch {
+    return false
+  }
+}
+
 export default function SwapWidget({
   address,
   mcBalance,
@@ -352,8 +376,43 @@ export default function SwapWidget({
                 Ganti ke {c.name}
               </button>
             ))}
+            <button
+              onClick={async () => {
+                const eth = (window as unknown as { ethereum?: EthProvider }).ethereum
+                const ok = await addAnvilNetwork(eth)
+                toast(ok ? 'success' : 'error', ok ? 'Jaringan Anvil siap' : 'Gagal memperbaiki jaringan')
+              }}
+              className="rounded-lg bg-[#FFC857]/90 px-3 py-1.5 text-xs font-bold text-black hover:bg-[#FFC857] transition-colors"
+            >
+              Perbaiki Anvil otomatis
+            </button>
           </div>
         </div>
+      )}
+
+      {/* Bantuan jaringan selalu tersedia — kasus umum: entri "Localhost" di MetaMask menunjuk RPC salah,
+          sehingga transaksi "sukses" di wallet tetapi tidak pernah menyentuh rantai kita. */}
+      {contractsReady && (
+        <details className="mb-3 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2">
+          <summary className="cursor-pointer font-mono text-[10px] uppercase tracking-wider text-[#C3C6D3] select-none">
+            Swap sukses di wallet tapi saldo MC kosong? → periksa jaringan
+          </summary>
+          <p className="mt-2 text-[11px] leading-relaxed text-[#C3C6D3]">
+            Pastikan MetaMask aktif di jaringan: <b className="text-[#E2E2E9]">Anvil (Local)</b> · RPC{' '}
+            <code className="text-[#5B7CFF]">http://127.0.0.1:8545</code> · Chain ID{' '}
+            <code className="text-[#5B7CFF]">31337</code>. Jika entri jaringan Anda salah, klik:
+          </p>
+          <button
+            onClick={async () => {
+              const eth = (window as unknown as { ethereum?: EthProvider }).ethereum
+              const ok = await addAnvilNetwork(eth)
+              toast(ok ? 'success' : 'error', ok ? 'Jaringan Anvil diperbaiki' : 'Gagal — tambahkan manual sesuai parameter di atas')
+            }}
+            className="mt-2 rounded-lg border border-[#56ffa8]/50 bg-[#56ffa8]/10 px-3 py-1.5 text-xs font-semibold text-[#56ffa8] hover:bg-[#56ffa8]/20 transition-colors"
+          >
+            Perbaiki / Tambah jaringan Anvil otomatis
+          </button>
+        </details>
       )}
 
       {/* Catatan likuiditas arah Jual */}
@@ -409,6 +468,11 @@ export default function SwapWidget({
             : isBalancePending
               ? '…'
               : `${mcNumBalance.toLocaleString('en-US', { maximumFractionDigits: 2 })} MC`}
+          {address && (
+            <span className="ml-2 text-[#C3C6D3]/60">
+              · wallet {address.slice(0, 6)}…{address.slice(-4)}
+            </span>
+          )}
         </p>
         {needsApprove && (
           <p className="mt-1 font-mono text-[10px] text-[#5B7CFF]">
