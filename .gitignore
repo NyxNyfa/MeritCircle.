@@ -29,6 +29,7 @@ coverage/
 .claude/
 .windsurf/
 scratch/
+opencode.json
 
 # OS & Logs
 .DS_Store
