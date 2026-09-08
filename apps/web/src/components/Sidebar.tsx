@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation'
 import { ArrowLeftRight, BookOpen, Clock, Copy, Edit3, Home, LogOut, Menu, Users, Zap } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { cn } from '@/lib/utils'
 import { useMemo, useState } from 'react'
@@ -116,65 +117,65 @@ export default function Sidebar({
             <motion.div
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4, ease: 'easeOut' }}
-              className="relative w-full h-auto"
+              className="relative w-full px-0 mt-1 mb-6"
             >
-              {/* Glow Effect (Royal Blue) */}
-              <div className="pointer-events-none absolute inset-x-0 -bottom-6 top-[68%] rounded-[28px] bg-[#3E63FF]/70 blur-[60px] shadow-[0_40px_80px_-16px_rgba(62,99,255,0.8)] z-0" />
+              {/* Royal Blue Glow Effect */}
+              <div className="pointer-events-none absolute inset-x-2 -bottom-6 top-[60%] rounded-[28px] bg-[#3E63FF]/60 blur-[24px] shadow-[0_40px_80px_-16px_rgba(62,99,255,0.8)] z-0" />
+              
+              <div className="absolute inset-x-0 -bottom-6 mx-auto w-full z-0">
+                <div className="flex items-center justify-center gap-1.5 bg-transparent text-center text-[10px] font-medium text-[#A9C7FF]">
+                  <Zap className="h-3 w-3" /> Active in Merit Pool
+                </div>
+              </div>
 
-              <div className="relative z-10 w-full overflow-visible rounded-[28px] border border-[#3E63FF]/20 bg-[#1D2027]/80 backdrop-blur-xl text-[#E2E2E9] shadow-2xl p-4">
-                {/* Status + Waktu */}
-                <div className="mb-3 flex items-center justify-between text-xs text-[#C3C6D3]">
-                  <div className="flex items-center gap-1.5">
-                    <span className="inline-block h-2 w-2 rounded-full animate-pulse bg-[#3E63FF] shadow-[0_0_8px_#3E63FF]" />
-                    <span className="select-none truncate">{statusText}</span>
-                  </div>
-                  <div className="flex items-center gap-1 opacity-80">
-                    <Clock className="h-3.5 w-3.5" />
+              {/* 1:3 Aspect Ratio Card */}
+              <Card className="relative z-10 w-full aspect-[3/1] overflow-hidden rounded-[20px] border-0 bg-[radial-gradient(120%_120%_at_30%_10%,#1a1a1a_0%,#0f0f10_60%,#0b0b0c_100%)] text-white shadow-2xl flex flex-col justify-between p-3">
+                
+                {/* Top: Just the Clock aligned to the right */}
+                <div className="flex items-center justify-end text-[10px] text-neutral-300">
+                  <div className="flex items-center gap-1 opacity-80 shrink-0">
+                    <Clock className="h-3 w-3" />
                     <span className="tabular-nums">{timeText}</span>
                   </div>
                 </div>
 
-                {/* Avatar + Nama + Tier */}
-                <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 shrink-0 overflow-hidden rounded-full ring-2 ring-[#3E63FF]/50 relative bg-[#10131A]">
-                    <img
-                      src={avatarSrc}
-                      alt="avatar"
-                      className="object-cover w-full h-full"
-                      draggable={false}
-                    />
+                {/* Bottom: Avatar, TIER TEXT (Replaces Name), and Compact Buttons */}
+                <div className="flex items-center justify-between mt-1">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    {/* Avatar */}
+                    <div className="relative h-9 w-9 shrink-0 overflow-hidden rounded-full ring-2 ring-[#3E63FF]/50 bg-[#10131A]">
+                      <img
+                        src={avatarSrc}
+                        alt="avatar"
+                        className="object-cover w-full h-full"
+                        draggable={false}
+                      />
+                    </div>
+                    
+                    {/* Tier Text & Username */}
+                    <div className="min-w-0 pr-1 flex flex-col justify-center">
+                      <div className="flex items-center gap-1.5">
+                        <span className="inline-block h-2 w-2 rounded-full bg-[#3E63FF] animate-pulse shadow-[0_0_8px_#3E63FF] shrink-0" />
+                        <h3 className="text-sm font-bold tracking-tight text-[#E2E2E9] whitespace-nowrap">
+                          {userTier >= 4 ? `Tier ${userTier} VIP` : `Tier ${userTier}`}
+                        </h3>
+                      </div>
+                      <p className="mt-0.5 text-[10px] text-[#A9C7FF] whitespace-nowrap">
+                        {userProfile?.username ? `@${userProfile.username}` : statusText}
+                      </p>
+                    </div>
                   </div>
-                  <div className="min-w-0 flex-1">
-                    <h3 className="truncate text-sm font-bold text-[#E2E2E9] tracking-tight">
-                      @{userProfile.username}
-                    </h3>
-                    <p className="mt-0.5 text-xs text-[#A9C7FF] truncate">{tierLabel}</p>
-                  </div>
-                  <div className="h-9 w-9 shrink-0 bg-[#3E63FF]/20 rounded-full flex items-center justify-center border border-[#3E63FF]/50 text-[#A9C7FF]">
-                    🏆
+                  
+                  {/* Button: Edit Profile Only */}
+                  <div className="shrink-0 pl-1">
+                    <Link href="/profile" title="Edit Profil">
+                      <Button className="h-8 w-8 rounded-xl bg-white/10 p-0 text-white hover:bg-[#3E63FF]/30 hover:text-[#5B7CFF] border border-white/10 hover:border-[#3E63FF]/40 transition-all flex items-center justify-center" variant="secondary">
+                        <Edit3 className="h-4 w-4" />
+                      </Button>
+                    </Link>
                   </div>
                 </div>
-
-                {/* Aksi: Edit Profile + Copy Address */}
-                <div className="mt-3 grid grid-cols-2 gap-2">
-                  <Link href="/profile">
-                    <button className="h-9 w-full justify-start gap-2 rounded-xl bg-white/5 text-[#E2E2E9] hover:bg-[#3E63FF]/20 border border-transparent hover:border-[#3E63FF]/50 transition-all flex items-center px-3 text-xs font-medium">
-                      <Edit3 className="h-3.5 w-3.5 shrink-0" /> Edit Profile
-                    </button>
-                  </Link>
-                  <button
-                    onClick={handleCopyAddress}
-                    className="h-9 w-full justify-start gap-2 rounded-xl bg-white/5 text-[#E2E2E9] hover:bg-[#3E63FF]/20 border border-transparent hover:border-[#3E63FF]/50 transition-all flex items-center px-3 text-xs font-medium"
-                  >
-                    <Copy className="h-3.5 w-3.5 shrink-0" /> {copied ? 'Copied!' : 'Copy Address'}
-                  </button>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-center gap-1.5 bg-transparent py-1 text-center text-[11px] font-medium text-[#A9C7FF]">
-                <Zap className="h-3.5 w-3.5" /> Active in Merit Pool
-              </div>
+              </Card>
             </motion.div>
           ) : (
             /* Collapsed — cukup avatar chip */

@@ -2,7 +2,7 @@ import * as React from 'react'
 import { cn } from '../../lib/utils'
 
 type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
-  variant?: 'default' | 'ghost' | 'outline'
+  variant?: 'default' | 'ghost' | 'outline' | 'secondary'
   size?: 'default' | 'icon' | 'sm'
 }
 
@@ -16,6 +16,7 @@ export function Button({ className, variant = 'default', size = 'default', type 
           'bg-[#3E63FF] text-white shadow-[0px_0px_15px_rgba(62,99,255,0.4)] hover:bg-[#5B7CFF] hover:shadow-[0px_0px_25px_rgba(62,99,255,0.6)]',
         variant === 'ghost' && 'text-[#C3C6D3] hover:bg-[#3E63FF]/20 hover:text-[#3E63FF]',
         variant === 'outline' && 'border border-[#3e63ff]/30 text-[#E2E2E9] hover:bg-[#3E63FF]/10 hover:border-[#3e63ff]/60',
+        variant === 'secondary' && 'bg-white/10 text-white hover:bg-white/20 border-0',
         size === 'default' && 'h-10 px-4 py-2',
         size === 'sm' && 'h-8 px-3 text-xs',
         size === 'icon' && 'h-9 w-9',

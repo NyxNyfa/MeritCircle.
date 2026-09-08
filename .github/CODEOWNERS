@@ -1,0 +1,11 @@
+# Global Repository Owners
+* @NyxNyfa
+
+# Smart Contracts
+/contracts/ @NyxNyfa
+
+# Web Application & Backend APIs
+/apps/web/ @NyxNyfa
+
+# CI/CD Workflows
+/.github/ @NyxNyfa

@@ -1,0 +1,83 @@
+name: CI - Build & Test
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  contracts:
+    name: Foundry Smart Contracts
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: nightly
+
+      - name: Cache Foundry Dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            contracts/lib
+            contracts/out
+            ~/.foundry/cache
+          key: ${{ runner.os }}-foundry-${{ hashFiles('contracts/**/*.sol') }}
+          restore-keys: |
+            ${{ runner.os }}-foundry-
+
+      - name: Check Contract Formatting
+        run: cd contracts && forge fmt --check
+
+      - name: Build Smart Contracts
+        run: cd contracts && forge build --sizes
+
+  web:
+    name: Next.js Frontend & Backend
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [20.x]
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 9
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'pnpm'
+
+      - name: Install Dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma Client
+        run: cd apps/web && npx prisma generate
+
+      - name: Typecheck TypeScript
+        run: cd apps/web && npx tsc --noEmit
+
+      - name: Run Next.js Linter
+        run: cd apps/web && pnpm lint
+
+      - name: Build Web Application
+        env:
+          DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/test"
+          BACKEND_PRIVATE_KEY: "0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d"
+        run: cd apps/web && pnpm build

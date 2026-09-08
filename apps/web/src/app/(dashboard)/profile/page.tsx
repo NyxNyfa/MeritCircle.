@@ -96,6 +96,23 @@ export default function ProfilePage() {
     refetchOnWindowFocus: false,
   })
 
+  const { data: dbPools } = useQuery<Array<{
+    id: string
+    poolIdOnChain: number
+    name: string
+    poolSize: number
+    contributionAmount: number
+    memberCount?: number
+  }>>({
+    queryKey: ['pools'],
+    queryFn: async () => {
+      const res = await fetch('/api/pools')
+      if (!res.ok) return []
+      return res.json()
+    },
+    refetchOnWindowFocus: false,
+  })
+
   const { data: mcBalanceData, isPending: isMcPending } = useReadContract({
     address: MCIRCLE_ADDRESS,
     abi: MCIRCLE_ABI,
@@ -125,6 +142,56 @@ export default function ProfilePage() {
     }
   }
 
+  // ===== Riwayat aktivitas nyata (kontribusi + payout + obligations) =====
+  const activityQuery = useQuery<ActivityData>({
+    queryKey: ['activity', address],
+    queryFn: async () => {
+      if (!address) throw new Error('Wallet belum terhubung')
+      const headers = await getSessionAuthHeaders(address, signMessageAsync)
+      const res = await fetch('/api/me/activity', { headers })
+      if (!res.ok) throw new Error('Gagal memuat riwayat aktivitas')
+      return res.json()
+    },
+    enabled: !!address,
+    retry: false,
+  })
+
+  // Active Commitment Widget (Lock-in Status) sesuai spesifikasi README §5.D
+  const activeObligation = activityQuery.data?.obligations?.find((o) => o.status === 'ACTIVE')
+  const joinedPool = dbPools?.find((p) => userProfile?.memberPoolIds?.includes(p.id))
+
+  const lockInInfo = (() => {
+    if (activeObligation) {
+      return {
+        isLocked: true,
+        statusType: 'ACTIVE' as const,
+        title: 'Status Arisan Aktif (Terkunci)',
+        badge: 'ACTIVE LOCK',
+        message: `🔒 Anda sedang arisan di ${activeObligation.poolName}. Siklus ${activeObligation.contributedCycles}/${activeObligation.totalCycles}.`,
+        detail: 'Dompet Anda terkunci di pool ini hingga seluruh siklus arisan selesai.',
+      }
+    }
+    if (joinedPool) {
+      const neededMembers = Math.max(1, joinedPool.poolSize - (joinedPool.memberCount ?? 1))
+      return {
+        isLocked: true,
+        statusType: 'FORMING' as const,
+        title: 'Status Pendaftaran (Terkunci)',
+        badge: 'FORMING LOCK',
+        message: `🔒 Anda terdaftar di ${joinedPool.name}. Menunggu ${neededMembers} anggota lagi. Terkunci hingga arisan selesai.`,
+        detail: 'Arisan akan dimulai otomatis begitu kelompok terisi penuh.',
+      }
+    }
+    return {
+      isLocked: false,
+      statusType: 'UNLOCKED' as const,
+      title: 'Status Bebas (Tidak Terkunci)',
+      badge: 'UNLOCKED',
+      message: '🔓 Anda tidak terikat di pool mana pun. Siap untuk bergabung ke pool baru sesuai Tier Anda.',
+      detail: 'Pilih pool yang tersedia di Dashboard untuk mulai berpartisipasi.',
+    }
+  })()
+
   const handleEditSubmit = async (values: EditProfileValues) => {
     if (!address) throw new Error('Wallet belum terhubung')
     const headers = await getSessionAuthHeaders(address, signMessageAsync)
@@ -135,7 +202,7 @@ export default function ProfilePage() {
     })
     const data = await res.json()
     if (!res.ok) throw new Error(data.error || 'Gagal menyimpan profil')
-    toast('success', 'Profil diperbarui', `@{data.username}`)
+    toast('success', 'Profil diperbarui', `@${data.username}`)
     refetchProfile()
   }
 
@@ -190,20 +257,6 @@ export default function ProfilePage() {
     retry: false,
   })
 
-  // ===== Riwayat aktivitas nyata (kontribusi + payout + obligations) =====
-  const activityQuery = useQuery<ActivityData>({
-    queryKey: ['activity', address],
-    queryFn: async () => {
-      if (!address) throw new Error('Wallet belum terhubung')
-      const headers = await getSessionAuthHeaders(address, signMessageAsync)
-      const res = await fetch('/api/me/activity', { headers })
-      if (!res.ok) throw new Error('Gagal memuat riwayat aktivitas')
-      return res.json()
-    },
-    enabled: !!address,
-    retry: false,
-  })
-
   const historyItems: HistoryItem[] = (() => {
     const a = activityQuery.data
     if (!a) return []
@@ -238,9 +291,6 @@ export default function ProfilePage() {
       }))
     return [...wins, ...joins].sort((x, y) => y.date.localeCompare(x.date))
   })()
-
-  const joinedCount = activityQuery.data?.summary.completedPools ?? 0
-  const wonCount = historyItems.filter((h) => h.type === 'win').length
 
   const handleMarkAllRead = async () => {
     if (!address) return
@@ -282,12 +332,12 @@ export default function ProfilePage() {
 
       {/* ===== Profil Info (avatar overlap) ===== */}
       <div className="relative -mt-14 px-4 sm:px-6">
-        <div className="relative rounded-3xl border border-[#3e63ff]/20 bg-[#1D2027]/80 backdrop-blur-xl text-[#E2E2E9] shadow-2xl overflow-hidden">
-          <div className="absolute inset-0 bg-grid-pattern opacity-5 pointer-events-none" />
+        <div className="relative rounded-3xl border border-[#3e63ff]/20 bg-[#1D2027]/80 backdrop-blur-xl text-[#E2E2E9] shadow-2xl overflow-visible">
+          <div className="absolute inset-0 bg-grid-pattern opacity-5 pointer-events-none rounded-3xl overflow-hidden" />
           <div className="relative p-6 pt-0 sm:p-8 sm:pt-0">
             {/* Avatar — overlap cover */}
             <div className="relative -mt-12 mb-4 flex items-end justify-between">
-              <div className="h-24 w-24 md:h-28 md:w-28 shrink-0 overflow-hidden rounded-full ring-4 ring-[#10131A] border-2 border-[#3E63FF]/40 bg-[#10131A] relative">
+              <div className="h-24 w-24 md:h-28 md:w-28 aspect-square rounded-full overflow-hidden shrink-0 ring-4 ring-[#10131A] border-2 border-[#3E63FF]/40 bg-[#10131A] relative z-10">
                 <img src={avatarSrc} alt="avatar" className="object-cover w-full h-full" draggable={false} />
               </div>
 
@@ -337,8 +387,47 @@ export default function ProfilePage() {
               </div>
             )}
 
+            {/* Active Commitment Widget (Lock-in Status) — Spesifikasi README §5.D */}
+            <div
+              className={cn(
+                'mt-6 rounded-2xl border p-4 backdrop-blur-md transition-all duration-300',
+                lockInInfo.statusType === 'ACTIVE'
+                  ? 'border-[#3E63FF]/50 bg-[#3E63FF]/10 shadow-[0_0_20px_rgba(62,99,255,0.15)]'
+                  : lockInInfo.statusType === 'FORMING'
+                    ? 'border-[#FFC857]/40 bg-[#FFC857]/10 shadow-[0_0_20px_rgba(255,200,87,0.1)]'
+                    : 'border-[#56ffa8]/30 bg-[#56ffa8]/5 shadow-[0_0_20px_rgba(86,255,168,0.05)]',
+              )}
+            >
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-base">{lockInInfo.isLocked ? '🔒' : '🔓'}</span>
+                  <h3 className="font-semibold text-sm text-[#E2E2E9]">
+                    Active Commitment (Lock-in Status)
+                  </h3>
+                </div>
+                <span
+                  className={cn(
+                    'rounded-full px-2.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider',
+                    lockInInfo.statusType === 'ACTIVE'
+                      ? 'border border-[#3E63FF]/50 bg-[#3E63FF]/20 text-[#A9C7FF]'
+                      : lockInInfo.statusType === 'FORMING'
+                        ? 'border border-[#FFC857]/50 bg-[#FFC857]/20 text-[#FFC857]'
+                        : 'border border-[#56ffa8]/50 bg-[#56ffa8]/20 text-[#56ffa8]',
+                  )}
+                >
+                  {lockInInfo.badge}
+                </span>
+              </div>
+              <p className="font-medium text-sm text-[#E2E2E9] leading-relaxed">
+                {lockInInfo.message}
+              </p>
+              <p className="text-xs text-[#C3C6D3] mt-1">
+                {lockInInfo.detail}
+              </p>
+            </div>
+
             {/* Wallet Stats */}
-            <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="rounded-2xl border border-[#3e63ff]/20 bg-[#10131A]/60 p-4">
                 <p className="font-mono text-[10px] uppercase tracking-wider text-[#C3C6D3]">MC Balance</p>
                 <p className="mt-1.5 font-mono text-xl font-bold text-[#E2E2E9]">
@@ -369,33 +458,6 @@ export default function ProfilePage() {
                 </div>
               ))}
             </div>
-
-            {/* Kewajiban aktif */}
-            {!!activityQuery.data?.obligations.length && (
-              <div className="mt-4 space-y-2">
-                <p className="font-mono text-[10px] uppercase tracking-wider text-[#C3C6D3]">Kewajiban Pool</p>
-                {activityQuery.data.obligations.slice(0, 3).map((o) => (
-                  <div key={`${o.poolIdOnChain}-${o.round}`} className="flex items-center justify-between rounded-xl border border-[#3e63ff]/15 bg-[#10131A]/40 px-3 py-2 text-xs">
-                    <div className="min-w-0">
-                      <span className="font-semibold text-[#E2E2E9]">{o.poolName}</span>
-                      <span className="ml-2 text-[#C3C6D3]">
-                        {o.contributedCycles}/{o.totalCycles} cycle{o.missedCycles > 0 ? ` · ${o.missedCycles} miss` : ''}
-                      </span>
-                    </div>
-                    <span
-                      className={cn(
-                        'rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider',
-                        o.status === 'COMPLETED'
-                          ? 'border border-[#56ffa8]/30 bg-[#56ffa8]/10 text-[#56ffa8]'
-                          : 'border border-[#3e63ff]/40 bg-[#3E63FF]/10 text-[#A9C7FF]',
-                      )}
-                    >
-                      {o.status === 'COMPLETED' ? 'Tuntas' : 'Berjalan'}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
           </div>
         </div>
       </div>

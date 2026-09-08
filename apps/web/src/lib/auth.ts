@@ -40,20 +40,50 @@ export function verifySessionToken(token: string): string | null {
   }
 }
 
+type NonceRecord = {
+  nonce: string
+  expiresAt: number
+}
+
+const globalForAuth = globalThis as unknown as {
+  activeNonces?: Map<string, NonceRecord[]>
+}
+
+const activeNonces = globalForAuth.activeNonces ?? new Map<string, NonceRecord[]>()
+if (process.env.NODE_ENV !== 'production') {
+  globalForAuth.activeNonces = activeNonces
+}
+
 export async function issueNonce(address: string): Promise<string> {
-  const normalized = address.toLowerCase()
+  const normalized = address.toLowerCase().trim()
   const nonce = crypto.randomUUID()
-  await prisma.authChallenge.upsert({
-    where: { address: normalized },
-    update: { nonce },
-    create: { address: normalized, nonce },
-  })
+  const now = Date.now()
+  const ttlMs = 10 * 60 * 1000 // 10 menit masa berlaku nonce
+
+  // Simpan di in-memory cache (menyimpan hingga 5 nonce aktif yang belum expired)
+  const existing = (activeNonces.get(normalized) ?? []).filter((item) => item.expiresAt > now)
+  existing.push({ nonce, expiresAt: now + ttlMs })
+  if (existing.length > 5) existing.shift()
+  activeNonces.set(normalized, existing)
+
+  // Sinkronkan ke database secara aman (tidak crash jika koneksi DB lambat/down)
+  try {
+    await prisma.authChallenge.upsert({
+      where: { address: normalized },
+      update: { nonce },
+      create: { address: normalized, nonce },
+    })
+  } catch (dbErr) {
+    console.warn('[auth] DB challenge sync warning (fallback in-memory tetap aktif):', dbErr)
+  }
+
   return nonce
 }
 
 export type AuthProof = {
   address: string
   signature: string
+  nonce?: string
 }
 
 /**
@@ -63,30 +93,79 @@ export type AuthProof = {
 export async function verifyWalletOwnership(proof: AuthProof): Promise<string | null> {
   if (!proof?.address || !proof?.signature) return null
 
-  const normalized = proof.address.toLowerCase()
-  const challenge = await prisma.authChallenge.findUnique({ where: { address: normalized } })
-  if (!challenge) return null
+  const normalized = proof.address.toLowerCase().trim()
+  const now = Date.now()
 
-  let valid = false
-  try {
-    // recoverMessageAddress mengembalikan ALAMAT penandatangan (async di viem 2.x) —
-    // bandingkan dengan address yang diklaim.
-    const recovered = await recoverMessageAddress({
-      message: buildAuthMessage(normalized, challenge.nonce),
-      signature: proof.signature as `0x${string}`,
-    })
-    valid = recovered.toLowerCase() === normalized
-  } catch {
-    valid = false
+  // Kumpulkan calon nonce yang sah
+  const memList = (activeNonces.get(normalized) ?? []).filter((item) => item.expiresAt > now)
+  const candidateNonces: string[] = []
+
+  // 1. Jika proof membawa nonce spesifik yang ditandatangani klien
+  if (proof.nonce && typeof proof.nonce === 'string') {
+    candidateNonces.push(proof.nonce.trim())
   }
 
-  // Nonce single-use: rotate setelah diverifikasi (valid maupun tidak) mencegah replay.
-  await prisma.authChallenge.update({
-    where: { address: normalized },
-    data: { nonce: crypto.randomUUID() },
-  })
+  // 2. Tambahkan nonce dari in-memory cache (terbaru dahulu)
+  for (let i = memList.length - 1; i >= 0; i--) {
+    if (!candidateNonces.includes(memList[i].nonce)) {
+      candidateNonces.push(memList[i].nonce)
+    }
+  }
 
-  return valid ? normalized : null
+  // 3. Tambahkan nonce dari database jika ada
+  try {
+    const challenge = await prisma.authChallenge.findUnique({ where: { address: normalized } })
+    if (challenge?.nonce && !candidateNonces.includes(challenge.nonce)) {
+      candidateNonces.push(challenge.nonce)
+    }
+  } catch (dbErr) {
+    console.warn('[auth] DB challenge lookup warning:', dbErr)
+  }
+
+  if (candidateNonces.length === 0) return null
+
+  let matchedNonce: string | null = null
+
+  // Uji verifikasi tanda tangan terhadap calon-calon nonce yang valid
+  for (const candidate of candidateNonces) {
+    try {
+      const recovered = await recoverMessageAddress({
+        message: buildAuthMessage(normalized, candidate),
+        signature: proof.signature as `0x${string}`,
+      })
+      if (recovered.toLowerCase() === normalized) {
+        matchedNonce = candidate
+        break
+      }
+    } catch {
+      // coba calon berikutnya
+    }
+  }
+
+  if (!matchedNonce) return null
+
+  // Nonce single-use: hapus nonce yang telah dipakai dari in-memory cache
+  const remaining = (activeNonces.get(normalized) ?? []).filter(
+    (item) => item.nonce !== matchedNonce && item.expiresAt > now,
+  )
+  if (remaining.length > 0) {
+    activeNonces.set(normalized, remaining)
+  } else {
+    activeNonces.delete(normalized)
+  }
+
+  // Rotate nonce di database mencegah replay
+  try {
+    await prisma.authChallenge.upsert({
+      where: { address: normalized },
+      update: { nonce: crypto.randomUUID() },
+      create: { address: normalized, nonce: crypto.randomUUID() },
+    })
+  } catch {
+    // abaikan jika DB sedang sibuk
+  }
+
+  return normalized
 }
 
 /**

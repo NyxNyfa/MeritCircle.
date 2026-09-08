@@ -17,8 +17,8 @@ const MERITPOOL_EVENTS_ABI = [
     name: 'PoolJoined',
     inputs: [
       { name: 'poolId', type: 'uint256', indexed: true },
-      { name: 'round', type: 'uint256', indexed: true },
-      { name: 'cycle', type: 'uint256', indexed: true },
+      { name: 'cohortId', type: 'uint256', indexed: true },
+      { name: 'cycle', type: 'uint256', indexed: false },
       { name: 'user', type: 'address', indexed: false },
     ],
   },
@@ -27,8 +27,8 @@ const MERITPOOL_EVENTS_ABI = [
     name: 'ContributionPaid',
     inputs: [
       { name: 'poolId', type: 'uint256', indexed: true },
-      { name: 'round', type: 'uint256', indexed: true },
-      { name: 'cycle', type: 'uint256', indexed: true },
+      { name: 'cohortId', type: 'uint256', indexed: true },
+      { name: 'cycle', type: 'uint256', indexed: false },
       { name: 'user', type: 'address', indexed: false },
       { name: 'amount', type: 'uint256', indexed: false },
     ],
@@ -38,8 +38,8 @@ const MERITPOOL_EVENTS_ABI = [
     name: 'BidPlaced',
     inputs: [
       { name: 'poolId', type: 'uint256', indexed: true },
-      { name: 'round', type: 'uint256', indexed: true },
-      { name: 'cycle', type: 'uint256', indexed: true },
+      { name: 'cohortId', type: 'uint256', indexed: true },
+      { name: 'cycle', type: 'uint256', indexed: false },
       { name: 'bidder', type: 'address', indexed: false },
       { name: 'amount', type: 'uint256', indexed: false },
     ],
@@ -49,8 +49,8 @@ const MERITPOOL_EVENTS_ABI = [
     name: 'CycleSettled',
     inputs: [
       { name: 'poolId', type: 'uint256', indexed: true },
-      { name: 'round', type: 'uint256', indexed: true },
-      { name: 'cycle', type: 'uint256', indexed: true },
+      { name: 'cohortId', type: 'uint256', indexed: true },
+      { name: 'cycle', type: 'uint256', indexed: false },
       { name: 'winner', type: 'address', indexed: false },
       { name: 'payout', type: 'uint256', indexed: false },
       { name: 'surplus', type: 'uint256', indexed: false },
@@ -61,8 +61,8 @@ const MERITPOOL_EVENTS_ABI = [
     name: 'DefaultRecorded',
     inputs: [
       { name: 'poolId', type: 'uint256', indexed: true },
-      { name: 'round', type: 'uint256', indexed: true },
-      { name: 'cycle', type: 'uint256', indexed: true },
+      { name: 'cohortId', type: 'uint256', indexed: true },
+      { name: 'cycle', type: 'uint256', indexed: false },
       { name: 'member', type: 'address', indexed: false },
     ],
   },
@@ -71,7 +71,7 @@ const MERITPOOL_EVENTS_ABI = [
     name: 'PoolCompleted',
     inputs: [
       { name: 'poolId', type: 'uint256', indexed: true },
-      { name: 'round', type: 'uint256', indexed: true },
+      { name: 'cohortId', type: 'uint256', indexed: true },
     ],
   },
 ] as const
@@ -131,7 +131,7 @@ async function ensureObligation(
 
 async function handlePoolJoined(args: DecodedArgs, txHash: string | null) {
   const poolIdOnChain = Number(args.poolId)
-  const round = Number(args.round)
+  const round = Number(args.cohortId ?? args.round ?? 0)
   const cycle = Number(args.cycle)
   const user = String(args.user).toLowerCase()
 
@@ -178,7 +178,7 @@ async function handlePoolJoined(args: DecodedArgs, txHash: string | null) {
 
 async function handleContributionPaid(args: DecodedArgs, txHash: string | null) {
   const poolIdOnChain = Number(args.poolId)
-  const round = Number(args.round)
+  const round = Number(args.cohortId ?? args.round ?? 0)
   const cycle = Number(args.cycle)
   const user = String(args.user).toLowerCase()
   const amount = weiToNumber(args.amount)
@@ -214,7 +214,7 @@ async function handleContributionPaid(args: DecodedArgs, txHash: string | null) 
 
 async function handleBidPlaced(args: DecodedArgs, txHash: string | null) {
   const poolIdOnChain = Number(args.poolId)
-  const round = Number(args.round)
+  const round = Number(args.cohortId ?? args.round ?? 0)
   const cycle = Number(args.cycle)
   const bidder = String(args.bidder).toLowerCase()
   const amount = weiToNumber(args.amount)
@@ -242,7 +242,7 @@ async function handleBidPlaced(args: DecodedArgs, txHash: string | null) {
 
 async function handleCycleSettled(args: DecodedArgs, txHash: string | null) {
   const poolIdOnChain = Number(args.poolId)
-  const round = Number(args.round)
+  const round = Number(args.cohortId ?? args.round ?? 0)
   const cycle = Number(args.cycle)
   const winner = String(args.winner).toLowerCase()
   const payout = weiToNumber(args.payout)
@@ -309,7 +309,7 @@ async function handleCycleSettled(args: DecodedArgs, txHash: string | null) {
 
 async function handleDefaultRecorded(args: DecodedArgs) {
   const poolIdOnChain = Number(args.poolId)
-  const round = Number(args.round)
+  const round = Number(args.cohortId ?? args.round ?? 0)
   const cycle = Number(args.cycle)
   const member = String(args.member).toLowerCase()
 
@@ -345,7 +345,7 @@ async function handleDefaultRecorded(args: DecodedArgs) {
 
 async function handlePoolCompleted(args: DecodedArgs) {
   const poolIdOnChain = Number(args.poolId)
-  const round = Number(args.round)
+  const round = Number(args.cohortId ?? args.round ?? 0)
 
   const members = await prisma.obligation.findMany({
     where: { poolIdOnChain, round },
@@ -373,8 +373,8 @@ export async function runIndexerOnce(): Promise<{ processedBlocks: number; event
 
   const cursor = await prisma.indexerCursor.findUnique({ where: { id: CURSOR_ID } })
   let fromBlock: number
-  if (!cursor) {
-    // Pertama kali: mulai dari jendela terbaru saja (riwayat lama tidak wajib untuk MVP)
+  if (!cursor || cursor.lastBlock > latest) {
+    // Pertama kali atau chain lokal direset: mulai dari jendela terbaru
     fromBlock = Math.max(0, latest - 4000)
   } else {
     fromBlock = cursor.lastBlock + 1

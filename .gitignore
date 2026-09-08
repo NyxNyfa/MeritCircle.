@@ -1,19 +1,41 @@
-# dependencies
+# Dependencies
 node_modules/
+.pnpm-store/
 
-# env & secrets
+# Environment Variables & Secrets
 .env
+.env*.local
 .env.*
 !.env.example
 
-# builds & caches
+# Next.js Build Output
 .next/
 out/
-cache/
-coverage/
-*.tsbuildinfo
 
-# misc
+# Foundry / Solidity Artifacts
+contracts/out/
+contracts/cache/
+broadcast/
+
+# TypeScript & Test Cache
+*.tsbuildinfo
+coverage/
+.nyc_output/
+
+# IDE & AI Assistant Dirs
+.idea/
+.vscode/
+.agents/
+.claude/
+.windsurf/
+scratch/
+
+# OS & Logs
 .DS_Store
-*.pem
+Thumbs.db
 *.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+*.pem

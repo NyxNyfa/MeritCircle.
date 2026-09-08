@@ -13,16 +13,19 @@ export async function createWalletAuthHeader(
   address: string,
   signMessageAsync: SignFn,
 ): Promise<string> {
-  const normalized = address.toLowerCase()
+  const normalized = address.toLowerCase().trim()
   const res = await fetch('/api/auth/nonce', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ address: normalized }),
   })
-  if (!res.ok) throw new Error('Gagal memuat nonce verifikasi')
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}))
+    throw new Error(data.error || 'Gagal memuat nonce verifikasi')
+  }
   const { nonce } = (await res.json()) as { nonce: string }
   const signature = await signMessageAsync({ message: buildAuthMessage(normalized, nonce) })
-  return JSON.stringify({ address: normalized, signature })
+  return JSON.stringify({ address: normalized, signature, nonce })
 }
 
 const sessionKey = (address: string) => `mp_session_${address.toLowerCase()}`

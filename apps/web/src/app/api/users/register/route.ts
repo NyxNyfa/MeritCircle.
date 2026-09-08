@@ -63,12 +63,17 @@ export async function POST(req: Request) {
     }
 
     // User baru mulai dari Score 0 = Tier 0
+    const rawEmail = typeof email === 'string' ? email.trim() : null;
+    const sanitizedEmail = rawEmail && rawEmail.length > 0 ? rawEmail : null;
+    const rawSocial = typeof socialMedia === 'string' ? socialMedia.trim() : null;
+    const sanitizedSocial = rawSocial && rawSocial.length > 0 ? rawSocial : null;
+
     const newUser = await prisma.user.create({
       data: {
         walletAddress: normalizedAddress,
         username: normalizedUsername,
-        email: email && typeof email === 'string' ? email.trim() : null,
-        socialMedia: socialMedia && typeof socialMedia === 'string' ? socialMedia.trim() : null,
+        email: sanitizedEmail,
+        socialMedia: sanitizedSocial,
         meritScore: 0,
         tier: calculateTier(0),
         isVerified: false,
@@ -78,8 +83,12 @@ export async function POST(req: Request) {
     return NextResponse.json(newUser, { status: 201 });
   } catch (error) {
     console.error("Register API Error:", error);
-    // Unique constraint yang tersisa (mis. username tabrakan dalam satu request) -> 409
+    // Unique constraint yang tersisa (mis. username/email tabrakan) -> 409
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+      const target = String(error.meta?.target || '');
+      if (target.includes('email')) {
+        return NextResponse.json({ error: "Email sudah digunakan oleh akun lain" }, { status: 409 });
+      }
       return NextResponse.json({ error: "Wallet atau username sudah terdaftar" }, { status: 409 });
     }
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });

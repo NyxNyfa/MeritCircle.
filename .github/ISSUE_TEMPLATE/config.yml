@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 💬 Discord Community & Support
+    url: https://discord.gg/meritcircle
+    about: Ajukan pertanyaan umum, diskusi komunitas, dan bantuan teknis langsung.
+  - name: 📖 Merit Circle Whitepaper & Docs
+    url: https://docs.meritcircle.xyz
+    about: Pelajari spesifikasi protokol, formula Merit Queue, dan arsitektur tokenomik.

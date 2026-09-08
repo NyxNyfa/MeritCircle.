@@ -1,0 +1,25 @@
+{
+  "name": "merit-circle-monorepo",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Smart Contract-driven On-Chain Rotating Savings and Credit Association (Arisan) with Merit Scoring & Reverse Auction",
+  "author": "NyxNyfa <dev@meritcircle.xyz>",
+  "license": "MIT",
+  "scripts": {
+    "dev": "pnpm --filter web dev",
+    "build": "pnpm --filter web build",
+    "start": "pnpm --filter web start",
+    "lint": "pnpm --filter web lint",
+    "typecheck": "pnpm --filter web exec tsc --noEmit",
+    "contracts:build": "cd contracts && forge build",
+    "contracts:test": "cd contracts && forge test",
+    "contracts:deploy:local": "cd contracts && forge script script/Deploy.s.sol --rpc-url http://127.0.0.1:8545 --broadcast",
+    "db:generate": "pnpm --filter web exec prisma generate",
+    "db:push": "pnpm --filter web exec prisma db push",
+    "db:seed": "pnpm --filter web exec prisma db seed",
+    "verify:dod": "pnpm --filter web exec tsx scripts/verify-dod.ts"
+  },
+  "devDependencies": {
+    "prettier": "^3.2.5"
+  }
+}

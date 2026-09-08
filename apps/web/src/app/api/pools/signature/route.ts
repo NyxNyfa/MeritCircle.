@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { privateKeyToAccount } from "viem/accounts";
 import { keccak256, encodePacked } from "viem";
 import { calculateTier } from "@/lib/tier";
+import { readUserCohort } from "@/lib/chain";
 
 /**
  * Endpoint penandatanganan resmi backend untuk join pool.
@@ -48,6 +49,37 @@ export async function POST(req: Request) {
                     { status: 403 }
                 );
             }
+
+            // Strict Lock-in check: user tidak boleh join pool lain jika sedang terikat di pool aktif
+            const existingMemberships = await prisma.poolMember.findMany({
+                where: { userId: walletAddress.toLowerCase() },
+                include: { pool: true },
+            });
+
+            // Validasi status on-chain untuk membership yang tercatat di DB (bersihkan stale membership)
+            const trulyActiveMemberships = [];
+            for (const m of existingMemberships) {
+                try {
+                    const onChainCohort = await readUserCohort(m.pool.poolIdOnChain, walletAddress);
+                    if (onChainCohort > BigInt(0)) {
+                        trulyActiveMemberships.push(m);
+                    } else {
+                        // Bersihkan DB membership yang sudah tuntas (COMPLETED) on-chain
+                        await prisma.poolMember.deleteMany({
+                            where: { poolId: m.poolId, userId: m.userId }
+                        }).catch(() => undefined);
+                    }
+                } catch {
+                    trulyActiveMemberships.push(m);
+                }
+            }
+
+            if (trulyActiveMemberships.length > 0 && !trulyActiveMemberships.some((m) => m.poolId === String(poolId))) {
+                return NextResponse.json(
+                    { error: `Ditolak: Anda sudah terikat di ${trulyActiveMemberships[0].pool.name}` },
+                    { status: 403 }
+                );
+            }
         }
 
         // 4. Tanda tangan digital backend (format pesan = kontrak: abi.encodePacked(address, uint256))
@@ -79,6 +111,6 @@ export async function POST(req: Request) {
 
     } catch (error) {
         console.error("Gagal membuat signature:", error);
-        return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+        return NextResponse.json({ error: error instanceof Error ? error.message : String(error) }, { status: 500 });
     }
 }

@@ -2,7 +2,14 @@
 import { prisma } from '@/lib/prisma'
 import { privateKeyToAccount } from 'viem/accounts'
 import { keccak256, encodePacked } from 'viem'
-import { readPoolState, readHasWon, readHasContributed } from '@/lib/chain'
+import {
+  readPoolState,
+  readCohortState,
+  readCurrentCohort,
+  readCohortMembers,
+  readHasWon,
+  readHasContributed,
+} from '@/lib/chain'
 
 export type Designation = {
   poolIdOnChain: number
@@ -21,44 +28,67 @@ export class DesignationError extends Error {
   }
 }
 
-export async function computeDesignation(poolIdOnChain: number): Promise<Designation> {
-  // 1. State pool on-chain (sumber kebenaran round/cycle/status)
-  const state = await readPoolState(poolIdOnChain)
+export async function computeDesignation(poolIdOnChain: number, cohortIdParam?: bigint): Promise<Designation> {
+  // 1. Dapatkan cohort aktif
+  let targetCohortId = cohortIdParam
+  if (!targetCohortId) {
+    const currentC = await readCurrentCohort(poolIdOnChain)
+    for (let c = BigInt(1); c <= currentC; c++) {
+      const cState = await readCohortState(poolIdOnChain, c).catch(() => null)
+      if (cState && cState.status === 1) {
+        targetCohortId = c
+        break
+      }
+    }
+  }
+  if (!targetCohortId) targetCohortId = BigInt(1)
+
+  // 2. State cohort on-chain (sumber kebenaran round/cycle/status)
+  const state = await readCohortState(poolIdOnChain, targetCohortId)
   if (state.status !== 1) {
-    throw new DesignationError('Pool tidak dalam status ACTIVE', 409)
+    throw new DesignationError(`Cohort ${targetCohortId} tidak dalam status ACTIVE`, 409)
   }
   const round = state.round
   const cycle = state.activeCycle
 
-  // 2. Anggota pool (mirror off-chain) diurutkan sesuai Merit Queue:
-  //    meritScore DESC -> tenure ASC -> wallet ASC (tie-break deterministik)
+  // 3. Anggota cohort on-chain + data user di database
+  const onChainMembers = await readCohortMembers(poolIdOnChain, targetCohortId).catch(() => [] as `0x${string}`[])
   const pool = await prisma.pool.findUnique({
     where: { poolIdOnChain },
     include: { members: { include: { user: true } } },
   })
   if (!pool) throw new DesignationError('Pool tidak ditemukan', 404)
 
-  const ranked = pool.members
-    .map((m) => ({
-      wallet: m.user.walletAddress,
-      meritScore: m.user.meritScore,
-      joinedAt: m.joinedAt.getTime(),
-    }))
+  const candidateWallets = onChainMembers.length > 0
+    ? onChainMembers
+    : pool.members.map((m) => m.userId.toLowerCase() as `0x${string}`)
+
+  const users = await prisma.user.findMany({
+    where: { walletAddress: { in: candidateWallets.map((w) => w.toLowerCase()) } },
+  })
+  const userMap = new Map(users.map((u) => [u.walletAddress.toLowerCase(), u]))
+
+  const ranked = candidateWallets
+    .map((wallet) => {
+      const u = userMap.get(wallet.toLowerCase())
+      return {
+        wallet: wallet.toLowerCase() as `0x${string}`,
+        meritScore: u?.meritScore ?? 0,
+      }
+    })
     .sort(
       (a, b) =>
         b.meritScore - a.meritScore ||
-        a.joinedAt - b.joinedAt ||
         a.wallet.localeCompare(b.wallet),
     )
 
-  // 3. Kandidat pertama yang memenuhi syarat on-chain:
-  //    belum pernah menang round ini + sudah kontribusi cycle berjalan
-  //    (atau collected == 0 — kasus ekstrem semua default).
+  // 4. Kandidat pertama yang memenuhi syarat on-chain:
+  //    belum pernah menang di cohort ini + sudah kontribusi cycle berjalan
   for (const candidate of ranked) {
-    const won = await readHasWon(poolIdOnChain, candidate.wallet)
+    const won = await readHasWon(poolIdOnChain, targetCohortId, candidate.wallet)
     if (won) continue
     const contributed =
-      (await readHasContributed(poolIdOnChain, cycle, candidate.wallet)) ||
+      (await readHasContributed(poolIdOnChain, targetCohortId, cycle, candidate.wallet)) ||
       state.collected === BigInt(0)
     if (!contributed) continue
 
@@ -70,7 +100,7 @@ export async function computeDesignation(poolIdOnChain: number): Promise<Designa
     const messageHash = keccak256(
       encodePacked(
         ['uint256', 'uint256', 'uint256', 'address'],
-        [BigInt(poolIdOnChain), round, cycle, candidate.wallet as `0x${string}`],
+        [BigInt(poolIdOnChain), targetCohortId, cycle, candidate.wallet as `0x${string}`],
       ),
     )
     const signature = await account.signMessage({ message: { raw: messageHash } })

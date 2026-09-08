@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from 'react'
 import { ArrowDown, ArrowLeftRight, Coins } from 'lucide-react'
 import {
   useAccount,
+  useBalance,
+  useConnect,
   usePublicClient,
   useReadContract,
   useSwitchChain,
@@ -11,6 +13,7 @@ import {
   useWriteContract,
 } from 'wagmi'
 import { parseEther, parseUnits } from 'viem'
+import { useQueryClient } from '@tanstack/react-query'
 import {
   hasDeployedContracts,
   MCIRCLE_ABI,
@@ -19,6 +22,7 @@ import {
 import { useContractAddresses } from '../lib/use-contracts'
 import { cn } from '../lib/utils'
 import { useToast } from './Toast'
+import { parseTxError } from '../lib/use-transaction'
 
 type SwapWidgetProps = {
   address?: string
@@ -76,6 +80,7 @@ export default function SwapWidget({
   onSwapSuccess,
 }: SwapWidgetProps) {
   const { chainId } = useAccount()
+  const { connect, connectors } = useConnect()
   const { chains, switchChain } = useSwitchChain()
   const publicClient = usePublicClient()
   const { toast } = useToast()
@@ -100,6 +105,13 @@ export default function SwapWidget({
   const isEthToMc = direction === 'ethToMc'
   const output = isEthToMc ? ethNum * ETH_TO_MC_RATE : mcNum / ETH_TO_MC_RATE
 
+  // Cadangan ETH riil di kontrak TokenSwap (likuiditas untuk arah MC -> ETH)
+  const { data: contractEthData, refetch: refetchContractEth } = useBalance({
+    address: TOKEN_SWAP_ADDRESS ?? undefined,
+    query: { enabled: !!TOKEN_SWAP_ADDRESS, refetchInterval: 10_000 },
+  })
+  const contractEthBalance = contractEthData ? Number(contractEthData.value) / 1e18 : 0
+
   // Allowance MC -> swap contract (dibutuhkan untuk arah MC -> ETH)
   const { data: allowanceData, refetch: refetchAllowance } = useReadContract({
     address: MCIRCLE_ADDRESS,
@@ -114,12 +126,14 @@ export default function SwapWidget({
   const swapWrite = useWriteContract()
   const approveWrite = useWriteContract()
 
+  const queryClient = useQueryClient()
   const {
     data: receipt,
     isSuccess: isReceiptSuccess,
     isError: isReceiptError,
   } = useWaitForTransactionReceipt({
     hash: pendingHash ?? undefined,
+    confirmations: 1,
   })
 
   // Mirror fase untuk akses dari timeout (hindari stale closure)
@@ -146,20 +160,25 @@ export default function SwapWidget({
         address: MCIRCLE_ADDRESS,
         abi: MCIRCLE_ABI,
         functionName: 'approve',
-        args: [TOKEN_SWAP_ADDRESS, parseUnits(mcNum.toFixed(18), 18)],
+        args: [TOKEN_SWAP_ADDRESS, parseUnits(amount, 18)],
       })
       setPendingHash(hash)
       setPendingTx('approve')
       setPhase('confirming')
     } catch (error) {
       setPhase('idle')
-      toast('error', 'Approve dibatalkan', reasonOf(error))
+      const msg = parseTxError(error)
+      toast(msg.includes('dibatalkan') ? 'info' : 'error', 'Approve Token', msg)
     }
   }
 
   const handleSwap = async (opts?: { skipApproveCheck?: boolean }) => {
     if (!address) {
-      toast('info', 'Wallet belum terhubung', 'Sambungkan wallet Anda untuk melakukan swap token.')
+      if (connectors[0]) {
+        connect({ connector: connectors[0] })
+      } else {
+        toast('info', 'Wallet belum terhubung', 'Sambungkan wallet Anda untuk melakukan swap token.')
+      }
       return
     }
     if (!TOKEN_SWAP_ADDRESS) {
@@ -186,6 +205,14 @@ export default function SwapWidget({
     } else {
       if (mcNum > mcNumBalance) {
         toast('error', 'Saldo MC tidak cukup', `Saldo Anda ${mcNumBalance.toLocaleString('en-US')} MC.`)
+        return
+      }
+      if (output > contractEthBalance) {
+        toast(
+          'error',
+          'Likuiditas swap tidak cukup',
+          `Kontrak saat ini memiliki cadangan ${contractEthBalance.toFixed(4)} ${NATIVE}. Lakukan Beli MC terlebih dahulu untuk mengisi likuiditas kontrak.`,
+        )
         return
       }
       // Auto-continue: tandai intent lalu approve — swap dieksekusi otomatis
@@ -217,7 +244,8 @@ export default function SwapWidget({
       setPhase('confirming')
     } catch (error) {
       setPhase('idle')
-      toast('error', 'Swap dibatalkan', reasonOf(error))
+      const msg = parseTxError(error)
+      toast(msg.includes('dibatalkan') ? 'info' : 'error', 'Swap Token', msg)
     }
   }
 
@@ -242,6 +270,7 @@ export default function SwapWidget({
         setPhase('idle')
       })
       refetchAllowance()
+      queryClient.invalidateQueries()
       // AUTO-CONTINUE: lanjutkan swap yang mengantre tanpa tekan kedua
       if (queuedSwapRef.current) {
         queuedSwapRef.current = false
@@ -257,6 +286,7 @@ export default function SwapWidget({
       queueMicrotask(resetToIdle)
       onSwapSuccess?.()
       refetchAllowance()
+      queryClient.invalidateQueries()
     }
   }
 
@@ -325,19 +355,40 @@ export default function SwapWidget({
     if (!isEthToMc) setAmount(mcNumBalance > 0 ? mcNumBalance.toFixed(4) : '')
   }
 
+  const isInsufficientEth = isEthToMc && ethNum > ethNumBalance
+  const isInsufficientMc = !isEthToMc && mcNum > mcNumBalance
+  const isInsufficientContractLiquidity = !isEthToMc && output > contractEthBalance
+
   const buttonLabel = isBusy
     ? phase === 'signing'
       ? 'Menunggu tanda tangan…'
       : 'Menunggu konfirmasi…'
     : !address
       ? 'Connect Wallet to Swap'
-      : parseFloat(amount) <= 0
-        ? 'Enter an Amount'
-        : isEthToMc
-          ? `Swap ${amount} ${NATIVE} → ${output.toLocaleString('en-US', { maximumFractionDigits: 0 })} MC`
-          : needsApprove
-            ? '1. Approve MC'
-            : `Swap ${amount} MC → ${output.toFixed(6)} ETH`
+      : !contractsReady
+        ? 'Ganti ke Jaringan yang Didukung'
+        : parseFloat(amount) <= 0
+          ? 'Enter an Amount'
+          : isInsufficientEth
+            ? `Saldo ${NATIVE} Tidak Cukup`
+            : isInsufficientMc
+              ? 'Saldo MC Tidak Cukup'
+              : isInsufficientContractLiquidity
+                ? `Likuiditas Kontrak Kurang (${contractEthBalance.toFixed(4)} ${NATIVE})`
+                : isEthToMc
+                  ? `Swap ${amount} ${NATIVE} → ${output.toLocaleString('en-US', { maximumFractionDigits: 0 })} MC`
+                  : needsApprove
+                    ? '1. Approve MC'
+                    : `Swap ${amount} MC → ${output.toFixed(6)} ${NATIVE}`
+
+  const isButtonDisabled =
+    isBusy ||
+    (!!address &&
+      (!contractsReady ||
+        parseFloat(amount) <= 0 ||
+        isInsufficientEth ||
+        isInsufficientMc ||
+        isInsufficientContractLiquidity))
 
   return (
     <section
@@ -390,8 +441,7 @@ export default function SwapWidget({
         </div>
       )}
 
-      {/* Bantuan jaringan selalu tersedia — kasus umum: entri "Localhost" di MetaMask menunjuk RPC salah,
-          sehingga transaksi "sukses" di wallet tetapi tidak pernah menyentuh rantai kita. */}
+      {/* Bantuan jaringan selalu tersedia */}
       {contractsReady && (
         <details className="mb-3 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2">
           <summary className="cursor-pointer font-mono text-[10px] uppercase tracking-wider text-[#C3C6D3] select-none">
@@ -417,10 +467,10 @@ export default function SwapWidget({
 
       {/* Catatan likuiditas arah Jual */}
       {!isEthToMc && contractsReady && (
-        <p className="mb-3 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-[11px] leading-relaxed text-[#C3C6D3]">
-          Info: menjual MC memakai likuiditas {NATIVE} di kontrak. Lakukan <b>Beli MC</b> minimal
-          sekali lebih dulu agar kontrak punya cadangan {NATIVE}.
-        </p>
+        <div className="mb-3 rounded-xl border border-[#3e63ff]/20 bg-[#10131A]/70 px-3 py-2 text-[11px] leading-relaxed text-[#C3C6D3] flex items-center justify-between">
+          <span>Cadangan {NATIVE} di Kontrak:</span>
+          <span className="font-mono font-semibold text-[#56ffa8]">{contractEthBalance.toFixed(4)} {NATIVE}</span>
+        </div>
       )}
 
       {/* From — ETH atau MC tergantung arah */}
@@ -533,10 +583,10 @@ export default function SwapWidget({
       {/* Action */}
       <button
         onClick={() => void handleSwap()}
-        disabled={!address || parseFloat(amount) <= 0 || isBusy || !contractsReady}
+        disabled={isButtonDisabled}
         className={cn(
           'mt-5 w-full rounded-full py-3 text-sm font-semibold text-white transition-all duration-300',
-          !address || parseFloat(amount) <= 0 || isBusy
+          isButtonDisabled
             ? 'cursor-not-allowed bg-[#3E63FF]/30'
             : 'bg-[#3E63FF] shadow-[0px_0px_15px_rgba(62,99,255,0.4)] hover:bg-[#5B7CFF] hover:shadow-[0px_0px_25px_rgba(62,99,255,0.6)]',
         )}

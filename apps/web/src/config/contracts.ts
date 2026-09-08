@@ -30,8 +30,7 @@ export const CHAIN_CONTRACTS: Record<number, ContractAddresses> = {
     meritPool: "0x0000000000000000000000000000000000000002" as `0x${string}`,
   },
   31337: {
-    // Alamat deterministik untuk Anvil fresh (deploy urutan nonce 0-2 via Deploy.s.sol).
-    // Jika anvil TIDAK fresh, jalankan ulang forge script dan perbarui alamat di sini.
+    // Alamat kontrak Anvil lokal (Deploy.s.sol).
     mcToken: normalizeAddress("0x5FbDB2315678afecb367f032d93F642f64180aa3"),
     tokenSwap: normalizeAddress("0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512"),
     meritPool: normalizeAddress("0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9"),
@@ -162,6 +161,18 @@ export const MERITPOOL_ABI = [
     "name": "settleCycle",
     "inputs": [
       {"name": "poolId", "type": "uint256"},
+      {"name": "cohortId", "type": "uint256"},
+      {"name": "fallbackWinner", "type": "address"},
+      {"name": "fallbackSignature", "type": "bytes"}
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "settleCycle",
+    "inputs": [
+      {"name": "poolId", "type": "uint256"},
       {"name": "fallbackWinner", "type": "address"},
       {"name": "fallbackSignature", "type": "bytes"}
     ],
@@ -187,7 +198,8 @@ export const MERITPOOL_ABI = [
     "name": "hasContributed",
     "inputs": [
       {"name": "poolId", "type": "uint256"},
-      {"name": "cycleId", "type": "uint256"},
+      {"name": "cohortId", "type": "uint256"},
+      {"name": "cycle", "type": "uint256"},
       {"name": "user", "type": "address"}
     ],
     "outputs": [{"name": "", "type": "bool"}],
@@ -214,7 +226,29 @@ export const MERITPOOL_ABI = [
   {
     "type": "function",
     "name": "getPoolState",
-    "inputs": [{"name": "poolId", "type": "uint256"}],
+    "inputs": [
+      {"name": "poolId", "type": "uint256"},
+      {"name": "user", "type": "address"}
+    ],
+    "outputs": [
+      {"name": "status", "type": "uint8"},
+      {"name": "round", "type": "uint256"},
+      {"name": "activeCycle", "type": "uint256"},
+      {"name": "deadline", "type": "uint256"},
+      {"name": "collectedThisCycle", "type": "uint256"},
+      {"name": "memberCount", "type": "uint256"},
+      {"name": "cohortId", "type": "uint256"},
+      {"name": "activeGroups", "type": "uint256"}
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getCohortState",
+    "inputs": [
+      {"name": "poolId", "type": "uint256"},
+      {"name": "cohortId", "type": "uint256"}
+    ],
     "outputs": [
       {"name": "status", "type": "uint8"},
       {"name": "round", "type": "uint256"},
@@ -227,6 +261,51 @@ export const MERITPOOL_ABI = [
   },
   {
     "type": "function",
+    "name": "getCohortMembers",
+    "inputs": [
+      {"name": "poolId", "type": "uint256"},
+      {"name": "cohortId", "type": "uint256"}
+    ],
+    "outputs": [{"name": "", "type": "address[]"}],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "hasWon",
+    "inputs": [
+      {"name": "poolId", "type": "uint256"},
+      {"name": "cohortId", "type": "uint256"},
+      {"name": "account", "type": "address"}
+    ],
+    "outputs": [{"name": "", "type": "bool"}],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "userCohort",
+    "inputs": [
+      {"name": "user", "type": "address"},
+      {"name": "poolId", "type": "uint256"}
+    ],
+    "outputs": [{"name": "", "type": "uint256"}],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "currentCohort",
+    "inputs": [{"name": "poolId", "type": "uint256"}],
+    "outputs": [{"name": "", "type": "uint256"}],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "activeCohortCount",
+    "inputs": [{"name": "poolId", "type": "uint256"}],
+    "outputs": [{"name": "", "type": "uint256"}],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "minValidBid",
     "inputs": [{"name": "poolId", "type": "uint256"}],
     "outputs": [{"name": "", "type": "uint256"}],
@@ -235,7 +314,10 @@ export const MERITPOOL_ABI = [
   {
     "type": "function",
     "name": "getLowestBid",
-    "inputs": [{"name": "poolId", "type": "uint256"}],
+    "inputs": [
+      {"name": "poolId", "type": "uint256"},
+      {"name": "cohortId", "type": "uint256"}
+    ],
     "outputs": [
       {"name": "bidder", "type": "address"},
       {"name": "amount", "type": "uint256"}
@@ -252,7 +334,10 @@ export const MERITPOOL_ABI = [
   {
     "type": "function",
     "name": "getBidCount",
-    "inputs": [{"name": "poolId", "type": "uint256"}],
+    "inputs": [
+      {"name": "poolId", "type": "uint256"},
+      {"name": "cohortId", "type": "uint256"}
+    ],
     "outputs": [{"name": "", "type": "uint256"}],
     "stateMutability": "view"
   },

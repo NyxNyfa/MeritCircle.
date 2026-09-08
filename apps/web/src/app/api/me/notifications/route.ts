@@ -10,6 +10,33 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: 'Verifikasi wallet dibutuhkan' }, { status: 401 });
     }
 
+    // Generate reminder otomatis jika user memiliki kewajiban iuran aktif
+    const obligations = await prisma.obligation.findMany({
+      where: { userWallet: wallet, status: 'ACTIVE' },
+    });
+    for (const obl of obligations) {
+      const pool = await prisma.pool.findUnique({ where: { poolIdOnChain: obl.poolIdOnChain } });
+      if (pool) {
+        const existingNotif = await prisma.notification.findFirst({
+          where: {
+            userWallet: wallet,
+            type: 'CYCLE_DUE',
+            body: { contains: pool.name },
+          },
+        });
+        if (!existingNotif) {
+          await prisma.notification.create({
+            data: {
+              userWallet: wallet,
+              type: 'CYCLE_DUE',
+              title: `🔔 Tagihan Iuran Bulanan: ${pool.name}`,
+              body: `Siklus ${obl.contributedCycles}/${obl.totalCycles} untuk ${pool.name} sedang berjalan. Segera bayar iuran sebesar ${pool.contributionAmount} MC.`,
+            },
+          });
+        }
+      }
+    }
+
     const [items, unreadCount] = await Promise.all([
       prisma.notification.findMany({
         where: { userWallet: wallet },

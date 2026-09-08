@@ -8,8 +8,9 @@ import {
   useWriteContract,
   useWaitForTransactionReceipt,
   useSignMessage,
+  usePublicClient,
 } from 'wagmi'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { formatUnits, parseUnits } from 'viem'
 import {
   MCIRCLE_ABI,
@@ -24,6 +25,8 @@ import type { UserProfile } from '@/components/Sidebar'
 import { useRegisterModal } from '@/lib/register-modal'
 import { getSessionAuthHeaders } from '@/lib/wallet-auth-client'
 import { calculateTier } from '@/lib/tier'
+import { requestPushPermission, sendBrowserNotification } from '@/lib/push-notifications'
+import { parseTxError } from '@/lib/use-transaction'
 
 const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000'
 
@@ -38,7 +41,9 @@ const resultOf = <T,>(r: unknown): T | undefined => (r as ReadResult<T> | undefi
 type ReceiptTicket = {
   hash: `0x${string}`
   label: string
+  poolId?: string
   approveForPoolId?: string
+  contributeForPoolId?: string
 }
 
 type DbPool = {
@@ -63,7 +68,9 @@ export default function DashboardPage() {
   const { openRegister } = useRegisterModal()
   const { signMessageAsync } = useSignMessage()
   const { mcToken: MCIRCLE_ADDRESS, meritPool: MERITPOOL_ADDRESS } = useContractAddresses()
+  const publicClient = usePublicClient()
 
+  const [interactedPoolId, setInteractedPoolId] = useState<string | null>(null)
   const [joiningPoolId, setJoiningPoolId] = useState<string | null>(null)
   const [pendingReceipt, setPendingReceipt] = useState<ReceiptTicket | null>(null)
 
@@ -82,9 +89,10 @@ export default function DashboardPage() {
   })
 
   const { data: dbPools, refetch: refetchPools } = useQuery<DbPool[]>({
-    queryKey: ['pools'],
+    queryKey: ['pools', address],
     queryFn: async () => {
-      const res = await fetch('/api/pools')
+      const url = address ? `/api/pools?address=${address}` : '/api/pools'
+      const res = await fetch(url)
       if (!res.ok) throw new Error('Gagal memuat pools')
       return res.json()
     },
@@ -104,6 +112,9 @@ export default function DashboardPage() {
       totalYield: db?.totalYield ?? cfg.totalYield,
       isAuctionMode: db?.isAuctionMode ?? cfg.isAuctionMode,
       memberCount: db?.memberCount ?? 0,
+      totalMembers: (db as unknown as { totalMembers?: number })?.totalMembers ?? 0,
+      activeGroups: (db as unknown as { activeGroups?: number })?.activeGroups ?? 0,
+      isPoolMember: (db as unknown as { isUserMember?: boolean })?.isUserMember ?? false,
     }
   })
 
@@ -148,43 +159,16 @@ export default function DashboardPage() {
     [winnersRead.data],
   )
 
-  // currentCycle per pool — dibutuhkan untuk mengecek keanggotaan di siklus aktif
-  const cyclesRead = useReadContracts({
-    contracts: POOL_REGISTRY.map((cfg) => ({
-      address: MERITPOOL_ADDRESS as `0x${string}`,
-      abi: MERITPOOL_ABI,
-      functionName: 'currentCycle',
-      args: [BigInt(cfg.poolIdOnChain)],
-    })),
-  })
-  const cycles = cyclesRead.data ?? []
-
-  // hasContributed[poolId][cycleId][user] — apakah user sudah bayar iuran di cycle aktif pool tersebut
-  const joinedRead = useReadContracts({
-    contracts: POOL_REGISTRY.map((cfg) => ({
-      address: MERITPOOL_ADDRESS as `0x${string}`,
-      abi: MERITPOOL_ABI,
-      functionName: 'hasContributed',
-      args: [
-        BigInt(cfg.poolIdOnChain),
-        resultOf<bigint>(cycles[cfg.poolIdOnChain]) ?? BigInt(0),
-        (address ?? ZERO_ADDRESS) as `0x${string}`,
-      ],
-    })),
-    query: { enabled: !!address && cycles.some((c) => resultOf<bigint>(c) !== undefined) },
-  })
-  const joinedFlags = joinedRead.data?.map((r) => resultOf<boolean>(r) === true) ?? []
-
-  // ---- MeritPool v2: status/round/cycle/deadline per pool ----
+  // ---- MeritPool Multi-Cohort: status/round/cycle/deadline/cohortId/activeGroups per pool ----
   const statesRead = useReadContracts({
     contracts: POOL_REGISTRY.map((cfg) => ({
       address: MERITPOOL_ADDRESS as `0x${string}`,
       abi: MERITPOOL_ABI,
       functionName: 'getPoolState' as const,
-      args: [BigInt(cfg.poolIdOnChain)],
+      args: [BigInt(cfg.poolIdOnChain), (address ?? ZERO_ADDRESS) as `0x${string}`],
     })),
   })
-  type PoolStateTuple = [number, bigint, bigint, bigint, bigint, bigint]
+  type PoolStateTuple = [number, bigint, bigint, bigint, bigint, bigint, bigint, bigint]
   const poolStates = POOL_REGISTRY.map((cfg) => {
     const r = resultOf<PoolStateTuple>(statesRead.data?.[cfg.poolIdOnChain])
     if (!r) return undefined
@@ -195,7 +179,84 @@ export default function DashboardPage() {
       deadlineSec: Number(r[3]),
       collected: Number(r[4]) / 1e18,
       memberCount: Number(r[5]),
+      cohortId: Number(r[6]),
+      activeGroups: Number(r[7]),
     }
+  })
+
+  // currentCycle per pool
+  const cyclesRead = useReadContracts({
+    contracts: POOL_REGISTRY.map((cfg) => ({
+      address: MERITPOOL_ADDRESS as `0x${string}`,
+      abi: MERITPOOL_ABI,
+      functionName: 'currentCycle',
+      args: [BigInt(cfg.poolIdOnChain)],
+    })),
+  })
+  const cycles = cyclesRead.data ?? []
+
+  // hasContributed[poolId][cohortId][cycleId][user]
+  const joinedRead = useReadContracts({
+    contracts: POOL_REGISTRY.map((cfg) => {
+      const pState = poolStates[cfg.poolIdOnChain]
+      return {
+        address: MERITPOOL_ADDRESS as `0x${string}`,
+        abi: MERITPOOL_ABI,
+        functionName: 'hasContributed',
+        args: [
+          BigInt(cfg.poolIdOnChain),
+          BigInt(pState?.cohortId ?? 1),
+          BigInt(pState?.cycle ?? 1),
+          (address ?? ZERO_ADDRESS) as `0x${string}`,
+        ],
+      }
+    }),
+    query: { enabled: !!address },
+  })
+  const joinedFlags = joinedRead.data?.map((r) => resultOf<boolean>(r) === true) ?? []
+
+  // Baca cohort aktif per pool untuk user aktif (0 jika tidak terdaftar / tuntas)
+  const userCohortsRead = useReadContracts({
+    contracts: POOL_REGISTRY.map((cfg) => ({
+      address: MERITPOOL_ADDRESS as `0x${string}`,
+      abi: MERITPOOL_ABI,
+      functionName: 'userCohort',
+      args: [(address ?? ZERO_ADDRESS) as `0x${string}`, BigInt(cfg.poolIdOnChain)],
+    })),
+    query: { enabled: !!address },
+  })
+  const userCohortNumbers = POOL_REGISTRY.map((cfg) => {
+    const val = resultOf<bigint>(userCohortsRead.data?.[cfg.poolIdOnChain])
+    return typeof val === 'bigint' ? Number(val) : 0
+  })
+
+  // Baca ID cohort pembentukan terbaru (currentCohort)
+  const currentCohortsRead = useReadContracts({
+    contracts: POOL_REGISTRY.map((cfg) => ({
+      address: MERITPOOL_ADDRESS as `0x${string}`,
+      abi: MERITPOOL_ABI,
+      functionName: 'currentCohort',
+      args: [BigInt(cfg.poolIdOnChain)],
+    })),
+  })
+  const currentCohortIds = POOL_REGISTRY.map((cfg) => {
+    const val = resultOf<bigint>(currentCohortsRead.data?.[cfg.poolIdOnChain])
+    return typeof val === 'bigint' ? val : BigInt(1)
+  })
+
+  // Baca cohort state dari currentCohort (forming cohort untuk outsider)
+  const formingStatesRead = useReadContracts({
+    contracts: POOL_REGISTRY.map((cfg, i) => ({
+      address: MERITPOOL_ADDRESS as `0x${string}`,
+      abi: MERITPOOL_ABI,
+      functionName: 'getCohortState' as const,
+      args: [BigInt(cfg.poolIdOnChain), currentCohortIds[i]],
+    })),
+  })
+  type CohortStateTuple = [number, bigint, bigint, bigint, bigint, bigint]
+  const formingMemberCounts = POOL_REGISTRY.map((cfg, i) => {
+    const r = resultOf<CohortStateTuple>(formingStatesRead.data?.[i])
+    return r ? Number(r[5]) : 0
   })
 
   // Settleable per pool (deadline tercapai atau semua anggota sudah bayar)
@@ -218,20 +279,28 @@ export default function DashboardPage() {
     })),
   })
   const lowestBidRead = useReadContracts({
-    contracts: POOL_REGISTRY.map((cfg) => ({
-      address: MERITPOOL_ADDRESS as `0x${string}`,
-      abi: MERITPOOL_ABI,
-      functionName: 'getLowestBid' as const,
-      args: [BigInt(cfg.poolIdOnChain)],
-    })),
+    contracts: POOL_REGISTRY.map((cfg) => {
+      const pState = poolStates[cfg.poolIdOnChain]
+      const cohortId = BigInt(pState?.cohortId && pState.cohortId > 0 ? pState.cohortId : (currentCohortIds[cfg.poolIdOnChain] ?? 1))
+      return {
+        address: MERITPOOL_ADDRESS as `0x${string}`,
+        abi: MERITPOOL_ABI,
+        functionName: 'getLowestBid' as const,
+        args: [BigInt(cfg.poolIdOnChain), cohortId],
+      }
+    }),
   })
   const bidCountRead = useReadContracts({
-    contracts: POOL_REGISTRY.map((cfg) => ({
-      address: MERITPOOL_ADDRESS as `0x${string}`,
-      abi: MERITPOOL_ABI,
-      functionName: 'getBidCount' as const,
-      args: [BigInt(cfg.poolIdOnChain)],
-    })),
+    contracts: POOL_REGISTRY.map((cfg) => {
+      const pState = poolStates[cfg.poolIdOnChain]
+      const cohortId = BigInt(pState?.cohortId && pState.cohortId > 0 ? pState.cohortId : (currentCohortIds[cfg.poolIdOnChain] ?? 1))
+      return {
+        address: MERITPOOL_ADDRESS as `0x${string}`,
+        abi: MERITPOOL_ABI,
+        functionName: 'getBidCount' as const,
+        args: [BigInt(cfg.poolIdOnChain), cohortId],
+      }
+    }),
   })
 
   // Resolve alamat pemenang -> username dari database
@@ -261,18 +330,73 @@ export default function DashboardPage() {
   // ---------- Write mutations ----------
   const joinWrite = useWriteContract()
   const approveWrite = useWriteContract()
+  const queryClient = useQueryClient()
+  const [processingPoolId, setProcessingPoolId] = useState<string | null>(null)
+  const [processingStage, setProcessingStage] = useState<string | null>(null)
+  const [processingLabel, setProcessingLabel] = useState<string | null>(null)
 
-  // ---------- Handlers (di-deklarasikan sebelum receipt effect agar bisa dirantai) ----------
+  // ---------- Handlers dengan Optimistic UI & Konfirmasi 1-Block Cepat ----------
   const handleJoinPool = async (poolId: string) => {
     if (!address) {
       toast('error', 'Wallet belum terhubung', 'Sambungkan wallet Anda terlebih dahulu.')
       return
     }
+    const pool = pools.find((p) => p.id === poolId)
+    if (!pool) return
+
+    setInteractedPoolId(poolId)
+    setJoiningPoolId(poolId)
+    setProcessingPoolId(poolId)
+
     try {
-      const pool = pools.find((p) => p.id === poolId)
-      if (!pool) return
-      setJoiningPoolId(poolId)
-      // Endpoint resmi penandatanganan backend (risk gate tier + auction di sisi server)
+      // 1. Cek allowance on-chain real-time
+      setProcessingStage('checking')
+      setProcessingLabel('Memeriksa izin token…')
+
+      let currentAllowanceNum = 0
+      if (publicClient) {
+        const onChainAllowance = await publicClient.readContract({
+          address: MCIRCLE_ADDRESS,
+          abi: MCIRCLE_ABI,
+          functionName: 'allowance',
+          args: [address as `0x${string}`, MERITPOOL_ADDRESS],
+        })
+        currentAllowanceNum = Number(formatUnits(onChainAllowance as bigint, 18))
+      }
+
+      // 2. Jika allowance kurang, lakukan approve terlebih dahulu
+      if (currentAllowanceNum < pool.contributionAmount) {
+        setProcessingStage('approving')
+        setProcessingLabel('Menyetujui di Dompet…')
+        toast('info', 'Menyetujui Token MC…', 'Konfirmasi persetujuan token MC di dompet Anda.')
+
+        const approveAmount = parseUnits('1000000', 18)
+        const approveHash = await approveWrite.writeContractAsync({
+          address: MCIRCLE_ADDRESS,
+          abi: MCIRCLE_ABI,
+          functionName: 'approve',
+          args: [MERITPOOL_ADDRESS, approveAmount],
+        })
+
+        setProcessingStage('waiting_approve')
+        setProcessingLabel('Mengonfirmasi Persetujuan…')
+
+        if (publicClient) {
+          const approveReceipt = await publicClient.waitForTransactionReceipt({
+            hash: approveHash,
+            confirmations: 1,
+          })
+          if (approveReceipt.status === 'reverted') {
+            throw new Error('Persetujuan token gagal di blockchain.')
+          }
+        }
+        toast('success', 'Token Disetujui!', 'Melanjutkan pendaftaran ke pool arisan…')
+        refetchAllowance()
+      }
+
+      // 3. Ambil signature backend
+      setProcessingStage('signing')
+      setProcessingLabel('Memverifikasi Izin…')
       const res = await fetch('/api/pools/signature', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -280,157 +404,308 @@ export default function DashboardPage() {
       })
       const data = await res.json()
       if (!res.ok) {
-        toast('error', 'Tidak memenuhi syarat', data.error || 'Gabung pool ditolak')
-        return
+        throw new Error(data.error || 'Gabung pool ditolak oleh server')
       }
-      const hash = await joinWrite.writeContractAsync({
+
+      // 4. Eksekusi joinPool on-chain
+      setProcessingStage('joining')
+      setProcessingLabel('Konfirmasi Join di Dompet…')
+      const joinHash = await joinWrite.writeContractAsync({
         address: MERITPOOL_ADDRESS,
         abi: MERITPOOL_ABI,
         functionName: 'joinPool',
         args: [BigInt(pool.poolIdOnChain), BigInt(data.userTier as number), data.signature as `0x${string}`],
       })
-      // Catat keanggotaan off-chain agar progress bar member ter-update (session Bearer, tanpa popup)
+
+      setProcessingStage('waiting_join')
+      setProcessingLabel('Mendaftarkan di Blockchain…')
+      if (publicClient) {
+        const joinReceipt = await publicClient.waitForTransactionReceipt({
+          hash: joinHash,
+          confirmations: 1,
+        })
+        if (joinReceipt.status === 'reverted') {
+          throw new Error('Pendaftaran arisan gagal di blockchain.')
+        }
+      }
+
+      // 5. Catat off-chain
       const authHeaders = await getSessionAuthHeaders(address, signMessageAsync)
       await fetch('/api/pools/join', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...authHeaders },
         body: JSON.stringify({ poolId }),
-      })
-      setPendingReceipt({ hash, label: 'Berhasil masuk pool' })
+      }).catch(() => undefined)
+
+      toast('success', `Berhasil Masuk ${pool.name}!`, 'Anda telah terdaftar di arisan.', joinHash)
+      sendBrowserNotification(`✅ Bergabung di ${pool.name}`, 'Anda telah berhasil mendaftar ke arisan.')
+
+      // 6. Refresh state instan
+      await queryClient.invalidateQueries()
+      refetchBalance()
+      refetchPools()
+      refetchAllowance()
+      refetchWinners()
+      statesRead.refetch()
+      cyclesRead.refetch()
+      joinedRead.refetch()
+
+      // Trigger auto-settle jika kelompok penuh
+      fetch('/api/pools/auto-settle', { method: 'POST' }).catch(() => undefined)
     } catch (error) {
-      toast('error', 'Gabung pool dibatalkan', reasonOf(error))
+      const msg = parseTxError(error)
+      if (msg.includes('dibatalkan')) {
+        toast('info', 'Pendaftaran Dibatalkan', msg)
+      } else {
+        toast('error', 'Gagal Bergabung', msg)
+      }
     } finally {
+      setProcessingPoolId(null)
+      setProcessingStage(null)
+      setProcessingLabel(null)
+      setInteractedPoolId(null)
       setJoiningPoolId(null)
     }
   }
 
   const handleApprove = async (poolId: string, amount: number) => {
     try {
-      const amountInWei = parseUnits(amount.toString(), 18)
+      setInteractedPoolId(poolId)
+      setJoiningPoolId(poolId)
+      setProcessingPoolId(poolId)
+      setProcessingStage('approving')
+      setProcessingLabel('Menyetujui di Dompet…')
+
+      const targetPool = pools.find((p) => p.id === poolId)
+      const exactAmount = targetPool?.contributionAmount ?? amount
+      const amountInWei = parseUnits(exactAmount.toString(), 18)
       const hash = await approveWrite.writeContractAsync({
         address: MCIRCLE_ADDRESS,
         abi: MCIRCLE_ABI,
         functionName: 'approve',
         args: [MERITPOOL_ADDRESS, amountInWei],
       })
-      setPendingReceipt({ hash, label: 'Izin token (Approve) diberikan', approveForPoolId: poolId })
+
+      setProcessingStage('waiting_approve')
+      setProcessingLabel('Mengonfirmasi Persetujuan…')
+      if (publicClient) {
+        await publicClient.waitForTransactionReceipt({ hash, confirmations: 1 })
+      }
+
+      toast('success', 'Persetujuan Berhasil', `Izin penarikan ${exactAmount} MC telah aktif.`, hash)
+      refetchAllowance()
     } catch (error) {
-      toast('error', 'Approve dibatalkan', reasonOf(error))
+      const msg = parseTxError(error)
+      toast(msg.includes('dibatalkan') ? 'info' : 'error', 'Approve Token', msg)
+    } finally {
+      setProcessingPoolId(null)
+      setProcessingStage(null)
+      setProcessingLabel(null)
+      setInteractedPoolId(null)
+      setJoiningPoolId(null)
     }
   }
 
-  const { data: receipt, isError: isReceiptError } = useWaitForTransactionReceipt({
-    hash: pendingReceipt?.hash,
-  })
-
-  // ---------- Handler v2: kontribusi cycle, bid auction, settle keeper-lite ----------
   const handleContribute = async (poolId: string) => {
     if (!address) return
+    const pool = pools.find((p) => p.id === poolId)
+    if (!pool) return
+
+    setInteractedPoolId(poolId)
+    setJoiningPoolId(poolId)
+    setProcessingPoolId(poolId)
+
     try {
-      const pool = pools.find((p) => p.id === poolId)
-      if (!pool) return
-      setJoiningPoolId(poolId)
+      // 1. Cek allowance
+      setProcessingStage('checking')
+      setProcessingLabel('Memeriksa izin token…')
+
+      let currentAllowanceNum = 0
+      if (publicClient) {
+        const onChainAllowance = await publicClient.readContract({
+          address: MCIRCLE_ADDRESS,
+          abi: MCIRCLE_ABI,
+          functionName: 'allowance',
+          args: [address as `0x${string}`, MERITPOOL_ADDRESS],
+        })
+        currentAllowanceNum = Number(formatUnits(onChainAllowance as bigint, 18))
+      }
+
+      if (currentAllowanceNum < pool.contributionAmount) {
+        setProcessingStage('approving')
+        setProcessingLabel('Menyetujui di Dompet…')
+        toast('info', 'Menyetujui Token MC…', 'Konfirmasi persetujuan token MC di dompet Anda.')
+
+        const approveAmount = parseUnits('1000000', 18)
+        const approveHash = await approveWrite.writeContractAsync({
+          address: MCIRCLE_ADDRESS,
+          abi: MCIRCLE_ABI,
+          functionName: 'approve',
+          args: [MERITPOOL_ADDRESS, approveAmount],
+        })
+
+        setProcessingStage('waiting_approve')
+        setProcessingLabel('Mengonfirmasi Persetujuan…')
+        if (publicClient) {
+          const approveReceipt = await publicClient.waitForTransactionReceipt({
+            hash: approveHash,
+            confirmations: 1,
+          })
+          if (approveReceipt.status === 'reverted') {
+            throw new Error('Persetujuan token gagal di blockchain.')
+          }
+        }
+        refetchAllowance()
+      }
+
+      // 2. Eksekusi contribute
+      setProcessingStage('contributing')
+      setProcessingLabel('Konfirmasi Iuran di Dompet…')
       const hash = await joinWrite.writeContractAsync({
         address: MERITPOOL_ADDRESS,
         abi: MERITPOOL_ABI,
         functionName: 'contribute',
         args: [BigInt(pool.poolIdOnChain)],
       })
-      setPendingReceipt({ hash, label: `Iuran ${pool.name} dibayar` })
+
+      setProcessingStage('waiting_contribute')
+      setProcessingLabel('Mengonfirmasi Pembayaran Iuran…')
+      if (publicClient) {
+        const contributeReceipt = await publicClient.waitForTransactionReceipt({
+          hash,
+          confirmations: 1,
+        })
+        if (contributeReceipt.status === 'reverted') {
+          throw new Error('Pembayaran iuran gagal di blockchain.')
+        }
+      }
+
+      toast('success', `Iuran ${pool.name} Berhasil Dibayar!`, `Pembayaran ${pool.contributionAmount} MC sukses.`, hash)
+      sendBrowserNotification(`💳 Iuran ${pool.name} Dibayar`, `Pembayaran iuran sebesar ${pool.contributionAmount} MC berhasil dikirim.`)
+
+      await queryClient.invalidateQueries()
+      refetchBalance()
+      refetchPools()
+      refetchAllowance()
+      statesRead.refetch()
+      cyclesRead.refetch()
+      joinedRead.refetch()
+
+      // Trigger auto-settle
+      fetch('/api/pools/auto-settle', { method: 'POST' }).catch(() => undefined)
     } catch (error) {
-      toast('error', 'Kontribusi gagal', reasonOf(error))
+      const msg = parseTxError(error)
+      if (msg.includes('dibatalkan')) {
+        toast('info', 'Pembayaran Dibatalkan', msg)
+      } else {
+        toast('error', 'Pembayaran Iuran Gagal', msg)
+      }
     } finally {
+      setProcessingPoolId(null)
+      setProcessingStage(null)
+      setProcessingLabel(null)
+      setInteractedPoolId(null)
       setJoiningPoolId(null)
     }
   }
 
   const handleBid = async (poolId: string, amountMc: number) => {
     if (!address) return
+    const pool = pools.find((p) => p.id === poolId)
+    if (!pool) return
+
+    setInteractedPoolId(poolId)
+    setJoiningPoolId(poolId)
+    setProcessingPoolId(poolId)
+
     try {
-      const pool = pools.find((p) => p.id === poolId)
-      if (!pool) return
-      setJoiningPoolId(poolId)
+      setProcessingStage('bidding')
+      setProcessingLabel('Konfirmasi Bid di Dompet…')
       const hash = await joinWrite.writeContractAsync({
         address: MERITPOOL_ADDRESS,
         abi: MERITPOOL_ABI,
         functionName: 'placeBid',
         args: [BigInt(pool.poolIdOnChain), parseUnits(amountMc.toString(), 18)],
       })
-      setPendingReceipt({ hash, label: `Bid ${amountMc.toLocaleString()} MC tercatat` })
+
+      setProcessingStage('waiting_bid')
+      setProcessingLabel('Mencatat Bid di Blockchain…')
+      if (publicClient) {
+        await publicClient.waitForTransactionReceipt({ hash, confirmations: 1 })
+      }
+
+      toast('success', 'Bid Lelang Tercatat!', `Tawaran payout ${amountMc.toLocaleString()} MC telah dipasang.`, hash)
+      await queryClient.invalidateQueries()
     } catch (error) {
-      toast('error', 'Bid ditolak', reasonOf(error))
+      const msg = parseTxError(error)
+      toast(msg.includes('dibatalkan') ? 'info' : 'error', 'Pemasangan Bid', msg)
     } finally {
+      setProcessingPoolId(null)
+      setProcessingStage(null)
+      setProcessingLabel(null)
+      setInteractedPoolId(null)
       setJoiningPoolId(null)
     }
   }
 
-  // Keeper-lite: minta designation Merit Queue dari backend, lalu settle
-  // (kontrak memakai fallback bila tidak ada bid auction; kalau ada bid, bid terendah yang menang).
-  const handleSettle = async (poolId: string) => {
-    try {
-      const pool = pools.find((p) => p.id === poolId)
-      if (!pool) return
-      setJoiningPoolId(poolId)
-      const res = await fetch('/api/pools/designation', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ poolIdOnChain: pool.poolIdOnChain }),
-      })
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}))
-        throw new Error(data.error || 'Gagal mengambil designation')
-      }
-      const data = (await res.json()) as { winner: string; signature: `0x${string}` }
-      const hash = await joinWrite.writeContractAsync({
-        address: MERITPOOL_ADDRESS,
-        abi: MERITPOOL_ABI,
-        functionName: 'settleCycle',
-        args: [BigInt(pool.poolIdOnChain), data.winner as `0x${string}`, data.signature],
-      })
-      setPendingReceipt({ hash, label: `${pool.name} — cycle ditutup` })
-    } catch (error) {
-      toast('error', 'Settle gagal', reasonOf(error))
-    } finally {
-      setJoiningPoolId(null)
-    }
-  }
-
+  // Keeper background auto-settle
   useEffect(() => {
-    if (receipt && pendingReceipt) {
-      toast('success', pendingReceipt.label, 'Transaksi berhasil dikonfirmasi di on-chain.', receipt.transactionHash)
-      const approveForPoolId = pendingReceipt.approveForPoolId
-      queueMicrotask(() => setPendingReceipt(null))
-      refetchBalance()
-      refetchPools()
-      refetchAllowance()
-      refetchWinners()
-      winnersRead.refetch()
-      cyclesRead.refetch()
-      joinedRead.refetch()
-      // Approve sukses -> langsung lanjut otomatis ke joinPool (tanpa klik kedua)
-      if (approveForPoolId) {
-        const poolId = approveForPoolId
-        queueMicrotask(() => handleJoinPool(poolId))
+    requestPushPermission().catch(() => undefined)
+
+    const triggerAutoSettle = async () => {
+      try {
+        const res = await fetch('/api/pools/auto-settle', { method: 'POST' })
+        if (res.ok) {
+          const data = await res.json()
+          if (data.results?.length) {
+            await queryClient.invalidateQueries()
+            refetchPools()
+            refetchWinners()
+            refetchBalance()
+            refetchAllowance()
+            statesRead.refetch()
+            winnersRead.refetch()
+            cyclesRead.refetch()
+            joinedRead.refetch()
+            userCohortsRead.refetch()
+            currentCohortsRead.refetch()
+            formingStatesRead.refetch()
+            toast('success', '🏆 Pemenang Arisan Terpilih!', 'Undian arisan siklus selesai dan hadiah telah ditransfer langsung di on-chain.')
+            for (const _r of data.results) {
+              sendBrowserNotification(
+                '🏆 Pemenang Arisan Terpilih!',
+                'Undian arisan telah selesai dan hadiah telah ditransfer langsung on-chain.'
+              )
+            }
+          }
+        }
+      } catch {
+        // silent background
       }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [receipt])
 
-  useEffect(() => {
-    if (isReceiptError && pendingReceipt) {
-      toast('error', pendingReceipt.label, 'Transaksi gagal / dibatalkan di on-chain.')
-      queueMicrotask(() => setPendingReceipt(null))
-    }
+    const interval = setInterval(triggerAutoSettle, 6_000)
+    triggerAutoSettle()
+    return () => clearInterval(interval)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isReceiptError])
+  }, [])
 
   // ---------- Derived ----------
   const userTier = userProfile ? calculateTier(userProfile.meritScore) : 0
 
+  // User's active pool lock-in: hanya terkunci jika memiliki cohort aktif di on-chain
+  const activeJoinedPool = useMemo(() => {
+    const onChainIdx = userCohortNumbers.findIndex((c) => c > 0)
+    if (onChainIdx >= 0) {
+      return pools[onChainIdx] ?? null
+    }
+    return null
+  }, [userCohortNumbers, pools])
+
   return (
-    <>
+    <div className="space-y-6 max-w-7xl mx-auto pb-12">
       {/* Header */}
-      <header className="flex flex-col md:flex-row justify-between items-start md:items-center mb-2 gap-4">
+      <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h1 className="font-display-lg-mobile md:font-display-lg text-display-lg-mobile md:text-display-lg text-on-surface tracking-tighter">
             Available Pools
@@ -439,48 +714,25 @@ export default function DashboardPage() {
             Gabung arisan on-chain — kontribusi, hadiah, dan pemenang tiap siklus.
           </p>
         </div>
-        {/* Filters */}
-        <div className="flex items-center gap-1 bg-[#1d2027]/60 p-1 rounded-full border border-[#3e63ff]/30 backdrop-blur-md">
-          <button className="px-4 py-1.5 rounded-full bg-[#3E63FF] text-white shadow-[0px_0px_15px_rgba(62,99,255,0.4)] font-mono-label text-mono-label transition-colors">
-            All
-          </button>
-          <button className="px-4 py-1.5 rounded-full text-on-surface-variant hover:text-on-surface hover:bg-[#3E63FF]/10 font-mono-label text-mono-label transition-colors">
-            Active
-          </button>
-          <button className="px-4 py-1.5 rounded-full text-on-surface-variant hover:text-on-surface hover:bg-[#3E63FF]/10 font-mono-label text-mono-label transition-colors">
-            Completed
-          </button>
-        </div>
       </header>
 
-      {/* 6 Pool Cards — registri dari MeritPool.sol */}
-      {!dbPools ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 items-start">
-          {POOL_REGISTRY.map((_, i) => (
-            <div key={i} className="glass-panel rounded-3xl w-full max-w-[320px] h-[470px] p-4 flex flex-col gap-4">
-              <div className="flex items-center gap-3">
-                <Skeleton className="w-11 h-11 rounded-full" />
-                <div className="flex-1 space-y-2">
-                  <Skeleton className="h-5 w-2/3" />
-                  <Skeleton className="h-3 w-20" />
-                </div>
-              </div>
-              <div className="mt-10 flex-1 space-y-2">
-                <Skeleton className="h-3 w-full" />
-                <Skeleton className="h-3 w-full" />
-                <Skeleton className="h-3 w-2/3" />
-              </div>
-              <Skeleton className="h-9 w-full rounded-full" />
-            </div>
+      {pools.length === 0 ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          {[...Array(4)].map((_, i) => (
+            <Skeleton key={i} className="h-[460px] rounded-3xl" />
           ))}
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 items-start">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-stretch">
           {pools.map((pool, i) => {
             const winnerAddr = winnerAddresses[pool.poolIdOnChain]
             const winnerName = winnerAddr
               ? winnerUsernames?.[winnerAddr] ?? `0x${winnerAddr.slice(2, 5)}…${winnerAddr.slice(-4)}`
               : null
+            const isOtherInteracted = interactedPoolId !== null && interactedPoolId !== pool.id
+            const isPendingThis = joiningPoolId === pool.id || pendingReceipt?.poolId === pool.id || pendingReceipt?.approveForPoolId === pool.id || pendingReceipt?.contributeForPoolId === pool.id
+            const lockedInOtherPoolName = activeJoinedPool && activeJoinedPool.id !== pool.id ? activeJoinedPool.name : null
+
             return (
               <PoolCard
                 key={pool.id}
@@ -490,25 +742,22 @@ export default function DashboardPage() {
                 userTier={userTier}
                 mcBalanceNum={mcBalanceNum}
                 isJoinedThisCycle={joinedFlags[pool.poolIdOnChain]}
-                cycleId={
-                  (() => {
-                    const cyc = resultOf<bigint>(cycles[pool.poolIdOnChain])
-                    return typeof cyc === 'bigint' ? Number(cyc) : undefined
-                  })()
-                }
-                needsApproval={allowanceNum < pool.contributionAmount}
+                cycleId={poolStates[pool.poolIdOnChain]?.cycle ?? 1}
+                needsApproval={isOtherInteracted ? true : allowanceNum < pool.contributionAmount}
                 lastWinnerName={winnerName}
-                isJoiningThis={joiningPoolId === pool.id}
-                isJoinPending={joinWrite.isPending}
-                isApprovePending={approveWrite.isPending}
+                isJoiningThis={isPendingThis}
+                isJoinPending={joinWrite.isPending && isPendingThis}
+                isApprovePending={approveWrite.isPending && isPendingThis}
                 onJoin={handleJoinPool}
                 onApprove={handleApprove}
                 onOpenRegister={openRegister}
-                // ---- v2 ----
+                isOtherInteracted={isOtherInteracted}
+                lockedInOtherPoolName={lockedInOtherPoolName}
+                // ---- Multi-Cohort v3 ----
                 poolStatus={poolStates[pool.poolIdOnChain]?.status}
                 deadlineSec={poolStates[pool.poolIdOnChain]?.deadlineSec}
-                isPoolMember={!!userProfile?.memberPoolIds?.includes(pool.id)}
-                isContributePending={joinWrite.isPending && joiningPoolId === pool.id}
+                isPoolMember={!!userProfile?.memberPoolIds?.includes(pool.id) || !!(pool as unknown as { isPoolMember?: boolean })?.isPoolMember}
+                isContributePending={joinWrite.isPending && isPendingThis}
                 onContribute={handleContribute}
                 minBidNum={
                   (() => {
@@ -529,11 +778,12 @@ export default function DashboardPage() {
                     return typeof v === 'bigint' ? Number(v) : 0
                   })()
                 }
-                isBidPending={joinWrite.isPending && joiningPoolId === pool.id}
+                isBidPending={joinWrite.isPending && isPendingThis}
                 onBid={handleBid}
-                settleable={resultOf<boolean>(settleableRead.data?.[pool.poolIdOnChain]) === true}
-                isSettlingThis={joinWrite.isPending && joiningPoolId === pool.id}
-                onSettle={handleSettle}
+                processingStage={processingPoolId === pool.id ? processingStage : null}
+                processingLabel={processingPoolId === pool.id ? processingLabel : null}
+                userCohortNum={userCohortNumbers[pool.poolIdOnChain]}
+                formingMembersCount={formingMemberCounts[pool.poolIdOnChain]}
               />
             )
           })}
@@ -562,6 +812,6 @@ export default function DashboardPage() {
           <span className="font-mono-label text-mono-label text-[#3E63FF] uppercase">Keeper Ready</span>
         </span>
       </div>
-    </>
+    </div>
   )
 }

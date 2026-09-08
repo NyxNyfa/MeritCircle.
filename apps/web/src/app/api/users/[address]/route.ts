@@ -29,8 +29,12 @@ export async function GET(
           tier: calculateTier(100),
           isVerified: true,
         },
+        include: { memberships: { select: { poolId: true } } },
       });
-      return NextResponse.json({ ...qa, tier: qa.tier }, { status: 200 });
+      return NextResponse.json(
+        { ...qa, tier: qa.tier, memberPoolIds: qa.memberships?.map((m) => m.poolId) ?? [] },
+        { status: 200 }
+      );
     }
 
     // Alur normal: cari user di database

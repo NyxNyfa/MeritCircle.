@@ -58,9 +58,10 @@ model Pool {
 
 // Keanggotaan user di pool (off-chain, disinkronkan setelah tx joinPool on-chain)
 model PoolMember {
-  userId   String
-  poolId   String
-  joinedAt DateTime @default(now()) // untuk tenure Merit Queue (spesifikasi §46)
+  userId       String
+  poolId       String
+  cohortNumber Int      @default(1)
+  joinedAt     DateTime @default(now()) // untuk tenure Merit Queue (spesifikasi §46)
 
   user User @relation(fields: [userId], references: [walletAddress], onDelete: Cascade)
   pool Pool @relation(fields: [poolId], references: [id], onDelete: Cascade)
@@ -72,6 +73,7 @@ model PoolMember {
 model Contribution {
   id            String    @id @default(cuid())
   poolIdOnChain Int
+  cohortNumber  Int       @default(1)
   round         Int       @default(0)
   cycle         Int
   userWallet    String

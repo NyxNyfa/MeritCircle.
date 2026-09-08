@@ -71,7 +71,7 @@ async function main() {
       address: meritPool,
       abi: MERITPOOL_ABI,
       functionName: 'hasContributed',
-      args: [BigInt(0), BigInt(1), user.account.address],
+      args: [BigInt(0), BigInt(1), BigInt(1), user.account.address],
     } as never)
 
     if (alreadyJoined) {
@@ -140,7 +140,7 @@ async function main() {
       address: meritPool,
       abi: MERITPOOL_ABI,
       functionName: 'getPoolState',
-      args: [BigInt(0)],
+      args: [BigInt(0), '0x0000000000000000000000000000000000000000'],
     } as never)
     const activeCycle = Number((state as readonly unknown[])[2])
     if (activeCycle !== cycle) {
@@ -153,7 +153,7 @@ async function main() {
         address: meritPool,
         abi: MERITPOOL_ABI,
         functionName: 'hasContributed',
-        args: [BigInt(0), BigInt(cycle), user.account.address],
+        args: [BigInt(0), BigInt(1), BigInt(cycle), user.account.address],
       } as never)
       if (paid) continue
       await user.client.writeContract({

@@ -26,6 +26,25 @@ export default function EditProfileModal({ open, onClose, profile, onSubmit }: E
   const [bio, setBio] = useState(profile?.bio ?? '')
   const [isSaving, setIsSaving] = useState(false)
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    if (!file.type.includes('png') && !file.name.toLowerCase().endsWith('.png')) {
+      toast('error', 'Format tidak valid', 'Hanya menerima format .png')
+      e.target.value = ''
+      return
+    }
+
+    const reader = new FileReader()
+    reader.onload = () => {
+      if (typeof reader.result === 'string') {
+        setAvatarUrl(reader.result)
+      }
+    }
+    reader.readAsDataURL(file)
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsSaving(true)
@@ -85,19 +104,32 @@ export default function EditProfileModal({ open, onClose, profile, onSubmit }: E
               </div>
 
               <form className="space-y-5" onSubmit={handleSubmit}>
+                {/* Avatar File Upload (.png strictly) */}
                 <div className="space-y-2">
-                  <label className="font-mono text-[10px] uppercase tracking-wider text-[#C3C6D3] block ml-1" htmlFor="avatarUrl">
-                    Avatar URL <span className="lowercase normal-case opacity-60">(Optional)</span>
+                  <label className="font-mono text-[10px] uppercase tracking-wider text-[#C3C6D3] block ml-1" htmlFor="avatarFileInput">
+                    Upload Avatar <span className="lowercase normal-case opacity-60">(PNG Only)</span>
                   </label>
-                  <input
-                    id="avatarUrl"
-                    type="text"
-                    value={avatarUrl}
-                    onChange={(e) => setAvatarUrl(e.target.value)}
-                    placeholder="https://…/avatar.png"
-                    className="w-full bg-[#10131A]/70 border border-[#3e63ff]/20 rounded-lg py-3 px-4 text-[#E2E2E9] placeholder:text-[#C3C6D3]/40 focus:outline-none focus:border-[#3E63FF] transition-all duration-300"
-                  />
+                  <div className="flex items-center gap-3">
+                    {avatarUrl ? (
+                      <div className="h-12 w-12 rounded-full overflow-hidden shrink-0 border border-[#3E63FF]/50 bg-[#10131A] ring-2 ring-[#3E63FF]/30">
+                        <img src={avatarUrl} alt="Avatar preview" className="object-cover w-full h-full" />
+                      </div>
+                    ) : null}
+                    <div className="flex-1">
+                      <input
+                        id="avatarFileInput"
+                        type="file"
+                        accept="image/png, .png"
+                        onChange={handleFileChange}
+                        className="w-full text-xs text-[#E2E2E9] file:mr-3 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-[#3E63FF]/20 file:text-[#A9C7FF] hover:file:bg-[#3E63FF]/30 file:cursor-pointer cursor-pointer bg-[#10131A]/70 border border-[#3e63ff]/20 rounded-lg p-1.5 focus:outline-none focus:border-[#3E63FF] transition-all"
+                      />
+                      <p className="text-[11px] text-[#C3C6D3]/70 mt-1 ml-1">
+                        Hanya menerima format .png
+                      </p>
+                    </div>
+                  </div>
                 </div>
+
 
                 <div className="space-y-2">
                   <label className="font-mono text-[10px] uppercase tracking-wider text-[#C3C6D3] block ml-1" htmlFor="twitterHandle">

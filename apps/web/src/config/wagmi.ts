@@ -1,8 +1,8 @@
 import { http, createConfig } from 'wagmi'
 import { bscTestnet, foundry } from 'wagmi/chains'
 
-// Chain utama = BNB Smart Chain Testnet (97); Anvil (31337) untuk development lokal.
-export const SUPPORTED_CHAINS = [bscTestnet, foundry] as const
+// Chain utama lokal = Anvil Foundry (31337); BNB Smart Chain Testnet (97) untuk testnet.
+export const SUPPORTED_CHAINS = [foundry, bscTestnet] as const
 
 export const config = createConfig({
   chains: SUPPORTED_CHAINS,
