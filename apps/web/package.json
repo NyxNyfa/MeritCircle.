@@ -9,7 +9,7 @@
     "lint": "eslint"
   },
   "dependencies": {
-    "@material-symbols/font-400": "^0.46.0",
+    "@material-symbols/font-400": "^0.47.1",
     "@prisma/client": "^6.19.3",
     "@tanstack/react-query": "^5.101.4",
     "clsx": "^2.1.1",
