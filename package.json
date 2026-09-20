@@ -1,0 +1,21 @@
+{
+  "name": "merit-circle",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev:backend": "node scripts/sync-env.js && pnpm --filter \"@merit-circle/backend\" run dev",
+    "dev:web": "node scripts/sync-env.js && pnpm --filter \"@merit-circle/web\" run dev",
+    "prisma:generate": "pnpm --filter \"@merit-circle/backend\" run prisma:generate",
+    "db:push": "node scripts/sync-env.js && pnpm --filter \"@merit-circle/backend\" run db:push",
+    "db:seed-demo": "node scripts/sync-env.js && pnpm --filter \"@merit-circle/backend\" run db:seed-demo",
+    "lint": "pnpm -r run --if-present lint",
+    "typecheck": "pnpm -r run --if-present typecheck",
+    "test": "pnpm -r run --if-present test",
+    "build": "pnpm -r run --if-present build",
+    "start:backend": "pnpm --filter \"@merit-circle/backend\" run start",
+    "start:web": "pnpm --filter \"@merit-circle/web\" run start"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.5"
+  }
+}

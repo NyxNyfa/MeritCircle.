@@ -1,0 +1,17 @@
+node_modules/
+.DS_Store
+Thumbs.db
+dist/
+.next/
+coverage/
+
+# Hardhat build artifacts
+packages/contracts/artifacts/
+packages/contracts/cache/
+packages/contracts/typechain-types/
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+*.env

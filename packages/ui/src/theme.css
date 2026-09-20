@@ -1,0 +1,253 @@
+/**
+ * Merit Circle - Design System Theme CSS
+ * Inspired by 21st.dev Glassmorphism & Cybernetic Dark UI
+ */
+
+:root {
+  /* Backgrounds */
+  --bg-app: #0c0f17;
+  --bg-surface: #101420;
+  --bg-card: rgba(20, 24, 36, 0.75);
+  --bg-card-hover: rgba(27, 32, 48, 0.85);
+  --bg-card-elevated: #181d2c;
+  --bg-modal-overlay: rgba(8, 10, 16, 0.85);
+
+  /* Brand Colors */
+  --color-brand-primary: #4d8eff;
+  --color-brand-glow: #7bd0ff;
+  --color-brand-dark: #2b5bc7;
+  --color-brand-light: #adc6ff;
+  --color-accent-cyan: #00e5ff;
+  --color-accent-electric: #00c3f8;
+  --color-accent-lime: #a3e635;
+
+  /* Typography Colors */
+  --text-primary: #f1f3f9;
+  --text-secondary: #c2c6d6;
+  --text-muted: #8c909f;
+  --text-subtle: #5a5f70;
+  --text-white: #ffffff;
+
+  /* Status Colors */
+  --status-success: #00e599;
+  --status-success-bg: rgba(0, 229, 153, 0.12);
+  --status-warning: #f59e0b;
+  --status-warning-bg: rgba(245, 158, 11, 0.12);
+  --status-error: #ef4444;
+  --status-error-bg: rgba(239, 68, 68, 0.12);
+  --status-info: #3b82f6;
+  --status-info-bg: rgba(59, 130, 246, 0.12);
+
+  /* Tier Colors */
+  --tier-1: #8c909f;
+  --tier-2: #00c3f8;
+  --tier-3: #6366f1;
+  --tier-4: #a855f7;
+  --tier-5: #f59e0b;
+
+  /* Borders */
+  --border-subtle: 1px solid rgba(255, 255, 255, 0.08);
+  --border-medium: 1px solid rgba(255, 255, 255, 0.16);
+  --border-active: 1px solid rgba(77, 142, 255, 0.4);
+  --border-cyan: 1px solid rgba(0, 195, 248, 0.4);
+  --border-accent: 2px solid #4d8eff;
+
+  /* Radius */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 18px;
+  --radius-2xl: 24px;
+  --radius-full: 9999px;
+
+  /* Shadows & Glows */
+  --shadow-card: 0 8px 32px 0 rgba(0, 0, 0, 0.45);
+  --shadow-card-hover: 0 12px 40px 0 rgba(0, 0, 0, 0.6), 0 0 20px rgba(77, 142, 255, 0.2);
+  --shadow-modal: 0 24px 60px rgba(0, 0, 0, 0.8), 0 0 40px rgba(77, 142, 255, 0.15);
+  --shadow-glow-primary: 0 0 28px rgba(77, 142, 255, 0.4);
+  --shadow-glow-cyan: 0 0 28px rgba(0, 229, 255, 0.35);
+
+  /* Fonts */
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+
+/* Base Body Styles */
+html, body {
+  background-color: var(--bg-app);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  margin: 0;
+  padding: 0;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #0c0f17;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(77, 142, 255, 0.5);
+}
+
+/* Background Atmosphere Patterns (21st Cyber Theme) */
+.mc-bg-grid {
+  background-image: 
+    linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+.mc-bg-dots {
+  background-image: radial-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+/* Glassmorphism Classes */
+.mc-glass {
+  background: rgba(20, 24, 36, 0.72) !important;
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.09) !important;
+}
+
+.mc-glass-interactive {
+  background: rgba(20, 24, 36, 0.72) !important;
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.09) !important;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+.mc-glass-interactive:hover {
+  background: rgba(27, 32, 48, 0.85) !important;
+  border-color: rgba(77, 142, 255, 0.45) !important;
+  transform: translateY(-3px) !important;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.5), 0 0 24px rgba(77, 142, 255, 0.25) !important;
+}
+
+/* Card Component Enhancements */
+.mc-card {
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.25s ease;
+}
+
+.mc-card:hover {
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+/* Interactive Buttons */
+.mc-button {
+  transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.18s ease, filter 0.18s ease !important;
+}
+
+.mc-button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  filter: brightness(1.1);
+}
+
+.mc-button:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.mc-button--primary {
+  background: linear-gradient(135deg, #4d8eff 0%, #2b5bc7 100%) !important;
+  box-shadow: 0 0 20px rgba(77, 142, 255, 0.4) !important;
+}
+
+.mc-button--primary:hover:not(:disabled) {
+  box-shadow: 0 0 28px rgba(77, 142, 255, 0.6) !important;
+}
+
+/* Neon Glow Accents */
+.mc-glow-cyan {
+  box-shadow: 0 0 30px rgba(0, 229, 255, 0.25);
+}
+
+.mc-glow-primary {
+  box-shadow: 0 0 30px rgba(77, 142, 255, 0.3);
+}
+
+.mc-glow-amber {
+  box-shadow: 0 0 30px rgba(245, 158, 11, 0.25);
+}
+
+/* Keyframe Animations */
+@keyframes mc-float {
+  0%, 100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-10px) rotate(2deg);
+  }
+}
+
+@keyframes mc-float-slow {
+  0%, 100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-15px) rotate(-2deg);
+  }
+}
+
+@keyframes mc-pulse-glow {
+  0%, 100% {
+    opacity: 0.35;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.65;
+    transform: scale(1.08);
+  }
+}
+
+@keyframes mc-shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.animate-float {
+  animation: mc-float 6s ease-in-out infinite;
+}
+
+.animate-float-slow {
+  animation: mc-float-slow 8s ease-in-out infinite;
+}
+
+.animate-pulse-glow {
+  animation: mc-pulse-glow 5s ease-in-out infinite;
+}
+
+/* Shimmer Text Effect */
+.mc-text-gradient-shimmer {
+  background: linear-gradient(90deg, #ffffff 0%, #7bd0ff 50%, #ffffff 100%);
+  background-size: 200% auto;
+  color: transparent;
+  -webkit-background-clip: text;
+  background-clip: text;
+  animation: mc-shimmer 4s linear infinite;
+}
+
+/* Active Status Dot */
+.mc-live-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: var(--status-success);
+  box-shadow: 0 0 10px var(--status-success);
+  display: inline-block;
+  animation: mc-pulse-glow 2s infinite ease-in-out;
+}

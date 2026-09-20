@@ -1,0 +1,48 @@
+{
+  "name": "@merit-circle/backend",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "sync-env": "node ../../scripts/sync-env.js",
+    "predev": "node ../../scripts/sync-env.js",
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc",
+    "start": "node dist/src/server.js",
+    "lint": "echo 'apps/backend placeholder lint'",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "prisma:validate": "prisma validate --schema=prisma/schema.prisma",
+    "preprisma:generate": "node ../../scripts/sync-env.js",
+    "prisma:generate": "prisma generate --schema=prisma/schema.prisma",
+    "predb:push": "node ../../scripts/sync-env.js",
+    "db:push": "prisma db push --schema=prisma/schema.prisma",
+    "db:seed": "tsx prisma/seed.ts",
+    "predb:seed-demo": "node ../../scripts/sync-env.js",
+    "db:seed-demo": "tsx prisma/seed-demo.ts"
+  },
+  "dependencies": {
+    "@merit-circle/domain": "workspace:*",
+    "@prisma/client": "^5.14.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "jsonwebtoken": "^9.0.2",
+    "viem": "^2.13.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
+    "@types/jsonwebtoken": "^9.0.6",
+    "@types/node": "^20.14.0",
+    "@types/supertest": "^6.0.2",
+    "prisma": "^5.14.0",
+    "supertest": "^7.0.0",
+    "tsx": "^4.11.0",
+    "typescript": "^5.4.5",
+    "vitest": "^1.6.1"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  }
+}

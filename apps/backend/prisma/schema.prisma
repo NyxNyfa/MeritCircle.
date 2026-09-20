@@ -1,0 +1,454 @@
+// ─── Merit Circle Prisma Schema ───────────────────────────────────────────────
+// Phase 06 — Database Schema
+// All BNB/wei amounts stored as String to avoid floating point precision issues.
+// Integer fields used for reputation points, tiers, days, bps, cycle numbers.
+// ──────────────────────────────────────────────────────────────────────────────
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Enums ───────────────────────────────────────────────────────────────────
+
+enum UserRole {
+  USER
+  ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  BANNED
+}
+
+enum PoolMode {
+  BASIC
+  AUCTION
+}
+
+enum PoolStatus {
+  ACTIVE
+  INACTIVE
+  PAUSED
+}
+
+enum GroupStatus {
+  FORMING
+  ACTIVE
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum GroupMemberStatus {
+  ACTIVE
+  COMPLETED
+  DEFAULTED
+  REMOVED
+}
+
+enum CycleStatus {
+  UPCOMING
+  PAYMENT_OPEN
+  PAYMENT_CLOSED
+  AUCTION_OPEN
+  AUCTION_CLOSED
+  SETTLING
+  COMPLETED
+  FAILED
+}
+
+enum ContributionStatus {
+  PENDING
+  PAID_ON_TIME
+  PAID_LATE
+  UNPAID
+}
+
+enum AuctionStatus {
+  SCHEDULED
+  OPEN
+  CLOSED
+  SETTLED
+  CANCELLED
+  NO_VALID_BID
+}
+
+enum BidStatus {
+  VALID
+  INVALID
+  WINNING
+  LOSE
+  CANCELLED
+}
+
+enum PayoutType {
+  BASIC_CYCLE
+  AUCTION_CYCLE
+  FINAL_CYCLE
+  FORCE_SETTLE
+}
+
+enum PayoutStatus {
+  PENDING
+  SUCCESS
+  FAILED
+}
+
+enum ContractTransactionType {
+  REGISTER_GROUP
+  CONTRIBUTION_PAYMENT
+  SETTLE_BASIC
+  SETTLE_AUCTION
+  SETTLE_FINAL
+  FORCE_SETTLE
+}
+
+enum ContractTransactionStatus {
+  PENDING
+  CONFIRMED
+  FAILED
+}
+
+enum ReputationEventType {
+  WALLET_CONNECTED
+  USERNAME_SET
+  EMAIL_VERIFIED
+  SOCIAL_X_ADDED
+  SOCIAL_TELEGRAM_ADDED
+  SOCIAL_DISCORD_ADDED
+  AVATAR_UPLOADED
+  PROFILE_COMPLETED
+  JOIN_POOL
+  CONTRIBUTION_ON_TIME
+  CONTRIBUTION_EARLY_BONUS
+  CONTRIBUTION_LATE
+  CONTRIBUTION_UNPAID
+  GROUP_COMPLETED
+  AUCTION_SUCCESSFULLY_REPAID
+  ADMIN_ADJUSTMENT
+}
+
+// ─── Models ──────────────────────────────────────────────────────────────────
+
+model User {
+  id            String     @id @default(cuid())
+  walletAddress String     @unique
+  role          UserRole   @default(USER)
+  status        UserStatus @default(ACTIVE)
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  profile          Profile?
+  reputation       Reputation?
+  reputationEvents ReputationEvent[]
+  groupMembers     GroupMember[]
+  contributions    Contribution[]
+  bids             Bid[]
+  payouts          Payout[]
+
+  @@index([status])
+  @@index([role])
+}
+
+model Profile {
+  id              String    @id @default(cuid())
+  userId          String    @unique
+  username        String?   @unique
+  email           String?   @unique
+  emailVerifiedAt DateTime?
+  avatarUrl       String?
+  xUrl            String?
+  telegramUrl     String?
+  discordHandle   String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Reputation {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  points    Int      @default(0)
+  tier      Int      @default(1)
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model ReputationEvent {
+  id            String              @id @default(cuid())
+  userId        String
+  type          ReputationEventType
+  points        Int
+  reason        String?
+  referenceType String?
+  referenceId   String?
+  createdAt     DateTime            @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([type])
+  @@index([createdAt])
+}
+
+model Pool {
+  id                    String     @id @default(cuid())
+  externalPoolId        String     @unique
+  name                  String
+  description           String?
+  mode                  PoolMode
+  minimumTier           Int
+  groupSize             Int
+  cycleCount            Int
+  cycleDurationDays     Int        @default(30)
+  paymentWindowDays     Int        @default(10)
+  auctionOpenDay        Int?
+  auctionCloseDay       Int?
+  settlementDay         Int        @default(30)
+  contributionAmountWei String // BNB wei amount stored as String
+  maxDiscountBps        Int? // Nullable for Basic pools
+  status                PoolStatus @default(ACTIVE)
+  createdAt             DateTime   @default(now())
+  updatedAt             DateTime   @updatedAt
+
+  groups Group[]
+
+  @@index([mode])
+  @@index([status])
+  @@index([minimumTier])
+}
+
+model Group {
+  id              String      @id @default(cuid())
+  poolId          String
+  groupNumber     Int
+  status          GroupStatus @default(FORMING)
+  memberCount     Int         @default(0)
+  startDate       DateTime?
+  currentCycle    Int         @default(0)
+  contractGroupId String?     @unique
+  completedAt     DateTime?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  pool          Pool               @relation(fields: [poolId], references: [id], onDelete: Cascade)
+  members       GroupMember[]
+  cycles        Cycle[]
+  contributions Contribution[]
+  auctions      Auction[]
+  payouts       Payout[]
+  rewardLedgers CycleRewardLedger[]
+  transactions  ContractTransaction[]
+
+  @@unique([poolId, groupNumber])
+  @@index([status])
+}
+
+model GroupMember {
+  id                String            @id @default(cuid())
+  groupId           String
+  userId            String
+  payoutSlot        Int?
+  hasReceivedPayout Boolean           @default(false)
+  status            GroupMemberStatus @default(ACTIVE)
+  joinedAt          DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, userId])
+  @@index([groupId])
+  @@index([userId])
+}
+
+model Cycle {
+  id              String      @id @default(cuid())
+  groupId         String
+  cycleNumber     Int
+  startDate       DateTime?
+  paymentDeadline DateTime?
+  auctionOpenAt   DateTime?
+  auctionCloseAt  DateTime?
+  settlementAt    DateTime?
+  isFinalCycle    Boolean     @default(false)
+  status          CycleStatus @default(UPCOMING)
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  group         Group              @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  contributions Contribution[]
+  auction       Auction?
+  payout        Payout?
+  rewardLedger  CycleRewardLedger?
+  transactions  ContractTransaction[]
+
+  @@unique([groupId, cycleNumber])
+  @@index([status])
+}
+
+model Contribution {
+  id           String             @id @default(cuid())
+  cycleId      String
+  groupId      String
+  userId       String
+  amountWei    String // BNB wei amount stored as String
+  status       ContributionStatus @default(PENDING)
+  dueDate      DateTime?
+  paidAt       DateTime?
+  txHash       String?            @unique
+  lateDays     Int                @default(0)
+  penaltyPoint Int                @default(0)
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+
+  cycle Cycle @relation(fields: [cycleId], references: [id], onDelete: Cascade)
+  group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([cycleId, userId])
+  @@index([status])
+  @@index([userId])
+  @@index([cycleId])
+}
+
+model Auction {
+  id               String        @id @default(cuid())
+  cycleId          String        @unique
+  groupId          String
+  status           AuctionStatus @default(SCHEDULED)
+  rewardPoolWei    String // BNB wei amount stored as String
+  minimumPayoutWei String // BNB wei amount stored as String
+  maxDiscountBps   Int
+  bestBidId        String?
+  openAt           DateTime?
+  closeAt          DateTime?
+  settlementAt     DateTime?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  cycle Cycle @relation(fields: [cycleId], references: [id], onDelete: Cascade)
+  group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  bids  Bid[]
+
+  @@index([status])
+}
+
+model Bid {
+  id              String    @id @default(cuid())
+  auctionId       String
+  userId          String
+  payoutAmountWei String // BNB wei amount stored as String
+  status          BidStatus @default(VALID)
+  txHash          String?   @unique
+  submittedAt     DateTime  @default(now())
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  auction Auction @relation(fields: [auctionId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([auctionId, userId])
+  @@index([auctionId])
+  @@index([userId])
+  @@index([status])
+}
+
+model Payout {
+  id              String       @id @default(cuid())
+  cycleId         String       @unique
+  groupId         String
+  recipientUserId String
+  type            PayoutType
+  amountWei       String // BNB wei amount stored as String
+  status          PayoutStatus @default(PENDING)
+  txHash          String?      @unique
+  paidAt          DateTime?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  cycle     Cycle @relation(fields: [cycleId], references: [id], onDelete: Cascade)
+  group     Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  recipient User  @relation(fields: [recipientUserId], references: [id], onDelete: Cascade)
+
+  @@index([groupId])
+  @@index([recipientUserId])
+  @@index([status])
+}
+
+model CycleRewardLedger {
+  id                       String   @id @default(cuid())
+  groupId                  String
+  cycleId                  String   @unique
+  cycleNumber              Int
+  baseRewardWei            String // BNB wei amount stored as String
+  carriedRewardWei         String // BNB wei amount stored as String
+  rewardPoolWei            String // BNB wei amount stored as String
+  payoutWei                String // BNB wei amount stored as String
+  remainingCarryRewardWei  String // Must be "0" for final cycle (NO FINAL SURPLUS)
+  isFinalCycle             Boolean  @default(false)
+  createdAt                DateTime @default(now())
+
+  group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  cycle Cycle @relation(fields: [cycleId], references: [id], onDelete: Cascade)
+
+  @@index([groupId])
+}
+
+model ContractTransaction {
+  id           String                    @id @default(cuid())
+  type         ContractTransactionType
+  txHash       String                    @unique
+  status       ContractTransactionStatus @default(PENDING)
+  groupId      String?
+  cycleId      String?
+  amountWei    String? // BNB wei amount stored as String
+  fromAddress  String?
+  toAddress    String?
+  blockNumber  Int?
+  createdAt    DateTime                  @default(now())
+  updatedAt    DateTime                  @updatedAt
+
+  group Group? @relation(fields: [groupId], references: [id], onDelete: SetNull)
+  cycle Cycle? @relation(fields: [cycleId], references: [id], onDelete: SetNull)
+
+  @@index([type])
+  @@index([status])
+}
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  actorUserId String?
+  actorType   String // "USER" | "ADMIN" | "SYSTEM"
+  action      String
+  entityType  String
+  entityId    String?
+  metadata    Json?
+  createdAt   DateTime @default(now())
+
+  @@index([entityType])
+  @@index([entityId])
+  @@index([createdAt])
+}
+
+model EmailVerification {
+  id        String    @id @default(cuid())
+  userId    String
+  email     String
+  tokenHash String
+  otpHash   String?
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+  @@index([email])
+}
