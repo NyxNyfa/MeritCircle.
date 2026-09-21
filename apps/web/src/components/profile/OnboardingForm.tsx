@@ -45,7 +45,7 @@ export const OnboardingForm: React.FC<{ onComplete?: () => void }> = ({ onComple
       setIsCodeSent(true);
       setMessage({
         type: "success",
-        text: `Verification code sent to ${email}. (In demo testnet check backend console logs)`,
+        text: `Verification code sent to ${email}. Please check your inbox (or spam folder).`,
       });
     } catch (err: any) {
       setMessage({ type: "error", text: err?.message || "Failed to send code" });

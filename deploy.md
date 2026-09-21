@@ -202,9 +202,11 @@ Railway adalah platform hosting PaaS yang sangat mudah untuk monorepo Node.js da
    - `PORT` = `4000` (atau biarkan Railway mengatur secara otomatis)
    - `DATABASE_URL` = (Connection string Supabase Anda)
    - `JWT_SECRET` = (String rahasia JWT Anda)
-   - `EMAIL_PROVIDER` = `console`
+   - `EMAIL_PROVIDER` = `resend`
+   - `RESEND_API_KEY` = (API Key Anda dari resend.com, misal `re_...`)
+   - `EMAIL_FROM` = `onboarding@resend.dev` (atau domain terverifikasi Anda)
    - `NEXT_PUBLIC_BNB_TESTNET_CHAIN_ID` = `97`
-   - `NEXT_PUBLIC_BNB_TESTNET_RPC_URL` = `https://data-seed-prebsc-1-s1.binance.org:8545/`
+   - `NEXT_PUBLIC_BNB_TESTNET_RPC_URL` = `https://bsc-testnet.bnbchain.org`
    - `CONTRACT_ADDRESS` = (Alamat smart contract hasil deploy)
 5. Masuk ke tab **Networking** ➔ Klik **Generate Domain** (contoh hasil: `meritcircle-backend.up.railway.app`).
 6. **Verifikasi Backend:** Buka di browser `https://meritcircle-backend.up.railway.app/health`.

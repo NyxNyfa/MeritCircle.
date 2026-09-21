@@ -187,4 +187,62 @@ describe("Phase 09 - Email Verification Module", () => {
     expect(confirmRes.status).toBe(400);
     expect(confirmRes.body.error).toMatch(/expired/i);
   });
+
+  describe("ResendEmailProvider", () => {
+    it("sends email via Resend API fetch with correct payload", async () => {
+      const fetchMock = vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ id: "email_123" }),
+      });
+      vi.stubGlobal("fetch", fetchMock);
+
+      const { ResendEmailProvider } = await import(
+        "../src/modules/email/email.provider"
+      );
+      const provider = new ResendEmailProvider(
+        "re_test_key_123",
+        "Merit Circle <test@meritcircle.local>"
+      );
+      await provider.sendVerificationEmail({
+        to: "recipient@example.com",
+        code: "654321",
+        expiresAt: new Date(Date.now() + 600000),
+      });
+
+      expect(fetchMock).toHaveBeenCalledWith("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+          Authorization: "Bearer re_test_key_123",
+          "Content-Type": "application/json",
+        },
+        body: expect.stringContaining("654321"),
+      });
+
+      vi.unstubAllGlobals();
+    });
+
+    it("throws error when Resend API returns error response", async () => {
+      const fetchMock = vi.fn().mockResolvedValue({
+        ok: false,
+        status: 403,
+        json: async () => ({ message: "API key invalid" }),
+      });
+      vi.stubGlobal("fetch", fetchMock);
+
+      const { ResendEmailProvider } = await import(
+        "../src/modules/email/email.provider"
+      );
+      const provider = new ResendEmailProvider("re_bad_key");
+      await expect(
+        provider.sendVerificationEmail({
+          to: "recipient@example.com",
+          code: "123456",
+          expiresAt: new Date(),
+        })
+      ).rejects.toThrow(/API key invalid/i);
+
+      vi.unstubAllGlobals();
+    });
+  });
 });
+
