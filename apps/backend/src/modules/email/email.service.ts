@@ -10,6 +10,10 @@ const rateLimitMap = new Map<string, number[]>();
 const MAX_REQUESTS_PER_HOUR = Number(process.env.EMAIL_OTP_MAX_REQUESTS_PER_HOUR || 5);
 const OTP_EXPIRES_MINUTES = Number(process.env.EMAIL_OTP_EXPIRES_MINUTES || 10);
 
+export function resetEmailRateLimits(): void {
+  rateLimitMap.clear();
+}
+
 function checkRateLimit(userId: string): void {
   const now = Date.now();
   const windowMs = 60 * 60 * 1000; // 1 hour
@@ -20,7 +24,8 @@ function checkRateLimit(userId: string): void {
   if (timestamps.length >= MAX_REQUESTS_PER_HOUR) {
     throw new AppError(
       "Too many verification requests. Please try again later.",
-      429
+      429,
+      "RATE_LIMITED"
     );
   }
 
@@ -42,7 +47,7 @@ export async function requestEmailVerification(
     emailFromBody?.trim().toLowerCase() || profile?.email?.trim().toLowerCase();
 
   if (!targetEmail) {
-    throw new AppError("Email is not set in user profile", 400);
+    throw new AppError("Email is not set in user profile", 400, "EMAIL_NOT_SET");
   }
 
   // If email was explicitly provided in request body, validate uniqueness and update profile
@@ -55,7 +60,7 @@ export async function requestEmailVerification(
     });
 
     if (existing) {
-      throw new AppError("Email is already registered by another user", 409);
+      throw new AppError("Email is already registered by another user", 409, "EMAIL_ALREADY_EXISTS");
     }
 
     if (!profile) {
@@ -96,7 +101,11 @@ export async function requestEmailVerification(
   return {
     success: true,
     expiresInMinutes: OTP_EXPIRES_MINUTES,
-    ...(process.env.NODE_ENV !== "production" ? { devCode: code } : {}),
+    ...(process.env.NODE_ENV !== "production" ||
+    process.env.NEXT_PUBLIC_DEMO_PAYMENT_MODE === "true" ||
+    process.env.EMAIL_PROVIDER === "console"
+      ? { devCode: code }
+      : {}),
   };
 }
 
@@ -116,15 +125,15 @@ export async function confirmEmailVerification(
   });
 
   if (!verification) {
-    throw new AppError("Invalid verification code", 400);
+    throw new AppError("Invalid verification code", 400, "INVALID_CODE");
   }
 
   if (verification.usedAt !== null) {
-    throw new AppError("Verification code has already been used", 400);
+    throw new AppError("Verification code has already been used", 400, "CODE_ALREADY_USED");
   }
 
   if (verification.expiresAt < new Date()) {
-    throw new AppError("Verification code has expired", 400);
+    throw new AppError("Verification code has expired", 400, "CODE_EXPIRED");
   }
 
   // Mark verification as used and update user profile

@@ -16,6 +16,10 @@ describe("Phase 09 - Email Verification Module", () => {
 
   beforeEach(async () => {
     resetMockDb();
+    const { resetEmailRateLimits } = await import(
+      "../src/modules/email/email.service"
+    );
+    resetEmailRateLimits();
 
     const u = await mockPrisma.user.create({
       data: {
@@ -44,7 +48,9 @@ describe("Phase 09 - Email Verification Module", () => {
       .set("Authorization", `Bearer ${token}`);
 
     expect(res.status).toBe(400);
-    expect(res.body.error).toMatch(/email is not set/i);
+    const err = typeof res.body.error === "string" ? res.body.error : res.body.error?.message;
+    expect(err).toMatch(/email is not set/i);
+    expect(res.body.error?.code || res.body.code).toBe("EMAIL_NOT_SET");
   });
 
   it("POST /api/email/verify/request accepts email in body even if profile email is not set", async () => {
@@ -89,6 +95,28 @@ describe("Phase 09 - Email Verification Module", () => {
     expect(ver.otpHash).toHaveLength(64); // SHA-256 hex
   });
 
+  it("POST /api/email/verify/request enforces rate limiting after 5 requests", async () => {
+    await mockPrisma.profile.update({
+      where: { userId },
+      data: { email: "ratelimit@example.com" },
+    });
+
+    for (let i = 0; i < 5; i++) {
+      const res = await request(app)
+        .post("/api/email/verify/request")
+        .set("Authorization", `Bearer ${token}`);
+      expect(res.status).toBe(200);
+    }
+
+    const blockedRes = await request(app)
+      .post("/api/email/verify/request")
+      .set("Authorization", `Bearer ${token}`);
+    expect(blockedRes.status).toBe(429);
+    const err = typeof blockedRes.body.error === "string" ? blockedRes.body.error : blockedRes.body.error?.message;
+    expect(err).toMatch(/too many verification requests/i);
+    expect(blockedRes.body.error?.code || blockedRes.body.code).toBe("RATE_LIMITED");
+  });
+
   it("POST /api/email/verify/confirm rejects wrong code", async () => {
     await mockPrisma.profile.update({
       where: { userId },
@@ -105,7 +133,9 @@ describe("Phase 09 - Email Verification Module", () => {
       .send({ code: "000000" });
 
     expect(confirmRes.status).toBe(400);
-    expect(confirmRes.body.error).toMatch(/invalid/i);
+    const err = typeof confirmRes.body.error === "string" ? confirmRes.body.error : confirmRes.body.error?.message;
+    expect(err).toMatch(/invalid/i);
+    expect(confirmRes.body.error?.code || confirmRes.body.code).toBe("INVALID_CODE");
   });
 
   it("POST /api/email/verify/confirm verifies email and awards EMAIL_VERIFIED (+40)", async () => {
@@ -161,7 +191,9 @@ describe("Phase 09 - Email Verification Module", () => {
       .set("Authorization", `Bearer ${token}`)
       .send({ code });
     expect(res2.status).toBe(400);
-    expect(res2.body.error).toMatch(/already been used/i);
+    const err = typeof res2.body.error === "string" ? res2.body.error : res2.body.error?.message;
+    expect(err).toMatch(/already been used/i);
+    expect(res2.body.error?.code || res2.body.code).toBe("CODE_ALREADY_USED");
   });
 
   it("POST /api/email/verify/confirm rejects expired code", async () => {
@@ -185,7 +217,9 @@ describe("Phase 09 - Email Verification Module", () => {
       .send({ code });
 
     expect(confirmRes.status).toBe(400);
-    expect(confirmRes.body.error).toMatch(/expired/i);
+    const err = typeof confirmRes.body.error === "string" ? confirmRes.body.error : confirmRes.body.error?.message;
+    expect(err).toMatch(/expired/i);
+    expect(confirmRes.body.error?.code || confirmRes.body.code).toBe("CODE_EXPIRED");
   });
 
   describe("ResendEmailProvider", () => {
