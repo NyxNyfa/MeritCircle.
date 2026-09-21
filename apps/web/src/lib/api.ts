@@ -70,11 +70,12 @@ export async function requestNonce(walletAddress: string): Promise<{ nonce: stri
 
 export async function verifyWallet(
   walletAddress: string,
-  signature: string
+  signature: string,
+  nonce: string
 ): Promise<{ token: string; user: any }> {
   return fetchApi<{ token: string; user: any }>("/api/auth/verify", {
     method: "POST",
-    body: JSON.stringify({ walletAddress, signature }),
+    body: JSON.stringify({ walletAddress, signature, nonce }),
   });
 }
 

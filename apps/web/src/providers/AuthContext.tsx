@@ -73,11 +73,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const { nonce } = await requestNonce(walletAddr);
 
       // 2. Sign nonce with connected wallet
-      const messageToSign = `Sign in to Merit Circle: ${nonce}`;
-      const signature = await sign(messageToSign);
+      const signature = await sign(nonce);
 
       // 3. Verify signature with backend
-      const verifyRes = await verifyWallet(walletAddr, signature);
+      const verifyRes = await verifyWallet(walletAddr, signature, nonce);
 
       setToken(verifyRes.token);
       setStoredUser(verifyRes.user);
