@@ -124,7 +124,7 @@ export const WalletConnectModal: React.FC<WalletConnectModalProps> = ({
 
         <div style={{ display: "flex", flexDirection: "column", gap: spacing["3"] }}>
           <Button
-            variant="primary"
+            variant="liquid-metal"
             size="lg"
             loading={isLoading}
             onClick={handleConnectAndSign}

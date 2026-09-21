@@ -177,7 +177,7 @@ export const JoinPoolModal: React.FC<JoinPoolModalProps> = ({
             Cancel
           </Button>
           <Button
-            variant="primary"
+            variant="liquid-metal"
             size="md"
             loading={isJoining}
             disabled={!isProfileComplete || isJoining}

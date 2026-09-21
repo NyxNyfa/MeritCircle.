@@ -84,7 +84,7 @@ function AuctionHubContent() {
           description="Silakan hubungkan dompet Anda untuk mengakses ruang lelang siklus arisan."
           action={
             <Button
-              variant="primary"
+              variant="liquid-metal"
               size="md"
               onClick={() => {
                 window.location.href = "/connect";
@@ -130,7 +130,7 @@ function AuctionHubContent() {
           description="Anda belum bergabung ke dalam Auction Pool yang sedang berada pada fase lelang, atau siklus saat ini berada di luar jendela hari ke-11 s.d. 25."
           action={
             <Button
-              variant="primary"
+              variant="liquid-gold"
               size="md"
               onClick={() => {
                 window.location.href = "/pools";

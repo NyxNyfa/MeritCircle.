@@ -307,10 +307,11 @@ export const AuctionCard: React.FC<{
 
           <Button
             type="submit"
-            variant="primary"
+            variant="liquid-gold"
             size="md"
             loading={isSubmitting}
             disabled={!acknowledged}
+            style={{ width: "100%" }}
           >
             Submit Auction Bid ({discountPercent}% Discount)
           </Button>

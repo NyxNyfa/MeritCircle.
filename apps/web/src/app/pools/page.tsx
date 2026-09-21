@@ -117,7 +117,7 @@ function PoolsMarketplaceContent() {
           description="Tidak ada pool yang cocok dengan filter yang dipilih saat ini."
           action={
             <Button
-              variant="primary"
+              variant="liquid-metal"
               size="md"
               onClick={() => setSelectedFilter("ALL")}
             >

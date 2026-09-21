@@ -46,7 +46,7 @@ function PaymentHubContent() {
           description="Silakan hubungkan dompet Web3 Anda untuk melihat tagihan iuran siklus berjalan."
           action={
             <Button
-              variant="primary"
+              variant="liquid-metal"
               size="md"
               onClick={() => {
                 window.location.href = "/connect";

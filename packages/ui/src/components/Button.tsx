@@ -1,12 +1,23 @@
 import React from "react";
 
-export type ButtonVariant = "primary" | "secondary" | "outline" | "ghost" | "danger" | "success";
+export type ButtonVariant =
+  | "primary"
+  | "secondary"
+  | "outline"
+  | "ghost"
+  | "danger"
+  | "success"
+  | "liquid-metal"
+  | "liquid-gold"
+  | "liquid-cyan";
+
 export type ButtonSize = "sm" | "md" | "lg";
 
 export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: ButtonVariant;
   size?: ButtonSize;
   loading?: boolean;
+  liquidMetal?: boolean;
   leftIcon?: React.ReactNode;
   rightIcon?: React.ReactNode;
 }
@@ -15,6 +26,7 @@ export const Button: React.FC<ButtonProps> = ({
   variant = "primary",
   size = "md",
   loading = false,
+  liquidMetal = false,
   disabled = false,
   leftIcon,
   rightIcon,
@@ -26,9 +38,9 @@ export const Button: React.FC<ButtonProps> = ({
   const isDisabled = disabled || loading;
 
   const sizeStyles: Record<ButtonSize, React.CSSProperties> = {
-    sm: { height: "32px", padding: "0 12px", fontSize: "12px", borderRadius: "6px" },
-    md: { height: "40px", padding: "0 16px", fontSize: "14px", borderRadius: "8px" },
-    lg: { height: "48px", padding: "0 24px", fontSize: "16px", borderRadius: "10px" },
+    sm: { height: "34px", padding: "0 14px", fontSize: "12px", borderRadius: "9999px" },
+    md: { height: "42px", padding: "0 18px", fontSize: "14px", borderRadius: "9999px" },
+    lg: { height: "50px", padding: "0 26px", fontSize: "15px", borderRadius: "9999px" },
   };
 
   const variantStyles: Record<ButtonVariant, React.CSSProperties> = {
@@ -37,6 +49,15 @@ export const Button: React.FC<ButtonProps> = ({
       color: "#FFFFFF",
       border: "none",
       boxShadow: "0 0 16px rgba(77, 142, 255, 0.3)",
+    },
+    "liquid-metal": {
+      color: "#FFFFFF",
+    },
+    "liquid-gold": {
+      color: "#FFFBEB",
+    },
+    "liquid-cyan": {
+      color: "#E0FBFF",
     },
     secondary: {
       backgroundColor: "#1B2030",
@@ -66,16 +87,31 @@ export const Button: React.FC<ButtonProps> = ({
     },
   };
 
+  const isLiquidMetal =
+    liquidMetal ||
+    variant === "liquid-metal" ||
+    variant === "liquid-gold" ||
+    variant === "liquid-cyan";
+
+  const liquidClass =
+    variant === "liquid-gold"
+      ? "mc-btn-liquid-gold"
+      : variant === "liquid-cyan"
+      ? "mc-btn-liquid-cyan"
+      : isLiquidMetal
+      ? "mc-btn-liquid-metal"
+      : "";
+
   const baseStyle: React.CSSProperties = {
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
     gap: "8px",
     fontFamily: "'Inter', sans-serif",
-    fontWeight: 500,
+    fontWeight: 600,
     cursor: isDisabled ? "not-allowed" : "pointer",
     opacity: isDisabled ? 0.6 : 1,
-    transition: "all 0.15s ease-in-out",
+    transition: "all 0.18s ease-in-out",
     ...sizeStyles[size],
     ...variantStyles[variant],
     ...style,
@@ -88,7 +124,7 @@ export const Button: React.FC<ButtonProps> = ({
       aria-disabled={isDisabled}
       aria-busy={loading}
       style={baseStyle}
-      className={`mc-button mc-button--${variant} ${className}`}
+      className={`mc-button mc-button--${variant} ${liquidClass} ${className}`.trim()}
       {...props}
     >
       {loading && <span className="mc-spinner" aria-hidden="true">⏳</span>}

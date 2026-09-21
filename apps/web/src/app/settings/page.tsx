@@ -18,7 +18,7 @@ function SettingsContent() {
           description="Silakan hubungkan dompet Web3 Anda untuk mengakses pengaturan profil akun."
           action={
             <Button
-              variant="primary"
+              variant="liquid-metal"
               size="md"
               onClick={() => {
                 window.location.href = "/connect";

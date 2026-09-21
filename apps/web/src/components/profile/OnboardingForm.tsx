@@ -244,7 +244,7 @@ export const OnboardingForm: React.FC<{ onComplete?: () => void }> = ({ onComple
                   />
                   <Button
                     type="button"
-                    variant="primary"
+                    variant="liquid-cyan"
                     size="md"
                     loading={isVerifying}
                     onClick={handleConfirmCode}
@@ -388,7 +388,7 @@ export const OnboardingForm: React.FC<{ onComplete?: () => void }> = ({ onComple
           <div style={{ marginTop: spacing["4"] }}>
             <Button
               type="submit"
-              variant="primary"
+              variant="liquid-metal"
               size="lg"
               loading={isSaving}
               style={{ width: "100%" }}

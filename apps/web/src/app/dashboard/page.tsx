@@ -9,6 +9,7 @@ import { useReputation } from "../../hooks/useReputation";
 import { getMyGroups, getMyContributions } from "../../lib/api";
 import { formatAddress, formatDate, formatPoint, formatTier, formatWeiToBnb } from "../../lib/format";
 import { GroupCard, GroupData } from "../../components/group/GroupCard";
+import { LiquidMetalButton } from "../../components/ui/liquid-metal-button";
 
 function DashboardContent() {
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
@@ -130,35 +131,21 @@ function DashboardContent() {
         </div>
 
         {/* Quick Actions */}
-        <div style={{ display: "flex", gap: "12px" }}>
-          <a
+        <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+          <LiquidMetalButton
             href="/pools"
-            className="mc-button mc-button--primary"
-            style={{
-              padding: "10px 20px",
-              borderRadius: radius.md,
-              color: "#FFFFFF",
-              fontSize: "13px",
-              fontWeight: 700,
-              textDecoration: "none",
-            }}
+            size="sm"
+            variant="primary"
           >
             Explore Pools
-          </a>
-          <a
+          </LiquidMetalButton>
+          <LiquidMetalButton
             href="/pay"
-            className="mc-glass-interactive"
-            style={{
-              padding: "10px 20px",
-              borderRadius: radius.md,
-              color: color.text.primary,
-              fontSize: "13px",
-              fontWeight: 600,
-              textDecoration: "none",
-            }}
+            size="sm"
+            variant="cyan"
           >
             Pay Contribution
-          </a>
+          </LiquidMetalButton>
         </div>
       </div>
 

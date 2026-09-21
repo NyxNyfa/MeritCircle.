@@ -160,7 +160,7 @@ export const PoolCard: React.FC<PoolCardProps> = ({
           </a>
 
           <Button
-            variant="primary"
+            variant={!isJoinable ? "secondary" : isAuction ? "liquid-gold" : "liquid-metal"}
             size="md"
             disabled={!isJoinable}
             onClick={() => onJoinClick?.(pool)}

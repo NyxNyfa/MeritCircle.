@@ -159,7 +159,7 @@ export const PaymentCard: React.FC<{
 
       {!isPaid && (
         <Button
-          variant="primary"
+          variant="liquid-metal"
           size="md"
           loading={isProcessing}
           onClick={handlePay}

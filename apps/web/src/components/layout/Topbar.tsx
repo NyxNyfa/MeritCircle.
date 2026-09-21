@@ -6,6 +6,7 @@ import { useWallet } from "../../hooks/useWallet";
 import { useAuth } from "../../hooks/useAuth";
 import { formatAddress, formatPoint, formatTier } from "../../lib/format";
 import { PanelLeftClose, PanelLeftOpen } from "./Icons";
+import { LiquidMetalButton } from "../ui/liquid-metal-button";
 
 export interface TopbarProps {
   sidebarOpen?: boolean;
@@ -269,25 +270,14 @@ export const Topbar: React.FC<TopbarProps> = ({
             </button>
           </div>
         ) : (
-          <button
-            type="button"
+          <LiquidMetalButton
+            size="sm"
+            variant="primary"
             onClick={loginWithWallet}
-            className="mc-button mc-button--primary"
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "8px",
-              padding: "8px 20px",
-              borderRadius: radius.md,
-              color: "#FFFFFF",
-              fontSize: "13px",
-              fontWeight: 700,
-              cursor: "pointer",
-            }}
+            icon={<span>⚡</span>}
           >
-            <span>⚡</span>
-            <span>Connect Wallet</span>
-          </button>
+            Connect Wallet
+          </LiquidMetalButton>
         )}
       </div>
     </header>

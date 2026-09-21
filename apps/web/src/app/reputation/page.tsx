@@ -21,7 +21,7 @@ function ReputationContent() {
           description="Silakan hubungkan dompet Web3 Anda untuk melihat skor reputasi dan buku besar riwayat poin."
           action={
             <Button
-              variant="primary"
+              variant="liquid-metal"
               size="md"
               onClick={() => {
                 window.location.href = "/connect";

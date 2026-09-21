@@ -133,7 +133,7 @@ function ConnectPageContent() {
             </div>
 
             <Button
-              variant="primary"
+              variant="liquid-metal"
               size="lg"
               onClick={() => {
                 window.location.href = user.username && user.isEmailVerified ? "/dashboard" : "/onboarding";
@@ -146,7 +146,7 @@ function ConnectPageContent() {
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: spacing["3"] }}>
             <Button
-              variant="primary"
+              variant="liquid-metal"
               size="lg"
               loading={isLoading || redirecting}
               onClick={handleConnectAndLogin}

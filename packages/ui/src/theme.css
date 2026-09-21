@@ -331,3 +331,115 @@ html, body {
     0 0 35px rgba(0, 229, 255, 0.3) !important;
 }
 
+/* ─────────────────────────────────────────────────────────────────────────────
+   21st.dev Liquid Metal Button & Specular Sheen Utilities
+   ───────────────────────────────────────────────────────────────────────────── */
+
+@keyframes mc-ripple-anim {
+  0% {
+    transform: translate(-50%, -50%) scale(0);
+    opacity: 0.85;
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(4);
+    opacity: 0;
+  }
+}
+
+@keyframes mc-liquid-metal-flow {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.mc-btn-liquid-metal {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: 9999px !important;
+  border: 1px solid rgba(77, 142, 255, 0.5) !important;
+  background: linear-gradient(135deg, #1d273e 0%, #2b5bc7 35%, #00e5ff 60%, #161f34 100%) !important;
+  background-size: 260% 260% !important;
+  color: #ffffff !important;
+  font-weight: 700 !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+  box-shadow: 
+    0 4px 18px rgba(0, 0, 0, 0.5),
+    0 0 24px rgba(77, 142, 255, 0.4),
+    inset 0 1px 1px rgba(255, 255, 255, 0.5),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.5) !important;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  overflow: hidden;
+}
+
+.mc-btn-liquid-metal:hover:not(:disabled) {
+  border-color: rgba(0, 229, 255, 0.8) !important;
+  transform: translateY(-2px) !important;
+  animation: mc-liquid-metal-flow 3s ease infinite !important;
+  box-shadow: 
+    0 8px 28px rgba(0, 0, 0, 0.6),
+    0 0 32px rgba(77, 142, 255, 0.6),
+    0 0 16px rgba(0, 229, 255, 0.4),
+    inset 0 1.5px 2px rgba(255, 255, 255, 0.7),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.5) !important;
+}
+
+.mc-btn-liquid-metal:active:not(:disabled) {
+  transform: translateY(1px) scale(0.98) !important;
+  box-shadow: 
+    0 2px 10px rgba(0, 0, 0, 0.6),
+    0 0 18px rgba(77, 142, 255, 0.3),
+    inset 0 2px 4px rgba(0, 0, 0, 0.6) !important;
+}
+
+.mc-btn-liquid-gold {
+  border-color: rgba(245, 158, 11, 0.6) !important;
+  background: linear-gradient(135deg, #2b1f0b 0%, #b45309 35%, #fde68a 60%, #1c1407 100%) !important;
+  background-size: 260% 260% !important;
+  color: #fffbeb !important;
+  box-shadow: 
+    0 4px 18px rgba(0, 0, 0, 0.5),
+    0 0 24px rgba(245, 158, 11, 0.4),
+    inset 0 1px 1px rgba(255, 255, 255, 0.6),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.5) !important;
+}
+
+.mc-btn-liquid-gold:hover:not(:disabled) {
+  border-color: rgba(251, 191, 36, 0.9) !important;
+  box-shadow: 
+    0 8px 28px rgba(0, 0, 0, 0.6),
+    0 0 34px rgba(245, 158, 11, 0.65),
+    inset 0 1.5px 2px rgba(255, 255, 255, 0.8),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.5) !important;
+}
+
+.mc-btn-liquid-cyan {
+  border-color: rgba(0, 229, 255, 0.6) !important;
+  background: linear-gradient(135deg, #0b232e 0%, #0891b2 35%, #cffafe 60%, #061820 100%) !important;
+  background-size: 260% 260% !important;
+  color: #e0fbff !important;
+  box-shadow: 
+    0 4px 18px rgba(0, 0, 0, 0.5),
+    0 0 24px rgba(0, 229, 255, 0.4),
+    inset 0 1px 1px rgba(255, 255, 255, 0.6),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.5) !important;
+}
+
+.mc-btn-liquid-cyan:hover:not(:disabled) {
+  border-color: rgba(125, 240, 255, 0.9) !important;
+  box-shadow: 
+    0 8px 28px rgba(0, 0, 0, 0.6),
+    0 0 34px rgba(0, 229, 255, 0.65),
+    inset 0 1.5px 2px rgba(255, 255, 255, 0.8),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.5) !important;
+}
+
+

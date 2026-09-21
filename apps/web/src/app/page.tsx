@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { color, radius, spacing, Button, Card } from "@merit-circle/ui";
 import { AppProviders } from "../providers/AppProviders";
 import { Topbar } from "../components/layout/Topbar";
+import { LiquidMetalButton } from "../components/ui/liquid-metal-button";
 
 function LandingPageContent() {
   const [selectedTier, setSelectedTier] = useState<number>(2);
@@ -140,7 +141,7 @@ function LandingPageContent() {
           }}
         >
           <span className="mc-live-dot" />
-          <span>Next-Gen Web3 Arisan • Zero KYC • Zero Collateral</span>
+          <span>Arisan Finansial Komunitas • Tanpa Agunan • Reputasi On-Chain</span>
         </div>
 
         {/* Hero Title */}
@@ -177,41 +178,20 @@ function LandingPageContent() {
 
         {/* CTAs */}
         <div style={{ display: "flex", justifyContent: "center", gap: spacing["4"], marginBottom: "56px" }}>
-          <a
+          <LiquidMetalButton
             href="/dashboard"
-            className="mc-button mc-button--primary"
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              padding: "16px 36px",
-              borderRadius: radius.md,
-              color: "#FFFFFF",
-              textDecoration: "none",
-              fontWeight: 700,
-              fontSize: "16px",
-              boxShadow: "0 0 30px rgba(77, 142, 255, 0.5)",
-            }}
+            size="lg"
+            variant="primary"
           >
             Buka Dashboard →
-          </a>
-          <a
+          </LiquidMetalButton>
+          <LiquidMetalButton
             href="/pools"
-            className="mc-glass-interactive"
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              padding: "16px 32px",
-              borderRadius: radius.md,
-              color: color.text.primary,
-              textDecoration: "none",
-              fontWeight: 600,
-              fontSize: "16px",
-            }}
+            size="lg"
+            variant="cyan"
           >
             Katalog ROSCA Pool
-          </a>
+          </LiquidMetalButton>
         </div>
 
         {/* Protocol Invariant Stats Strip (21st.dev Metric Bar) */}
@@ -458,19 +438,13 @@ function LandingPageContent() {
           </div>
 
           <div style={{ display: "flex", justifyContent: "flex-end" }}>
-            <a
+            <LiquidMetalButton
               href="/pools"
-              className="mc-button mc-button--primary"
-              style={{
-                textDecoration: "none",
-                padding: "12px 28px",
-                borderRadius: radius.md,
-                fontSize: "14px",
-                fontWeight: 700,
-              }}
+              size="md"
+              variant="primary"
             >
               Lihat Pool {currentPool.name.split(" ")[0]} di Marketplace →
-            </a>
+            </LiquidMetalButton>
           </div>
         </div>
       </section>
@@ -488,7 +462,7 @@ function LandingPageContent() {
         <div style={{ maxWidth: "1100px", margin: "0 auto" }}>
           <div style={{ textAlign: "center", marginBottom: "48px" }}>
             <div style={{ fontSize: "13px", fontWeight: 700, color: color.brand.accentElectric, letterSpacing: "1px", textTransform: "uppercase", marginBottom: "8px" }}>
-              Seamless Onboarding
+              Alur Partisipasi Arisan
             </div>
             <h2 style={{ fontSize: "36px", fontWeight: 800, margin: 0, fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
               4 Langkah Mudah Menjalankan Arisan
