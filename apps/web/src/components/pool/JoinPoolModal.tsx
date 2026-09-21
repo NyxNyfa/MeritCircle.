@@ -60,12 +60,13 @@ export const JoinPoolModal: React.FC<JoinPoolModalProps> = ({
       }}
     >
       <Card
+        liquid
+        variant="liquid"
+        glow
         style={{
           width: "100%",
           maxWidth: "480px",
-          backgroundColor: color.background.card,
-          border: `1px solid ${color.border.medium}`,
-          borderRadius: radius.xl,
+          borderRadius: radius["2xl"],
           padding: spacing["6"],
         }}
       >
@@ -102,10 +103,12 @@ export const JoinPoolModal: React.FC<JoinPoolModalProps> = ({
 
         <div
           style={{
-            backgroundColor: color.background.surface,
+            backgroundColor: "rgba(12, 15, 24, 0.6)",
+            backdropFilter: "blur(12px)",
             padding: spacing["4"],
-            borderRadius: radius.md,
-            border: `1px solid ${color.border.subtle}`,
+            borderRadius: radius.lg,
+            border: "1px solid rgba(255, 255, 255, 0.08)",
+            boxShadow: "inset 0 2px 4px rgba(0,0,0,0.3)",
             marginBottom: spacing["4"],
             fontSize: "13px",
             display: "flex",

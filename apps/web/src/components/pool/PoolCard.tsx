@@ -58,16 +58,16 @@ export const PoolCard: React.FC<PoolCardProps> = ({
 
   return (
     <Card
+      liquid
+      variant={isAuction ? "cyan" : "liquid"}
+      className="group hover:shadow-[0_20px_50px_rgba(0,0,0,0.6),0_0_30px_rgba(77,142,255,0.2)]"
       style={{
-        backgroundColor: color.background.card,
-        border: `1px solid ${color.border.subtle}`,
-        borderRadius: radius.lg,
+        borderRadius: radius.xl,
         padding: spacing["6"],
         display: "flex",
         flexDirection: "column",
         justifyContent: "space-between",
         gap: spacing["4"],
-        transition: "border-color 0.2s ease",
       }}
     >
       <div>
@@ -87,20 +87,22 @@ export const PoolCard: React.FC<PoolCardProps> = ({
         </h3>
 
         {/* Short Description */}
-        <p style={{ fontSize: "13px", color: color.text.secondary, margin: 0, marginBottom: spacing["4"], minHeight: "36px" }}>
+        <p style={{ fontSize: "13px", color: color.text.secondary, margin: 0, marginBottom: spacing["4"], minHeight: "36px", lineHeight: "1.5" }}>
           {pool.description || (isAuction ? "Dynamic bidding ROSCA pool with carried reward incentives." : "Standard rotating savings and credit pool.")}
         </p>
 
-        {/* Pool Parameters Grid */}
+        {/* Pool Parameters Grid with Glassmorphic Inset */}
         <div
           style={{
             display: "grid",
             gridTemplateColumns: "1fr 1fr",
             gap: "10px",
-            backgroundColor: color.background.surface,
+            backgroundColor: "rgba(12, 15, 24, 0.6)",
+            backdropFilter: "blur(12px)",
             padding: spacing["3"],
             borderRadius: radius.md,
-            border: `1px solid ${color.border.subtle}`,
+            border: "1px solid rgba(255, 255, 255, 0.08)",
+            boxShadow: "inset 0 2px 4px rgba(0,0,0,0.3)",
             fontSize: "12px",
           }}
         >

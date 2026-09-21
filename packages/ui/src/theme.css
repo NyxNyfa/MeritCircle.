@@ -251,3 +251,83 @@ html, body {
   display: inline-block;
   animation: mc-pulse-glow 2s infinite ease-in-out;
 }
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   21st.dev Liquid Glass Card & Specular Highlight Utilities
+   ───────────────────────────────────────────────────────────────────────────── */
+
+.mc-liquid-glass {
+  background: rgba(16, 20, 32, 0.65) !important;
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  box-shadow: 
+    0 10px 30px 0 rgba(0, 0, 0, 0.45),
+    inset 1px 1px 1px -0.5px rgba(255, 255, 255, 0.45),
+    inset -1px -1px 1px -0.5px rgba(255, 255, 255, 0.15),
+    inset 0 0 16px rgba(255, 255, 255, 0.03),
+    0 0 16px rgba(77, 142, 255, 0.08) !important;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+.mc-liquid-glass::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.4) 50%, transparent 100%);
+  pointer-events: none;
+}
+
+.mc-liquid-glass:hover {
+  background: rgba(20, 26, 42, 0.75) !important;
+  border-color: rgba(77, 142, 255, 0.4) !important;
+  transform: translateY(-3px);
+  box-shadow: 
+    0 20px 45px 0 rgba(0, 0, 0, 0.6),
+    inset 1.5px 1.5px 1.5px -0.5px rgba(255, 255, 255, 0.6),
+    inset -1px -1px 1px -0.5px rgba(255, 255, 255, 0.2),
+    inset 0 0 24px rgba(77, 142, 255, 0.12),
+    0 0 30px rgba(77, 142, 255, 0.22) !important;
+}
+
+.mc-liquid-gold {
+  box-shadow: 
+    0 10px 30px 0 rgba(0, 0, 0, 0.45),
+    inset 1px 1px 1px -0.5px rgba(245, 158, 11, 0.5),
+    inset -1px -1px 1px -0.5px rgba(245, 158, 11, 0.15),
+    inset 0 0 16px rgba(245, 158, 11, 0.05),
+    0 0 20px rgba(245, 158, 11, 0.15) !important;
+}
+
+.mc-liquid-gold:hover {
+  border-color: rgba(245, 158, 11, 0.45) !important;
+  box-shadow: 
+    0 20px 45px 0 rgba(0, 0, 0, 0.6),
+    inset 1.5px 1.5px 1.5px -0.5px rgba(245, 158, 11, 0.7),
+    inset 0 0 24px rgba(245, 158, 11, 0.2),
+    0 0 35px rgba(245, 158, 11, 0.3) !important;
+}
+
+.mc-liquid-cyan {
+  box-shadow: 
+    0 10px 30px 0 rgba(0, 0, 0, 0.45),
+    inset 1px 1px 1px -0.5px rgba(0, 229, 255, 0.5),
+    inset -1px -1px 1px -0.5px rgba(0, 229, 255, 0.15),
+    inset 0 0 16px rgba(0, 229, 255, 0.05),
+    0 0 20px rgba(0, 229, 255, 0.15) !important;
+}
+
+.mc-liquid-cyan:hover {
+  border-color: rgba(0, 229, 255, 0.45) !important;
+  box-shadow: 
+    0 20px 45px 0 rgba(0, 0, 0, 0.6),
+    inset 1.5px 1.5px 1.5px -0.5px rgba(0, 229, 255, 0.7),
+    inset 0 0 24px rgba(0, 229, 255, 0.2),
+    0 0 35px rgba(0, 229, 255, 0.3) !important;
+}
+

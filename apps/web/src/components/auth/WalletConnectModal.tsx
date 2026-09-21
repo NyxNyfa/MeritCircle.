@@ -44,12 +44,13 @@ export const WalletConnectModal: React.FC<WalletConnectModalProps> = ({
       }}
     >
       <Card
+        liquid
+        variant="liquid"
+        glow
         style={{
           width: "100%",
           maxWidth: "460px",
-          backgroundColor: color.background.card,
-          border: `1px solid ${color.border.medium}`,
-          borderRadius: radius.xl,
+          borderRadius: radius["2xl"],
           padding: spacing["6"],
         }}
       >

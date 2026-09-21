@@ -1,5 +1,6 @@
 import React from "react";
 import "../../../../packages/ui/src/theme.css";
+import { GlassFilter } from "../components/ui/liquid-glass-card";
 
 export const metadata = {
   title: "Merit Circle — Decentralized ROSCA on BNB Testnet",
@@ -22,6 +23,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <title>{metadata.title}</title>
       </head>
       <body className="mc-bg-dots">
+        <GlassFilter />
         {children}
       </body>
     </html>

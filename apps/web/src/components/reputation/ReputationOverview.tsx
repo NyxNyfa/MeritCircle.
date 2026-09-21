@@ -38,10 +38,10 @@ export const ReputationOverview: React.FC<ReputationOverviewProps> = ({
     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: spacing["6"], marginBottom: spacing["8"] }}>
       {/* Reputation Score Card */}
       <Card
+        liquid
+        variant="cyan"
         style={{
-          backgroundColor: color.background.card,
-          border: `1px solid ${color.border.subtle}`,
-          borderRadius: radius.lg,
+          borderRadius: radius.xl,
           padding: spacing["6"],
         }}
       >
@@ -55,6 +55,7 @@ export const ReputationOverview: React.FC<ReputationOverviewProps> = ({
               fontWeight: 800,
               color: color.brand.accentElectric,
               fontFamily: "'JetBrains Mono', monospace",
+              textShadow: "0 0 20px rgba(0, 229, 255, 0.4)",
             }}
           >
             {points}
@@ -73,16 +74,18 @@ export const ReputationOverview: React.FC<ReputationOverviewProps> = ({
           <div
             style={{
               height: "8px",
-              backgroundColor: color.background.surface,
+              backgroundColor: "rgba(12, 15, 24, 0.7)",
               borderRadius: radius.full,
               overflow: "hidden",
+              border: "1px solid rgba(255, 255, 255, 0.08)",
             }}
           >
             <div
               style={{
                 width: `${progressPercent}%`,
                 height: "100%",
-                backgroundColor: color.brand.primary,
+                background: "linear-gradient(90deg, #4d8eff 0%, #00e5ff 100%)",
+                boxShadow: "0 0 12px rgba(0, 229, 255, 0.5)",
                 transition: "width 0.3s ease",
               }}
             />
@@ -96,10 +99,10 @@ export const ReputationOverview: React.FC<ReputationOverviewProps> = ({
 
       {/* Tier Benefits Card */}
       <Card
+        liquid
+        variant="liquid"
         style={{
-          backgroundColor: color.background.cardElevated,
-          border: `1px solid ${color.border.subtle}`,
-          borderRadius: radius.lg,
+          borderRadius: radius.xl,
           padding: spacing["6"],
         }}
       >

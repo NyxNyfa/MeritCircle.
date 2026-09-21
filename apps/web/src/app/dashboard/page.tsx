@@ -172,10 +172,10 @@ function DashboardContent() {
         }}
       >
         <div
-          className="mc-glass-interactive"
+          className="mc-liquid-glass mc-liquid-cyan"
           style={{
             padding: "22px",
-            borderRadius: radius.lg,
+            borderRadius: radius.xl,
           }}
         >
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
@@ -188,6 +188,7 @@ function DashboardContent() {
               fontWeight: 800,
               color: color.brand.accentElectric,
               fontFamily: "'JetBrains Mono', monospace",
+              textShadow: "0 0 16px rgba(0, 229, 255, 0.4)",
               marginBottom: "6px",
             }}
           >
@@ -195,7 +196,7 @@ function DashboardContent() {
           </div>
           {/* Progress Bar towards 1000 */}
           <div style={{ width: "100%", height: "4px", backgroundColor: "rgba(255, 255, 255, 0.08)", borderRadius: "2px", overflow: "hidden", marginBottom: "6px" }}>
-            <div style={{ width: `${Math.min(100, (points / 1000) * 100)}%`, height: "100%", background: "linear-gradient(90deg, #4D8EFF, #00E5FF)" }} />
+            <div style={{ width: `${Math.min(100, (points / 1000) * 100)}%`, height: "100%", background: "linear-gradient(90deg, #4D8EFF, #00E5FF)", boxShadow: "0 0 8px rgba(0,229,255,0.5)" }} />
           </div>
           <div style={{ fontSize: "11px", color: color.text.muted }}>
             Tier {tier} • Max {1000} Pts
@@ -203,10 +204,10 @@ function DashboardContent() {
         </div>
 
         <div
-          className="mc-glass-interactive"
+          className="mc-liquid-glass"
           style={{
             padding: "22px",
-            borderRadius: radius.lg,
+            borderRadius: radius.xl,
           }}
         >
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
@@ -230,10 +231,10 @@ function DashboardContent() {
         </div>
 
         <div
-          className="mc-glass-interactive"
+          className="mc-liquid-glass mc-liquid-gold"
           style={{
             padding: "22px",
-            borderRadius: radius.lg,
+            borderRadius: radius.xl,
           }}
         >
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
@@ -257,10 +258,10 @@ function DashboardContent() {
         </div>
 
         <div
-          className="mc-glass-interactive"
+          className="mc-liquid-glass"
           style={{
             padding: "22px",
-            borderRadius: radius.lg,
+            borderRadius: radius.xl,
           }}
         >
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>

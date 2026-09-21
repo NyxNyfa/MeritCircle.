@@ -69,10 +69,10 @@ export const AuctionCard: React.FC<{
   if (auction.isFinalCycle) {
     return (
       <Card
+        liquid
+        variant="cyan"
         style={{
-          backgroundColor: color.background.card,
-          border: `1px solid ${color.border.active}`,
-          borderRadius: radius.lg,
+          borderRadius: radius.xl,
           padding: spacing["6"],
         }}
       >
@@ -90,10 +90,12 @@ export const AuctionCard: React.FC<{
 
         <div
           style={{
-            backgroundColor: color.background.surface,
+            backgroundColor: "rgba(12, 15, 24, 0.6)",
+            backdropFilter: "blur(12px)",
             padding: spacing["6"],
-            borderRadius: radius.md,
-            border: `1px solid ${color.border.subtle}`,
+            borderRadius: radius.lg,
+            border: "1px solid rgba(0, 229, 255, 0.2)",
+            boxShadow: "inset 0 2px 6px rgba(0,0,0,0.3), 0 0 20px rgba(0, 229, 255, 0.1)",
             marginBottom: spacing["4"],
             textAlign: "center",
           }}
@@ -121,7 +123,9 @@ export const AuctionCard: React.FC<{
         <div
           style={{
             padding: spacing["4"],
-            backgroundColor: color.background.cardElevated,
+            backgroundColor: "rgba(255, 255, 255, 0.05)",
+            backdropFilter: "blur(10px)",
+            border: "1px solid rgba(255, 255, 255, 0.08)",
             borderRadius: radius.md,
             fontSize: "13px",
             color: color.text.secondary,
@@ -143,10 +147,10 @@ export const AuctionCard: React.FC<{
    * ========================================================================= */
   return (
     <Card
+      liquid
+      variant="liquid"
       style={{
-        backgroundColor: color.background.card,
-        border: `1px solid ${color.border.subtle}`,
-        borderRadius: radius.lg,
+        borderRadius: radius.xl,
         padding: spacing["6"],
       }}
     >

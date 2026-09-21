@@ -64,12 +64,13 @@ export const PaymentCard: React.FC<{
 
   return (
     <Card
+      liquid
+      variant={isLate ? "liquid" : "gold"}
       style={{
-        backgroundColor: color.background.card,
-        border: `1px solid ${isLate ? color.status.error : color.border.subtle}`,
-        borderRadius: radius.lg,
+        borderRadius: radius.xl,
         padding: spacing["6"],
         marginBottom: spacing["4"],
+        borderColor: isLate ? "rgba(239, 68, 68, 0.4)" : undefined,
       }}
     >
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: spacing["4"] }}>
@@ -97,16 +98,18 @@ export const PaymentCard: React.FC<{
         </div>
       </div>
 
-      {/* Demo payment banner */}
+      {/* Demo payment banner with glassmorphic container */}
       <div
         style={{
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
-          backgroundColor: color.background.surface,
+          backgroundColor: "rgba(12, 15, 24, 0.6)",
+          backdropFilter: "blur(12px)",
           padding: `${spacing["2"]} ${spacing["3"]}`,
           borderRadius: radius.md,
-          border: `1px solid ${color.border.subtle}`,
+          border: "1px solid rgba(255, 255, 255, 0.08)",
+          boxShadow: "inset 0 2px 4px rgba(0,0,0,0.3)",
           marginBottom: spacing["4"],
           fontSize: "12px",
           color: color.text.secondary,

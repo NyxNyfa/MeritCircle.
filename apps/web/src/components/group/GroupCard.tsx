@@ -25,10 +25,10 @@ export const GroupCard: React.FC<{ group: GroupData }> = ({ group }) => {
 
   return (
     <Card
+      liquid
+      variant={isAuction ? "cyan" : "liquid"}
       style={{
-        backgroundColor: color.background.card,
-        border: `1px solid ${color.border.subtle}`,
-        borderRadius: radius.lg,
+        borderRadius: radius.xl,
         padding: spacing["6"],
         marginBottom: spacing["4"],
       }}
@@ -56,12 +56,14 @@ export const GroupCard: React.FC<{ group: GroupData }> = ({ group }) => {
           style={{
             padding: "8px 16px",
             borderRadius: radius.md,
-            backgroundColor: color.background.cardElevated,
+            backgroundColor: "rgba(255, 255, 255, 0.06)",
+            backdropFilter: "blur(10px)",
             border: `1px solid ${color.border.subtle}`,
             color: color.text.primary,
             fontSize: "13px",
-            fontWeight: 500,
+            fontWeight: 600,
             textDecoration: "none",
+            transition: "all 0.2s ease",
           }}
         >
           View Group Hub →
@@ -74,10 +76,12 @@ export const GroupCard: React.FC<{ group: GroupData }> = ({ group }) => {
           display: "grid",
           gridTemplateColumns: "1fr 1fr",
           gap: spacing["3"],
-          backgroundColor: color.background.surface,
+          backgroundColor: "rgba(12, 15, 24, 0.6)",
+          backdropFilter: "blur(12px)",
           padding: spacing["3"],
           borderRadius: radius.md,
-          border: `1px solid ${color.border.subtle}`,
+          border: "1px solid rgba(255, 255, 255, 0.08)",
+          boxShadow: "inset 0 2px 4px rgba(0,0,0,0.3)",
           fontSize: "12px",
         }}
       >

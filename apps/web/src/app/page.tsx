@@ -267,7 +267,7 @@ function LandingPageContent() {
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "24px", textAlign: "left", marginBottom: "72px" }}>
           {/* Card 1 */}
           <div
-            className="mc-glass-interactive"
+            className="mc-liquid-glass"
             style={{
               padding: "32px",
               borderRadius: radius.xl,
@@ -308,7 +308,7 @@ function LandingPageContent() {
 
           {/* Card 2 */}
           <div
-            className="mc-glass-interactive"
+            className="mc-liquid-glass mc-liquid-cyan"
             style={{
               padding: "32px",
               borderRadius: radius.xl,
@@ -349,7 +349,7 @@ function LandingPageContent() {
 
           {/* Card 3 */}
           <div
-            className="mc-glass-interactive"
+            className="mc-liquid-glass mc-liquid-gold"
             style={{
               padding: "32px",
               borderRadius: radius.xl,
@@ -391,7 +391,7 @@ function LandingPageContent() {
 
         {/* Interactive ROSCA Live Simulator Widget */}
         <div
-          className="mc-glass"
+          className="mc-liquid-glass"
           style={{
             borderRadius: radius["2xl"],
             padding: "40px",
