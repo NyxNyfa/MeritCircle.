@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { color, radius, spacing, Button, Card, Input } from "@merit-circle/ui";
 import { useAuth } from "../../hooks/useAuth";
 import { updateProfile, requestEmailVerification, confirmEmailVerification } from "../../lib/api";
@@ -22,6 +22,45 @@ export const OnboardingForm: React.FC<{ onComplete?: () => void }> = ({ onComple
   const [isSaving, setIsSaving] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const processImageFile = (file: File) => {
+    if (file.type !== "image/png" && !file.name.toLowerCase().endsWith(".png")) {
+      setMessage({ type: "error", text: "Please upload a valid PNG image file." });
+      return;
+    }
+    if (file.size > 1024 * 1024) {
+      setMessage({ type: "error", text: "PNG image size must be less than 1MB." });
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === "string") {
+        setAvatarUrl(reader.result);
+        setMessage(null);
+      }
+    };
+    reader.onerror = () => {
+      setMessage({ type: "error", text: "Failed to read image file." });
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      processImageFile(file);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    const file = e.dataTransfer.files?.[0];
+    if (file) {
+      processImageFile(file);
+    }
+  };
 
   // Reputation preview calculation
   // Wallet connected: +10, Username: +20, Verified Email: +40, Socials: +10 each, Avatar: +10
@@ -216,19 +255,98 @@ export const OnboardingForm: React.FC<{ onComplete?: () => void }> = ({ onComple
             )}
           </div>
 
-          {/* Avatar URL (Optional) */}
+          {/* Profile Picture (Optional) */}
           <div>
             <label style={{ display: "block", fontSize: "13px", fontWeight: 600, marginBottom: "6px" }}>
-              Avatar URL (Optional)
+              Profile Picture (PNG only, Optional)
             </label>
-            <Input
-              value={avatarUrl}
-              onChange={(e) => setAvatarUrl(e.target.value)}
-              placeholder="https://example.com/avatar.png"
+
+            <input
+              type="file"
+              ref={fileInputRef}
+              accept="image/png,.png"
+              style={{ display: "none" }}
+              onChange={handleFileChange}
             />
-            <span style={{ fontSize: "12px", color: color.text.muted, marginTop: "4px", display: "block" }}>
-              Profile picture increases trust (+10 reputation points)
-            </span>
+
+            {avatarUrl ? (
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: spacing["4"],
+                  padding: spacing["3"],
+                  borderRadius: radius.md,
+                  border: `1px solid ${color.border.subtle}`,
+                  backgroundColor: "rgba(255, 255, 255, 0.03)",
+                }}
+              >
+                <img
+                  src={avatarUrl}
+                  alt="Profile Preview"
+                  style={{
+                    width: "56px",
+                    height: "56px",
+                    borderRadius: "50%",
+                    objectFit: "cover",
+                    border: `2px solid ${color.brand.primary}`,
+                    flexShrink: 0,
+                  }}
+                />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: "13px", fontWeight: 600, color: color.text.primary }}>
+                    PNG Profile Picture Loaded
+                  </div>
+                  <div style={{ fontSize: "12px", color: color.status.success, marginTop: "2px" }}>
+                    ✓ Ready to save (+10 reputation points)
+                  </div>
+                </div>
+                <div style={{ display: "flex", gap: "8px", flexShrink: 0 }}>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    Change PNG
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => {
+                      setAvatarUrl("");
+                      if (fileInputRef.current) fileInputRef.current.value = "";
+                    }}
+                  >
+                    Remove
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div
+                onClick={() => fileInputRef.current?.click()}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={handleDrop}
+                style={{
+                  border: `2px dashed ${color.border.subtle}`,
+                  borderRadius: radius.md,
+                  padding: spacing["5"],
+                  textAlign: "center",
+                  cursor: "pointer",
+                  backgroundColor: "rgba(255, 255, 255, 0.02)",
+                  transition: "all 0.2s ease",
+                }}
+              >
+                <div style={{ fontSize: "28px", marginBottom: "6px" }}>🖼️</div>
+                <div style={{ fontSize: "13px", fontWeight: 600, color: color.text.primary }}>
+                  Click to browse or drag & drop PNG profile picture
+                </div>
+                <div style={{ fontSize: "12px", color: color.text.muted, marginTop: "4px" }}>
+                  Only PNG files supported, max 1MB (+10 reputation points)
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Social Media (Optional) */}

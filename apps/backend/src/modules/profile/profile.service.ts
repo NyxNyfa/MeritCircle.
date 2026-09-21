@@ -60,11 +60,19 @@ export async function updateProfile(userId: string, input: UpdateProfileInput) {
     }
   }
 
+  const normalizedInputEmail =
+    input.email !== undefined && input.email !== null
+      ? input.email.trim().toLowerCase()
+      : input.email;
+  const currentEmail = currentProfile.email
+    ? currentProfile.email.trim().toLowerCase()
+    : currentProfile.email;
+
   // Check email uniqueness if changing
-  if (input.email && input.email !== currentProfile.email) {
+  if (normalizedInputEmail && normalizedInputEmail !== currentEmail) {
     const existing = await prisma.profile.findFirst({
       where: {
-        email: input.email,
+        email: normalizedInputEmail,
         NOT: { userId },
       },
     });
@@ -75,9 +83,9 @@ export async function updateProfile(userId: string, input: UpdateProfileInput) {
 
   // If email changes, emailVerifiedAt must be reset to null
   const isEmailChanged =
-    input.email !== undefined &&
-    input.email !== null &&
-    input.email !== currentProfile.email;
+    normalizedInputEmail !== undefined &&
+    normalizedInputEmail !== null &&
+    normalizedInputEmail !== currentEmail;
 
   const emailVerifiedAtUpdate = isEmailChanged
     ? null
@@ -134,7 +142,7 @@ export async function updateProfile(userId: string, input: UpdateProfileInput) {
   // Build update data
   const updateData: Record<string, any> = {};
   if (input.username !== undefined) updateData.username = input.username;
-  if (input.email !== undefined) updateData.email = input.email;
+  if (input.email !== undefined) updateData.email = normalizedInputEmail;
   if (emailVerifiedAtUpdate !== undefined)
     updateData.emailVerifiedAt = emailVerifiedAtUpdate;
   if (input.avatarUrl !== undefined) updateData.avatarUrl = input.avatarUrl;

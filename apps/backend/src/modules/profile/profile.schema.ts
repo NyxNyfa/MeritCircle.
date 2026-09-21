@@ -17,7 +17,21 @@ export const updateProfileSchema = z
       .email("Invalid email format")
       .optional()
       .nullable(),
-    avatarUrl: z.string().trim().url("Invalid avatar URL").optional().nullable(),
+    avatarUrl: z
+      .string()
+      .trim()
+      .max(3 * 1024 * 1024, "Profile picture must be under 3MB")
+      .refine(
+        (val) =>
+          !val ||
+          val.startsWith("data:image/") ||
+          val.startsWith("http://") ||
+          val.startsWith("https://") ||
+          val.startsWith("/"),
+        { message: "Profile picture must be a valid image or URL" }
+      )
+      .optional()
+      .nullable(),
     xUrl: z.string().trim().url("Invalid X URL").optional().nullable(),
     telegramUrl: z
       .string()
