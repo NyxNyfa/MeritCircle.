@@ -93,7 +93,7 @@ EMAIL_OTP_MAX_REQUESTS_PER_HOUR=5
 ```env
 # BNB Smart Chain Testnet Network
 NEXT_PUBLIC_BNB_TESTNET_CHAIN_ID=97
-NEXT_PUBLIC_BNB_TESTNET_RPC_URL=https://data-seed-prebsc-1-s1.binance.org:8545/
+NEXT_PUBLIC_BNB_TESTNET_RPC_URL=https://bsc-testnet.bnbchain.org
 
 # Private key akun deployer (harus memiliki saldo tBNB)
 DEPLOYER_PRIVATE_KEY=0x_private_key_metamask_anda

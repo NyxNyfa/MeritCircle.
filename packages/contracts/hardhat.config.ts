@@ -1,5 +1,29 @@
+import * as fs from "fs";
+import * as path from "path";
 import { HardhatUserConfig } from "hardhat/config";
 import "@nomicfoundation/hardhat-toolbox";
+
+// Load root .env file if present
+const rootEnvPath = path.resolve(__dirname, "../../.env");
+if (fs.existsSync(rootEnvPath)) {
+  if (typeof process.loadEnvFile === "function") {
+    process.loadEnvFile(rootEnvPath);
+  } else {
+    const envContent = fs.readFileSync(rootEnvPath, "utf-8");
+    for (const line of envContent.split("\n")) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith("#")) continue;
+      const eqIdx = trimmed.indexOf("=");
+      if (eqIdx > 0) {
+        const key = trimmed.slice(0, eqIdx).trim();
+        const val = trimmed.slice(eqIdx + 1).trim().replace(/^["']|["']$/g, "");
+        if (!process.env[key]) {
+          process.env[key] = val;
+        }
+      }
+    }
+  }
+}
 
 const DEPLOYER_PRIVATE_KEY =
   process.env.DEPLOYER_PRIVATE_KEY ||
@@ -20,7 +44,7 @@ const config: HardhatUserConfig = {
     bscTestnet: {
       url:
         process.env.NEXT_PUBLIC_BNB_TESTNET_RPC_URL ||
-        "https://data-seed-prebsc-1-s1.binance.org:8545",
+        "https://bsc-testnet.bnbchain.org",
       chainId: 97,
       accounts: [DEPLOYER_PRIVATE_KEY],
     },

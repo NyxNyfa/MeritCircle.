@@ -7,7 +7,7 @@
     "predev": "node ../../scripts/sync-env.js",
     "dev": "tsx watch src/server.ts",
     "build": "tsc",
-    "start": "node dist/src/server.js",
+    "start": "tsx src/server.ts",
     "lint": "echo 'apps/backend placeholder lint'",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
@@ -27,6 +27,7 @@
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
     "jsonwebtoken": "^9.0.2",
+    "tsx": "^4.11.0",
     "viem": "^2.13.0",
     "zod": "^3.23.8"
   },
@@ -38,7 +39,6 @@
     "@types/supertest": "^6.0.2",
     "prisma": "^5.14.0",
     "supertest": "^7.0.0",
-    "tsx": "^4.11.0",
     "typescript": "^5.4.5",
     "vitest": "^1.6.1"
   },
