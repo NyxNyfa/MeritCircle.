@@ -21,7 +21,7 @@ export const ErrorState: React.FC<ErrorStateProps> = ({
     justifyContent: "center",
     textAlign: "center",
     padding: "40px 24px",
-    borderRadius: "16px",
+    borderRadius: "22px",
     backgroundColor: "rgba(239, 68, 68, 0.08)",
     border: "1px solid rgba(239, 68, 68, 0.2)",
     fontFamily: "'Inter', sans-serif",

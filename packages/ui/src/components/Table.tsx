@@ -45,7 +45,7 @@ export function Table<T extends Record<string, any>>({
   };
 
   return (
-    <div style={{ width: "100%", overflowX: "auto", borderRadius: "12px", border: "1px solid rgba(255, 255, 255, 0.08)" }}>
+    <div style={{ width: "100%", overflowX: "auto", borderRadius: "18px", border: "1px solid rgba(255, 255, 255, 0.08)" }}>
       <table style={tableStyle} className={`mc-table ${className}`}>
         <thead>
           <tr>

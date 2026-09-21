@@ -53,9 +53,12 @@ export const GroupCard: React.FC<{ group: GroupData }> = ({ group }) => {
 
         <a
           href={`/groups/${group.id}`}
+          className="mc-glass-interactive"
           style={{
-            padding: "8px 16px",
-            borderRadius: radius.md,
+            display: "inline-flex",
+            alignItems: "center",
+            padding: "8px 18px",
+            borderRadius: "9999px",
             backgroundColor: "rgba(255, 255, 255, 0.06)",
             backdropFilter: "blur(10px)",
             border: `1px solid ${color.border.subtle}`,
@@ -63,7 +66,7 @@ export const GroupCard: React.FC<{ group: GroupData }> = ({ group }) => {
             fontSize: "13px",
             fontWeight: 600,
             textDecoration: "none",
-            transition: "all 0.2s ease",
+            boxShadow: "0 2px 8px rgba(0, 0, 0, 0.3)",
           }}
         >
           View Group Hub →

@@ -46,7 +46,7 @@ export const Modal: React.FC<ModalProps> = ({
   const dialogStyle: React.CSSProperties = {
     backgroundColor: "#141824",
     border: "1px solid rgba(255, 255, 255, 0.12)",
-    borderRadius: "16px",
+    borderRadius: "24px",
     width: "100%",
     maxWidth: "480px",
     boxShadow: "0 20px 50px rgba(0, 0, 0, 0.7)",

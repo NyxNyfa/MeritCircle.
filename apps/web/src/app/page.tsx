@@ -398,10 +398,10 @@ function LandingPageContent() {
                   key={p.tier}
                   type="button"
                   onClick={() => setSelectedTier(p.tier)}
-                  className="mc-button"
+                  className={`mc-button ${selectedTier === p.tier ? "mc-btn-liquid-metal" : ""}`}
                   style={{
-                    padding: "8px 16px",
-                    borderRadius: radius.md,
+                    padding: "8px 18px",
+                    borderRadius: radius.full,
                     fontSize: "13px",
                     fontWeight: 700,
                     cursor: "pointer",

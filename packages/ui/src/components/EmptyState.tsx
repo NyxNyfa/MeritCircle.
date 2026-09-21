@@ -20,7 +20,7 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
     justifyContent: "center",
     textAlign: "center",
     padding: "48px 24px",
-    borderRadius: "16px",
+    borderRadius: "22px",
     backgroundColor: "rgba(20, 24, 36, 0.5)",
     border: "1px dashed rgba(255, 255, 255, 0.1)",
     fontFamily: "'Inter', sans-serif",

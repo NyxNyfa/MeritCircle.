@@ -138,22 +138,24 @@ export const PoolCard: React.FC<PoolCardProps> = ({
 
       {/* Action Footer */}
       <div>
-        <div style={{ display: "flex", gap: "8px" }}>
+        <div style={{ display: "flex", gap: "10px" }}>
           <a
             href={`/pools/${pool.id}`}
+            className="mc-glass-interactive"
             style={{
               flex: 1,
               display: "inline-flex",
               alignItems: "center",
               justifyContent: "center",
-              height: "40px",
-              borderRadius: radius.md,
-              backgroundColor: "transparent",
-              border: `1px solid ${color.border.medium}`,
-              color: color.text.secondary,
+              height: "42px",
+              borderRadius: "9999px",
+              backgroundColor: "rgba(255, 255, 255, 0.05)",
+              border: "1px solid rgba(255, 255, 255, 0.15)",
+              color: color.text.primary,
               textDecoration: "none",
               fontSize: "13px",
-              fontWeight: 500,
+              fontWeight: 600,
+              boxShadow: "0 2px 8px rgba(0, 0, 0, 0.3)",
             }}
           >
             Details
@@ -164,7 +166,7 @@ export const PoolCard: React.FC<PoolCardProps> = ({
             size="md"
             disabled={!isJoinable}
             onClick={() => onJoinClick?.(pool)}
-            style={{ flex: 1 }}
+            style={{ flex: 1, height: "42px", borderRadius: "9999px" }}
           >
             {isJoinable ? "Join Pool" : "Locked"}
           </Button>

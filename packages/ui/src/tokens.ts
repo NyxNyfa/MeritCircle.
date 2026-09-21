@@ -95,11 +95,11 @@ export const spacing = {
 
 export const radius = {
   none: "0px",
-  sm: "4px",
-  md: "8px",
-  lg: "12px",
-  xl: "16px",
-  "2xl": "24px",
+  sm: "10px",
+  md: "14px",
+  lg: "18px",
+  xl: "22px",
+  "2xl": "28px",
   full: "9999px",
 } as const;
 

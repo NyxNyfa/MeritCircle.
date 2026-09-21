@@ -157,8 +157,8 @@ export const Topbar: React.FC<TopbarProps> = ({
               display: "flex",
               alignItems: "center",
               gap: "6px",
-              padding: "5px 12px",
-              borderRadius: radius.md,
+              padding: "5px 14px",
+              borderRadius: radius.full,
               backgroundColor: color.status.warningBackground,
               border: `1px solid ${color.status.warning}`,
               color: color.status.warning,
@@ -239,8 +239,8 @@ export const Topbar: React.FC<TopbarProps> = ({
                 display: "flex",
                 alignItems: "center",
                 gap: "8px",
-                padding: "6px 14px",
-                borderRadius: radius.md,
+                padding: "6px 16px",
+                borderRadius: radius.full,
                 textDecoration: "none",
                 color: color.text.primary,
                 fontSize: "13px",
@@ -257,8 +257,8 @@ export const Topbar: React.FC<TopbarProps> = ({
               onClick={logout}
               className="mc-button"
               style={{
-                padding: "6px 12px",
-                borderRadius: radius.md,
+                padding: "6px 14px",
+                borderRadius: radius.full,
                 backgroundColor: "rgba(255, 255, 255, 0.05)",
                 border: "1px solid rgba(255, 255, 255, 0.1)",
                 color: color.text.muted,

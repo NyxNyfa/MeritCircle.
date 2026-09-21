@@ -53,11 +53,11 @@
   --border-accent: 2px solid #4d8eff;
 
   /* Radius */
-  --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-lg: 14px;
-  --radius-xl: 18px;
-  --radius-2xl: 24px;
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-lg: 18px;
+  --radius-xl: 22px;
+  --radius-2xl: 28px;
   --radius-full: 9999px;
 
   /* Shadows & Glows */
@@ -118,6 +118,7 @@ html, body {
   backdrop-filter: blur(16px) saturate(180%);
   -webkit-backdrop-filter: blur(16px) saturate(180%);
   border: 1px solid rgba(255, 255, 255, 0.09) !important;
+  border-radius: var(--radius-xl) !important;
 }
 
 .mc-glass-interactive {
@@ -125,6 +126,7 @@ html, body {
   backdrop-filter: blur(16px) saturate(180%);
   -webkit-backdrop-filter: blur(16px) saturate(180%);
   border: 1px solid rgba(255, 255, 255, 0.09) !important;
+  border-radius: var(--radius-xl);
   transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
 }
 
@@ -137,6 +139,7 @@ html, body {
 
 /* Card Component Enhancements */
 .mc-card {
+  border-radius: var(--radius-xl) !important;
   transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.25s ease;
 }
 
@@ -146,6 +149,7 @@ html, body {
 
 /* Interactive Buttons */
 .mc-button {
+  border-radius: 9999px !important;
   transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.18s ease, filter 0.18s ease !important;
 }
 

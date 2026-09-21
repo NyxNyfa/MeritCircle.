@@ -215,7 +215,7 @@ function PoolDetailContent({ poolId }: { poolId?: string }) {
             </div>
 
             <Button
-              variant="primary"
+              variant={isJoinable ? "liquid-metal" : "secondary"}
               size="lg"
               disabled={!isJoinable}
               onClick={() => setIsJoinModalOpen(true)}

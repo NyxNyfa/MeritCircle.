@@ -38,7 +38,7 @@ export const Card: React.FC<CardProps> = ({
       : elevated
       ? "#1B2030"
       : "#141824",
-    borderRadius: "16px",
+    borderRadius: "22px",
     padding: paddingValues[padding],
     border: bordered ? "1px solid rgba(255, 255, 255, 0.1)" : "none",
     boxShadow: glow

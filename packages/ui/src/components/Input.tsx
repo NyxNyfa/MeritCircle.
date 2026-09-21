@@ -41,7 +41,7 @@ export const Input: React.FC<InputProps> = ({
     alignItems: "center",
     backgroundColor: "#0B0E17",
     border: error ? "1px solid #EF4444" : "1px solid rgba(255, 255, 255, 0.12)",
-    borderRadius: "8px",
+    borderRadius: "14px",
     padding: "0 12px",
     height: "44px",
     transition: "border-color 0.15s ease",

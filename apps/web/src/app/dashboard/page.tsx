@@ -12,7 +12,7 @@ import { GroupCard, GroupData } from "../../components/group/GroupCard";
 import { LiquidMetalButton } from "../../components/ui/liquid-metal-button";
 
 function DashboardContent() {
-  const { user, isAuthenticated, isLoading: authLoading } = useAuth();
+  const { user, isAuthenticated, isLoading: authLoading, loginWithWallet } = useAuth();
   const { points, tier, maxActiveGroups, history } = useReputation();
 
   const [activeGroups, setActiveGroups] = useState<GroupData[]>([]);
@@ -44,18 +44,17 @@ function DashboardContent() {
     return (
       <Shell activeHref="/dashboard">
         <EmptyState
-          title="Wallet Not Connected"
-          description="Please connect your wallet to view your personal ROSCA dashboard, active circles, and reputation score."
+          title="Dompet Belum Terhubung"
+          description="Silakan hubungkan dompet Web3 Anda untuk mengakses dashboard personal, kelompok arisan aktif, dan reputasi on-chain."
           action={
-            <Button
-              variant="primary"
+            <LiquidMetalButton
               size="md"
-              onClick={() => {
-                window.location.href = "/connect";
-              }}
+              variant="primary"
+              onClick={loginWithWallet}
+              icon={<span>⚡</span>}
             >
               Connect Wallet
-            </Button>
+            </LiquidMetalButton>
           }
         />
       </Shell>
@@ -85,7 +84,7 @@ function DashboardContent() {
             style={{
               width: "54px",
               height: "54px",
-              borderRadius: "16px",
+              borderRadius: "20px",
               backgroundColor: "rgba(77, 142, 255, 0.15)",
               border: "2px solid rgba(77, 142, 255, 0.4)",
               boxShadow: "0 0 20px rgba(77, 142, 255, 0.25)",
@@ -99,7 +98,7 @@ function DashboardContent() {
               <img
                 src={user.avatarUrl}
                 alt="Avatar"
-                style={{ width: "100%", height: "100%", borderRadius: "14px", objectFit: "cover" }}
+                style={{ width: "100%", height: "100%", borderRadius: "18px", objectFit: "cover" }}
               />
             ) : (
               "👤"
@@ -296,21 +295,13 @@ function DashboardContent() {
               <p style={{ fontSize: "13px", color: color.text.secondary, marginBottom: spacing["4"] }}>
                 Browse the marketplace and join a rotating circle that matches your financial tier.
               </p>
-              <a
+              <LiquidMetalButton
                 href="/pools"
-                style={{
-                  display: "inline-block",
-                  padding: "8px 18px",
-                  borderRadius: radius.md,
-                  backgroundColor: color.brand.primary,
-                  color: "#FFFFFF",
-                  fontSize: "13px",
-                  fontWeight: 600,
-                  textDecoration: "none",
-                }}
+                size="sm"
+                variant="primary"
               >
                 Browse Pools
-              </a>
+              </LiquidMetalButton>
             </Card>
           ) : (
             activeGroups.map((grp) => <GroupCard key={grp.id} group={grp} />)

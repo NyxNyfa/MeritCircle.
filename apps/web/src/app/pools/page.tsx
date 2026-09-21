@@ -58,8 +58,8 @@ function PoolsMarketplaceContent() {
             display: "flex",
             gap: "6px",
             backgroundColor: color.background.card,
-            padding: "4px",
-            borderRadius: radius.md,
+            padding: "4px 6px",
+            borderRadius: radius.full,
             border: `1px solid ${color.border.subtle}`,
           }}
         >
@@ -78,14 +78,15 @@ function PoolsMarketplaceContent() {
                 type="button"
                 onClick={() => setSelectedFilter(tab.id)}
                 style={{
-                  padding: "6px 14px",
-                  borderRadius: radius.sm,
+                  padding: "6px 16px",
+                  borderRadius: radius.full,
                   border: "none",
                   backgroundColor: isActive ? color.brand.primary : "transparent",
                   color: isActive ? "#FFFFFF" : color.text.secondary,
                   fontSize: "13px",
-                  fontWeight: isActive ? 600 : 500,
+                  fontWeight: isActive ? 700 : 500,
                   cursor: "pointer",
+                  boxShadow: isActive ? "0 0 16px rgba(77, 142, 255, 0.4)" : "none",
                   transition: "all 0.15s ease",
                 }}
               >

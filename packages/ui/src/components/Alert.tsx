@@ -35,7 +35,7 @@ export const Alert: React.FC<AlertProps> = ({
     borderTop: "1px solid rgba(255, 255, 255, 0.06)",
     borderRight: "1px solid rgba(255, 255, 255, 0.06)",
     borderBottom: "1px solid rgba(255, 255, 255, 0.06)",
-    borderRadius: "8px",
+    borderRadius: "14px",
     padding: "12px 16px",
     fontFamily: "'Inter', sans-serif",
     fontSize: "14px",
