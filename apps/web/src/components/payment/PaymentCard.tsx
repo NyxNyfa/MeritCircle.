@@ -91,11 +91,9 @@ export const PaymentCard: React.FC<{
           <div style={{ fontSize: "20px", fontWeight: 700, color: color.brand.accentElectric }}>
             {formatWeiToBnb(contribution.amountWei)}
           </div>
-          {isLate && (
-            <div style={{ fontSize: "11px", color: color.status.error, fontWeight: 600 }}>
-              ⚠️ Late: -10 pts/day penalty
-            </div>
-          )}
+          <div style={{ fontSize: "11px", fontWeight: 600, color: isLate ? color.status.error : color.text.muted, marginTop: "2px" }}>
+            {isLate ? "⚠️ Overdue: -10 pts/day penalty" : "Due on time (+10 reputation) • Late penalty: -10 pts/day"}
+          </div>
         </div>
       </div>
 

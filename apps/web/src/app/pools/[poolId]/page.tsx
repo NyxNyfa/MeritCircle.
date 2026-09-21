@@ -164,7 +164,7 @@ function PoolDetailContent({ poolId }: { poolId?: string }) {
                 <li>Lelang diskon hanya dibuka pada siklus non-final (siklus 1 s.d. {pool.cycleCount - 1}).</li>
                 <li>Surplus diskon diteruskan sebagai <strong>carried reward</strong> bagi peserta berikutnya.</li>
                 <li><strong>Siklus Final:</strong> Penerima terakhir menerima 100% full reward pool tanpa lelang dan tanpa potongan diskon.</li>
-                <li><strong>Tanpa Final Surplus:</strong> Tidak ada dana yang tertinggal atau dialihkan keluar pool pada penutupan siklus.</li>
+                <li><strong>Full Final Payout:</strong> Seluruh dana tersisa disalurkan tuntas kepada peserta penutup tanpa potongan protokol.</li>
               </ul>
             </Card>
           )}

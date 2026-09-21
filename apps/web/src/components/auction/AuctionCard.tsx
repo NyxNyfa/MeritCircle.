@@ -131,9 +131,8 @@ export const AuctionCard: React.FC<{
           <div style={{ fontWeight: 600, color: color.status.info, marginBottom: "4px" }}>
             ℹ️ Final Cycle ROSCA Guarantee
           </div>
-          Pada siklus final, tidak ada proses lelang diskon. Penerima terakhir menerima seluruh total
-          reward pool tanpa potongan, dan sisa carried reward diselesaikan tepat 0 tBNB. Tidak ada
-          final surplus yang ditahan atau dipotong.
+          Pada siklus final, tidak ada proses lelang diskon. Penerima terakhir berhak atas 100% total
+          reward pool secara utuh tanpa potongan, dan seluruh sisa carried reward disalurkan tuntas.
         </div>
       </Card>
     );

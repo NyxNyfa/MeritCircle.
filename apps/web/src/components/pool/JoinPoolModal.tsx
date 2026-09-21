@@ -6,6 +6,7 @@ import { PoolData } from "./PoolCard";
 import { formatWeiToBnb } from "../../lib/format";
 import { joinPool } from "../../lib/api";
 import { getErrorMessage } from "../../lib/error";
+import { useAuth } from "../../hooks/useAuth";
 
 export interface JoinPoolModalProps {
   pool: PoolData | null;
@@ -20,8 +21,13 @@ export const JoinPoolModal: React.FC<JoinPoolModalProps> = ({
   onClose,
   onSuccess,
 }) => {
+  const { user } = useAuth();
   const [isJoining, setIsJoining] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const hasUsername = Boolean(user?.username);
+  const hasEmailVerified = Boolean(user?.isEmailVerified);
+  const isProfileComplete = hasUsername && hasEmailVerified;
 
   if (!isOpen || !pool) return null;
 
@@ -123,6 +129,30 @@ export const JoinPoolModal: React.FC<JoinPoolModalProps> = ({
           </div>
         </div>
 
+        {!isProfileComplete && (
+          <div
+            style={{
+              padding: spacing["3"],
+              marginBottom: spacing["4"],
+              borderRadius: radius.md,
+              backgroundColor: "rgba(245, 158, 11, 0.1)",
+              border: `1px solid ${color.status.warning}`,
+              fontSize: "13px",
+              color: color.status.warning,
+              lineHeight: 1.5,
+            }}
+          >
+            <div style={{ fontWeight: 600, marginBottom: "4px" }}>⚠️ Profile Requirements Needed to Join:</div>
+            {!hasUsername && <div>• Set a username in your profile (+20 Reputation)</div>}
+            {!hasEmailVerified && <div>• Verify your email address (+40 Reputation)</div>}
+            <div style={{ marginTop: "8px" }}>
+              <a href="/onboarding" style={{ color: color.brand.accentElectric, textDecoration: "underline", fontWeight: 600 }}>
+                Go to Profile Onboarding →
+              </a>
+            </div>
+          </div>
+        )}
+
         {error && (
           <div
             style={{
@@ -147,6 +177,7 @@ export const JoinPoolModal: React.FC<JoinPoolModalProps> = ({
             variant="primary"
             size="md"
             loading={isJoining}
+            disabled={!isProfileComplete || isJoining}
             onClick={handleConfirmJoin}
             style={{ flex: 1 }}
           >
