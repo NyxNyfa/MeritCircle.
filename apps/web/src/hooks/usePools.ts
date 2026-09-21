@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { getPools } from "../lib/api";
+import { getErrorMessage } from "../lib/error";
 
 export function usePools() {
   const [pools, setPools] = useState<any[]>([]);
@@ -15,7 +16,7 @@ export function usePools() {
       const res = await getPools();
       setPools(res.pools || []);
     } catch (err: any) {
-      setError(err?.message || "Failed to load pools");
+      setError(getErrorMessage(err));
     } finally {
       setIsLoading(false);
     }

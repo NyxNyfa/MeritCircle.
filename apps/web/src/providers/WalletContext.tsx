@@ -11,6 +11,7 @@ import {
   signMessage,
   BNB_TESTNET_CHAIN_ID,
 } from "../lib/wallet";
+import { getErrorMessage } from "../lib/error";
 
 export interface WalletContextValue {
   address: string | null;
@@ -82,7 +83,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       setChainId(res.chainId);
       return res.address;
     } catch (err: any) {
-      setError(err?.message || "Failed to connect wallet");
+      setError(getErrorMessage(err));
       return null;
     } finally {
       setIsConnecting(false);
@@ -100,7 +101,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       const currentChain = await getCurrentChainId();
       setChainId(currentChain);
     } catch (err: any) {
-      setError(err?.message || "Failed to switch network");
+      setError(getErrorMessage(err));
       throw err;
     }
   };

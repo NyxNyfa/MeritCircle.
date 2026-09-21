@@ -1,0 +1,14 @@
+{
+  "phase": "phase-15-uiux-debug-sweep",
+  "status": "IN_PROGRESS",
+  "currentMicroPhase": "D01-email-otp-flow",
+  "completedMicroPhases": [
+    "D00-error-root-cause"
+  ],
+  "rootCause": "ApiError converted nested object error to [object Object], and Resend/express body limit caused masked 500 INTERNAL_ERROR",
+  "openIssues": [],
+  "resolvedIssues": [
+    "Onboarding Send OTP menampilkan [object Object]"
+  ],
+  "maxRetries": 3
+}

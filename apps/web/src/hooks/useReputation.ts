@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { getMyReputation, getMyReputationHistory } from "../lib/api";
+import { getErrorMessage } from "../lib/error";
 import { useAuth } from "./useAuth";
 
 export interface ReputationState {
@@ -42,7 +43,7 @@ export function useReputation(): ReputationState {
       setMaxActiveGroups(repRes.maxActiveGroups);
       setHistory(histRes.events || []);
     } catch (err: any) {
-      setError(err?.message || "Failed to load reputation");
+      setError(getErrorMessage(err));
     } finally {
       setIsLoading(false);
     }

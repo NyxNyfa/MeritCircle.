@@ -16,6 +16,7 @@ import {
 import { AppProviders } from "../../../providers/AppProviders";
 import { AdminShell } from "../../../components/layout/AdminShell";
 import { getAdminUsers, adjustUserReputation } from "../../../lib/api";
+import { getErrorMessage } from "../../../lib/error";
 
 interface UserItem {
   id: string;
@@ -52,7 +53,7 @@ function AdminUsersContent() {
       const res = await getAdminUsers();
       setUsers(res.users || []);
     } catch (err: any) {
-      setError(err?.message || "Failed to load user roster");
+      setError(getErrorMessage(err));
     } finally {
       setIsLoading(false);
     }
@@ -99,7 +100,7 @@ function AdminUsersContent() {
         setIsModalOpen(false);
       }, 1500);
     } catch (err: any) {
-      setSubmitError(err?.message || "Failed to adjust reputation points");
+      setSubmitError(getErrorMessage(err));
     } finally {
       setIsSubmitting(false);
     }

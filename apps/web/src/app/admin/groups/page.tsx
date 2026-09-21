@@ -14,6 +14,7 @@ import {
 import { AppProviders } from "../../../providers/AppProviders";
 import { AdminShell } from "../../../components/layout/AdminShell";
 import { getAdminGroups } from "../../../lib/api";
+import { getErrorMessage } from "../../../lib/error";
 
 interface GroupListItem {
   id: string;
@@ -44,7 +45,7 @@ function AdminGroupsContent() {
       const res = await getAdminGroups();
       setGroups(res.groups || []);
     } catch (err: any) {
-      setError(err?.message || "Failed to load groups list");
+      setError(getErrorMessage(err));
     } finally {
       setIsLoading(false);
     }

@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { color, radius, spacing, Card, Badge, Button, Input } from "@merit-circle/ui";
 import { formatWeiToBnb, formatBpsToPercent } from "../../lib/format";
 import { submitBid } from "../../lib/api";
+import { getErrorMessage } from "../../lib/error";
 
 export interface AuctionData {
   id: string;
@@ -56,7 +57,7 @@ export const AuctionCard: React.FC<{
       await submitBid(auction.id, discountBps);
       onBidSuccess?.();
     } catch (err: any) {
-      setError(err?.message || "Failed to submit bid");
+      setError(getErrorMessage(err));
     } finally {
       setIsSubmitting(false);
     }

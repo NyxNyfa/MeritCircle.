@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
 import { AuthUser, getToken, getStoredUser, setStoredUser, clearSession, setToken } from "../lib/auth";
 import { requestNonce, verifyWallet, getSession, logout as apiLogout, getProfile } from "../lib/api";
+import { getErrorMessage } from "../lib/error";
 import { useWallet } from "./WalletContext";
 
 export interface AuthContextValue {
@@ -85,7 +86,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       return true;
     } catch (err: any) {
-      setError(err?.message || "Login failed");
+      setError(getErrorMessage(err));
       return false;
     } finally {
       setIsLoading(false);

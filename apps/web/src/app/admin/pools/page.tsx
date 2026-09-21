@@ -17,6 +17,7 @@ import {
 import { AppProviders } from "../../../providers/AppProviders";
 import { AdminShell } from "../../../components/layout/AdminShell";
 import { getAdminPools, createAdminPool, patchAdminPool } from "../../../lib/api";
+import { getErrorMessage } from "../../../lib/error";
 
 interface PoolItem {
   id: string;
@@ -70,7 +71,7 @@ function AdminPoolsContent() {
       const res = await getAdminPools();
       setPools(res.pools || []);
     } catch (err: any) {
-      setError(err?.message || "Failed to load pool catalog");
+      setError(getErrorMessage(err));
     } finally {
       setIsLoading(false);
     }
@@ -86,7 +87,7 @@ function AdminPoolsContent() {
       await patchAdminPool(pool.id, { status: nextStatus });
       await fetchPools();
     } catch (err: any) {
-      alert(err?.message || "Failed to update pool status");
+      alert(getErrorMessage(err));
     }
   };
 
@@ -124,7 +125,7 @@ function AdminPoolsContent() {
       await fetchPools();
       setIsCreateOpen(false);
     } catch (err: any) {
-      setFormError(err?.message || "Failed to create pool");
+      setFormError(getErrorMessage(err));
     } finally {
       setIsSubmitting(false);
     }

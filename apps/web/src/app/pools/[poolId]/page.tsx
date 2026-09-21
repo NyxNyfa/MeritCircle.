@@ -5,6 +5,7 @@ import { color, radius, spacing, Card, Badge, Button, LoadingState } from "@meri
 import { AppProviders } from "../../../providers/AppProviders";
 import { Shell } from "../../../components/layout/Shell";
 import { getPool } from "../../../lib/api";
+import { getErrorMessage } from "../../../lib/error";
 import { formatWeiToBnb, formatTier } from "../../../lib/format";
 import { useAuth } from "../../../hooks/useAuth";
 import { JoinPoolModal } from "../../../components/pool/JoinPoolModal";
@@ -26,7 +27,7 @@ function PoolDetailContent({ poolId }: { poolId?: string }) {
         setPool(res.pool);
       })
       .catch((err) => {
-        setError(err?.message || "Failed to load pool detail");
+        setError(getErrorMessage(err));
       })
       .finally(() => {
         setIsLoading(false);

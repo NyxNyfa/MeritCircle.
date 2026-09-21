@@ -1,4 +1,5 @@
 import { logger } from "../../utils/logger";
+import { AppError } from "../../middleware/error";
 
 export interface EmailProvider {
   sendVerificationEmail(params: {
@@ -76,7 +77,7 @@ export class ResendEmailProvider implements EmailProvider {
         errorBody?.message ||
         `Resend API request failed with HTTP ${res.status}`;
       logger.error(`[Resend] Failed to send email to ${params.to}: ${errorMsg}`);
-      throw new Error(errorMsg);
+      throw new AppError(errorMsg, 502, "EMAIL_DELIVERY_FAILED");
     }
 
     logger.info(`[Resend] Verification email successfully sent to ${params.to}`);

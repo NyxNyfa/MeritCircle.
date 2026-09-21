@@ -5,6 +5,7 @@ import { color, radius, spacing, Button, Card } from "@merit-circle/ui";
 import { PoolData } from "./PoolCard";
 import { formatWeiToBnb } from "../../lib/format";
 import { joinPool } from "../../lib/api";
+import { getErrorMessage } from "../../lib/error";
 
 export interface JoinPoolModalProps {
   pool: PoolData | null;
@@ -32,7 +33,7 @@ export const JoinPoolModal: React.FC<JoinPoolModalProps> = ({
       onSuccess?.();
       onClose();
     } catch (err: any) {
-      setError(err?.message || "Failed to join pool");
+      setError(getErrorMessage(err));
     } finally {
       setIsJoining(false);
     }

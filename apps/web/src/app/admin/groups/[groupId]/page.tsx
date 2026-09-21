@@ -14,6 +14,7 @@ import {
 import { AppProviders } from "../../../../providers/AppProviders";
 import { AdminShell } from "../../../../components/layout/AdminShell";
 import { getAdminGroup, fillDemoGroup } from "../../../../lib/api";
+import { getErrorMessage } from "../../../../lib/error";
 
 function AdminGroupDetailContent({ initialGroupId }: { initialGroupId?: string }) {
   const [groupId, setGroupId] = useState<string>(initialGroupId || "");
@@ -43,7 +44,7 @@ function AdminGroupDetailContent({ initialGroupId }: { initialGroupId?: string }
       const res = await getAdminGroup(groupId);
       setGroup(res.group);
     } catch (err: any) {
-      setError(err?.message || "Failed to load group details");
+      setError(getErrorMessage(err));
     } finally {
       setIsLoading(false);
     }
@@ -64,7 +65,7 @@ function AdminGroupDetailContent({ initialGroupId }: { initialGroupId?: string }
       setFillMessage(`Demo Success: Added ${res.demoMembersAdded} demo users and activated the group!`);
       await fetchGroup();
     } catch (err: any) {
-      alert(err?.message || "Failed to fill group with demo users");
+      alert(getErrorMessage(err));
     } finally {
       setIsFilling(false);
     }

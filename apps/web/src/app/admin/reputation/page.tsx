@@ -16,6 +16,7 @@ import {
 import { AppProviders } from "../../../providers/AppProviders";
 import { AdminShell } from "../../../components/layout/AdminShell";
 import { getAdminUsers, adjustUserReputation } from "../../../lib/api";
+import { getErrorMessage } from "../../../lib/error";
 
 function AdminReputationContent() {
   const [users, setUsers] = useState<any[]>([]);
@@ -43,7 +44,7 @@ function AdminReputationContent() {
         setSelectedUserId(allUsers[0].id);
       }
     } catch (err: any) {
-      setError(err?.message || "Failed to load reputation registry");
+      setError(getErrorMessage(err));
     } finally {
       setIsLoading(false);
     }
@@ -85,7 +86,7 @@ function AdminReputationContent() {
       );
       await fetchReputationData();
     } catch (err: any) {
-      setAdjustError(err?.message || "Failed to adjust reputation points");
+      setAdjustError(getErrorMessage(err));
     } finally {
       setIsSubmitting(false);
     }

@@ -5,6 +5,7 @@ import { color, radius, spacing, Card, Badge, LoadingState } from "@merit-circle
 import { AppProviders } from "../../../providers/AppProviders";
 import { Shell } from "../../../components/layout/Shell";
 import { getGroup, getGroupCycles, getRewardLedger } from "../../../lib/api";
+import { getErrorMessage } from "../../../lib/error";
 import { formatAddress, formatDate, formatWeiToBnb } from "../../../lib/format";
 import { CycleTimeline, CycleInfo } from "../../../components/group/CycleTimeline";
 
@@ -30,7 +31,7 @@ function GroupHubContent({ groupId }: { groupId?: string }) {
         setLedger(ledgerRes.entries || []);
       })
       .catch((err) => {
-        setError(err?.message || "Failed to load group details");
+        setError(getErrorMessage(err));
       })
       .finally(() => {
         setIsLoading(false);

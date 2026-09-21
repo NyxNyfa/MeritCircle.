@@ -20,12 +20,13 @@ import {
   closeAuction,
   settleCycle,
 } from "../../../lib/api";
+import { getErrorMessage } from "../../../lib/error";
 
 interface AuctionCycleItem {
   groupId: string;
   groupNumber: number;
   poolName: string;
-  poolMode: string;
+  poolMode: "BASIC" | "AUCTION";
   cycleId: string;
   cycleNumber: number;
   isFinalCycle: boolean;
@@ -84,7 +85,7 @@ function AdminAuctionsContent() {
 
       setItems(auctionCycles);
     } catch (err: any) {
-      setError(err?.message || "Failed to load cycles & auctions");
+      setError(getErrorMessage(err));
     } finally {
       setIsLoading(false);
     }
@@ -102,7 +103,7 @@ function AdminAuctionsContent() {
       setActionSuccess(`Auction opened successfully for cycle #${cycleId.slice(-6)}`);
       await fetchAuctions();
     } catch (err: any) {
-      alert(err?.message || "Failed to open auction");
+      alert(getErrorMessage(err));
     } finally {
       setActionInProgress(null);
     }
@@ -116,7 +117,7 @@ function AdminAuctionsContent() {
       setActionSuccess(`Auction closed successfully for cycle #${cycleId.slice(-6)}`);
       await fetchAuctions();
     } catch (err: any) {
-      alert(err?.message || "Failed to close auction");
+      alert(getErrorMessage(err));
     } finally {
       setActionInProgress(null);
     }
@@ -132,7 +133,7 @@ function AdminAuctionsContent() {
       );
       await fetchAuctions();
     } catch (err: any) {
-      alert(err?.message || "Failed to settle cycle");
+      alert(getErrorMessage(err));
     } finally {
       setActionInProgress(null);
     }

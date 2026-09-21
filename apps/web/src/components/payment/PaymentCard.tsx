@@ -5,6 +5,7 @@ import { color, radius, spacing, Card, Badge, Button } from "@merit-circle/ui";
 import { formatWeiToBnb, formatDate } from "../../lib/format";
 import { createPaymentIntent, confirmContribution } from "../../lib/api";
 import { payContribution } from "../../lib/payment-adapter";
+import { getErrorMessage } from "../../lib/error";
 
 export interface ContributionItem {
   id: string;
@@ -55,7 +56,7 @@ export const PaymentCard: React.FC<{
       setStep("Payment confirmed!");
       onPaymentSuccess?.();
     } catch (err: any) {
-      setError(err?.message || "Payment failed. Please try again.");
+      setError(getErrorMessage(err));
     } finally {
       setIsProcessing(false);
     }

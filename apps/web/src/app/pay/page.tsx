@@ -6,6 +6,7 @@ import { AppProviders } from "../../providers/AppProviders";
 import { Shell } from "../../components/layout/Shell";
 import { useAuth } from "../../hooks/useAuth";
 import { getMyContributions } from "../../lib/api";
+import { getErrorMessage } from "../../lib/error";
 import { PaymentCard, ContributionItem } from "../../components/payment/PaymentCard";
 
 function PaymentHubContent() {
@@ -26,7 +27,7 @@ function PaymentHubContent() {
         setContributions(res.contributions || []);
       })
       .catch((err) => {
-        setError(err?.message || "Failed to load contributions");
+        setError(getErrorMessage(err));
       })
       .finally(() => {
         setIsLoading(false);

@@ -5,6 +5,7 @@ import { color, radius, spacing, Button, Card, LoadingState, ErrorState, Badge }
 import { AppProviders } from "../../providers/AppProviders";
 import { AdminShell } from "../../components/layout/AdminShell";
 import { getAdminOverview } from "../../lib/api";
+import { getErrorMessage } from "../../lib/error";
 import { useAuth } from "../../hooks/useAuth";
 
 interface OverviewMetrics {
@@ -34,7 +35,7 @@ function AdminDashboardContent() {
       const res = await getAdminOverview();
       setData(res);
     } catch (err: any) {
-      setError(err?.message || "Failed to load admin overview metrics");
+      setError(getErrorMessage(err));
     } finally {
       setIsLoading(false);
     }

@@ -6,6 +6,7 @@ import { AppProviders } from "../../providers/AppProviders";
 import { Shell } from "../../components/layout/Shell";
 import { useAuth } from "../../hooks/useAuth";
 import { getMyGroups, getGroupCycles, getCycleAuction } from "../../lib/api";
+import { getErrorMessage } from "../../lib/error";
 import { AuctionCard, AuctionData } from "../../components/auction/AuctionCard";
 
 function AuctionHubContent() {
@@ -65,7 +66,7 @@ function AuctionHubContent() {
 
       setAuctions(auctionList);
     } catch (err: any) {
-      setError(err?.message || "Failed to load auctions");
+      setError(getErrorMessage(err));
     } finally {
       setIsLoading(false);
     }

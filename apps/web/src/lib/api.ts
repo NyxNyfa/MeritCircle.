@@ -49,8 +49,34 @@ async function fetchApi<T>(
   const data = await res.json().catch(() => null);
 
   if (!res.ok) {
-    const errorMsg = data?.message || data?.error || `Request failed with status ${res.status}`;
-    const code = data?.code || `HTTP_${res.status}`;
+    let errorMsg = `Request failed with status ${res.status}`;
+    let code = `HTTP_${res.status}`;
+
+    if (data) {
+      if (typeof data === "string") {
+        errorMsg = data;
+      } else if (typeof data === "object") {
+        if (data.error) {
+          if (typeof data.error === "string") {
+            errorMsg = data.error;
+          } else if (typeof data.error === "object") {
+            if (data.error.message && typeof data.error.message === "string") {
+              errorMsg = data.error.message;
+            }
+            if (data.error.code && typeof data.error.code === "string") {
+              code = data.error.code;
+            }
+          }
+        } else if (data.message && typeof data.message === "string") {
+          errorMsg = data.message;
+        }
+
+        if (data.code && typeof data.code === "string") {
+          code = data.code;
+        }
+      }
+    }
+
     throw new ApiError(res.status, code, errorMsg, data);
   }
 

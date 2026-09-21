@@ -34,6 +34,17 @@ export function errorHandler(
     return;
   }
 
+  // Handle payload too large errors (HTTP 413 from body-parser)
+  if ((err as any)?.type === "entity.too.large" || (err as any)?.status === 413) {
+    res.status(413).json({
+      error: {
+        code: "PAYLOAD_TOO_LARGE",
+        message: "Request payload exceeds allowed limit",
+      },
+    });
+    return;
+  }
+
   if (err instanceof AppError) {
     if (err.code) {
       res.status(err.statusCode).json({

@@ -14,6 +14,7 @@ import {
 import { AppProviders } from "../../../providers/AppProviders";
 import { AdminShell } from "../../../components/layout/AdminShell";
 import { getAdminAuditLogs } from "../../../lib/api";
+import { getErrorMessage } from "../../../lib/error";
 
 interface AuditItem {
   id: string;
@@ -44,7 +45,7 @@ function AdminAuditContent() {
       setTotal(res.total || 0);
       setOffset(currentOffset);
     } catch (err: any) {
-      setError(err?.message || "Failed to load audit logs");
+      setError(getErrorMessage(err));
     } finally {
       setIsLoading(false);
     }

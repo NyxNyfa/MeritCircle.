@@ -5,6 +5,7 @@ import { color, radius, spacing, Button, Card, Input } from "@merit-circle/ui";
 import { useAuth } from "../../hooks/useAuth";
 import { updateProfile, requestEmailVerification, confirmEmailVerification } from "../../lib/api";
 import { formatPoint, formatTier } from "../../lib/format";
+import { getErrorMessage } from "../../lib/error";
 
 export const OnboardingForm: React.FC<{ onComplete?: () => void }> = ({ onComplete }) => {
   const { user, refreshProfile } = useAuth();
@@ -87,7 +88,7 @@ export const OnboardingForm: React.FC<{ onComplete?: () => void }> = ({ onComple
         text: `Verification code sent to ${email}. Please check your inbox (or spam folder).`,
       });
     } catch (err: any) {
-      setMessage({ type: "error", text: err?.message || "Failed to send code" });
+      setMessage({ type: "error", text: getErrorMessage(err) });
     } finally {
       setIsVerifying(false);
     }
@@ -108,7 +109,7 @@ export const OnboardingForm: React.FC<{ onComplete?: () => void }> = ({ onComple
         await refreshProfile();
       }
     } catch (err: any) {
-      setMessage({ type: "error", text: err?.message || "Verification code invalid or expired" });
+      setMessage({ type: "error", text: getErrorMessage(err) });
     } finally {
       setIsVerifying(false);
     }
@@ -137,7 +138,7 @@ export const OnboardingForm: React.FC<{ onComplete?: () => void }> = ({ onComple
       setMessage({ type: "success", text: "Profile updated successfully!" });
       onComplete?.();
     } catch (err: any) {
-      setMessage({ type: "error", text: err?.message || "Failed to save profile" });
+      setMessage({ type: "error", text: getErrorMessage(err) });
     } finally {
       setIsSaving(false);
     }
