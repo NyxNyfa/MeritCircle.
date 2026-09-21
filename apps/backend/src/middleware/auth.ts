@@ -23,7 +23,12 @@ export function authMiddleware(
   const authHeader = req.headers.authorization;
 
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    res.status(401).json({ error: "Unauthorized: Missing or invalid token" });
+    res.status(401).json({
+      error: {
+        code: "UNAUTHORIZED",
+        message: "Unauthorized: Missing or invalid token",
+      },
+    });
     return;
   }
 
@@ -38,7 +43,12 @@ export function authMiddleware(
     };
     next();
   } catch (error) {
-    res.status(401).json({ error: "Unauthorized: Invalid or expired token" });
+    res.status(401).json({
+      error: {
+        code: "UNAUTHORIZED",
+        message: "Unauthorized: Invalid or expired token",
+      },
+    });
   }
 }
 
@@ -49,7 +59,12 @@ export function adminMiddleware(
 ): void {
   authMiddleware(req, res, () => {
     if (req.user?.role !== "ADMIN") {
-      res.status(403).json({ error: "Forbidden: Admin role required" });
+      res.status(403).json({
+        error: {
+          code: "FORBIDDEN",
+          message: "Forbidden: Admin role required",
+        },
+      });
       return;
     }
     next();

@@ -41,7 +41,9 @@ describe("Phase 09 - Auth Module", () => {
     });
 
     expect(res.status).toBe(400);
-    expect(res.body.error).toMatch(/invalid or expired nonce/i);
+    const err1 = typeof res.body.error === "string" ? res.body.error : res.body.error?.message;
+    expect(err1).toMatch(/invalid or expired nonce/i);
+    expect(res.body.error?.code || res.body.code).toBeDefined();
   });
 
   it("POST /api/auth/verify rejects invalid signature", async () => {
@@ -64,7 +66,9 @@ describe("Phase 09 - Auth Module", () => {
     });
 
     expect(res.status).toBe(401);
-    expect(res.body.error).toMatch(/invalid/i);
+    const err2 = typeof res.body.error === "string" ? res.body.error : res.body.error?.message;
+    expect(err2).toMatch(/invalid/i);
+    expect(res.body.error?.code || res.body.code).toBeDefined();
   });
 
   it("POST /api/auth/verify accepts valid signature, creates user, awards WALLET_CONNECTED, and returns JWT", async () => {

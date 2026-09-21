@@ -95,7 +95,9 @@ describe("Phase 13 - Admin Module Tests", () => {
         .get("/api/admin/overview")
         .set("Authorization", `Bearer ${regularUserToken}`);
       expect(res.status).toBe(403);
-      expect(res.body.error).toMatch(/admin role required/i);
+      const err = typeof res.body.error === "string" ? res.body.error : res.body.error?.message;
+      expect(err).toMatch(/admin role required/i);
+      expect(res.body.error?.code || res.body.code).toBe("FORBIDDEN");
     });
 
     it("allows ADMIN users to access overview", async () => {

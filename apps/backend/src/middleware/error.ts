@@ -14,6 +14,27 @@ export class AppError extends Error {
   }
 }
 
+function getDefaultErrorCode(status: number): string {
+  switch (status) {
+    case 400:
+      return "BAD_REQUEST";
+    case 401:
+      return "UNAUTHORIZED";
+    case 403:
+      return "FORBIDDEN";
+    case 404:
+      return "NOT_FOUND";
+    case 409:
+      return "CONFLICT";
+    case 429:
+      return "RATE_LIMITED";
+    case 502:
+      return "BAD_GATEWAY";
+    default:
+      return `HTTP_${status}`;
+  }
+}
+
 export function errorHandler(
   err: unknown,
   _req: Request,
@@ -46,18 +67,13 @@ export function errorHandler(
   }
 
   if (err instanceof AppError) {
-    if (err.code) {
-      res.status(err.statusCode).json({
-        error: {
-          code: err.code,
-          message: err.message,
-        },
-      });
-    } else {
-      res.status(err.statusCode).json({
-        error: err.message,
-      });
-    }
+    const code = err.code || getDefaultErrorCode(err.statusCode);
+    res.status(err.statusCode).json({
+      error: {
+        code,
+        message: err.message,
+      },
+    });
     return;
   }
 

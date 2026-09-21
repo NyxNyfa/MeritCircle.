@@ -1,18 +1,20 @@
 {
   "phase": "phase-15-uiux-debug-sweep",
   "status": "IN_PROGRESS",
-  "currentMicroPhase": "D03-backend-error-contract",
+  "currentMicroPhase": "D04-regression-tests",
   "completedMicroPhases": [
     "D00-error-root-cause",
     "D01-email-otp-flow",
-    "D02-uiux-state-audit"
+    "D02-uiux-state-audit",
+    "D03-backend-error-contract"
   ],
   "rootCause": "ApiError converted nested object error to [object Object], and Resend/express body limit caused masked 500 INTERNAL_ERROR",
   "openIssues": [],
   "resolvedIssues": [
     "Onboarding Send OTP menampilkan [object Object]",
     "Email OTP flow end-to-end and rate limiting",
-    "Audit state UI/UX semua halaman"
+    "Audit state UI/UX semua halaman",
+    "Unifikasi kontrak error backend"
   ],
   "maxRetries": 3
 }

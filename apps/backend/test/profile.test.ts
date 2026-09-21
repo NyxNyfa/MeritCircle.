@@ -131,7 +131,9 @@ describe("Phase 09 - Profile Module", () => {
       .send({ username: "satoshi" });
 
     expect(res.status).toBe(409);
-    expect(res.body.error).toMatch(/username is already taken/i);
+    const err1 = typeof res.body.error === "string" ? res.body.error : res.body.error?.message;
+    expect(err1).toMatch(/username is already taken/i);
+    expect(res.body.error?.code || res.body.code).toBeDefined();
   });
 
   it("PATCH /api/profile updates email and rejects duplicate email", async () => {
@@ -149,7 +151,9 @@ describe("Phase 09 - Profile Module", () => {
       .set("Authorization", `Bearer ${token2}`)
       .send({ email: "user1@example.com" });
     expect(res2.status).toBe(409);
-    expect(res2.body.error).toMatch(/email is already registered/i);
+    const err2 = typeof res2.body.error === "string" ? res2.body.error : res2.body.error?.message;
+    expect(err2).toMatch(/email is already registered/i);
+    expect(res2.body.error?.code || res2.body.code).toBeDefined();
   });
 
   it("PATCH /api/profile resets emailVerifiedAt when email changes", async () => {
