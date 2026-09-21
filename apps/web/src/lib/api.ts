@@ -108,7 +108,7 @@ export async function updateProfile(data: {
   discordHandle?: string;
 }): Promise<{ profile: any }> {
   return fetchApi<{ profile: any }>("/api/profile", {
-    method: "PUT",
+    method: "PATCH",
     body: JSON.stringify(data),
   });
 }

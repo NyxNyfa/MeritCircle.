@@ -89,6 +89,11 @@ export class DelegatingEmailProvider implements EmailProvider {
     code: string;
     expiresAt: Date;
   }): Promise<void> {
+    if (process.env.NODE_ENV === "test") {
+      const consoleProvider = new ConsoleEmailProvider();
+      return consoleProvider.sendVerificationEmail(params);
+    }
+
     const providerType = (process.env.EMAIL_PROVIDER || "console").toLowerCase();
     if (providerType === "resend") {
       const apiKey = process.env.RESEND_API_KEY;

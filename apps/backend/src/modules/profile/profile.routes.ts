@@ -19,17 +19,21 @@ profileRouter.get(
   }
 );
 
-// PATCH /api/profile
-profileRouter.patch(
-  "/api/profile",
-  authMiddleware,
-  async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      const input = updateProfileSchema.parse(req.body);
-      const result = await updateProfile(req.user!.id, input);
-      res.json(result);
-    } catch (error) {
-      next(error);
-    }
+// PATCH & PUT /api/profile
+const updateProfileHandler = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const input = updateProfileSchema.parse(req.body);
+    const result = await updateProfile(req.user!.id, input);
+    res.json(result);
+  } catch (error) {
+    next(error);
   }
-);
+};
+
+profileRouter.patch("/api/profile", authMiddleware, updateProfileHandler);
+profileRouter.put("/api/profile", authMiddleware, updateProfileHandler);
+

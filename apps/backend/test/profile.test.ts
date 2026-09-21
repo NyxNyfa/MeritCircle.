@@ -91,6 +91,16 @@ describe("Phase 09 - Profile Module", () => {
     expect(rep.points).toBe(10);
   });
 
+  it("PUT /api/profile also updates profile successfully", async () => {
+    const res = await request(app)
+      .put("/api/profile")
+      .set("Authorization", `Bearer ${token1}`)
+      .send({ username: "alice_put" });
+
+    expect(res.status).toBe(200);
+    expect(res.body.username).toBe("alice_put");
+  });
+
   it("PATCH /api/profile rejects invalid username format", async () => {
     // Too short (<3)
     const res1 = await request(app)
