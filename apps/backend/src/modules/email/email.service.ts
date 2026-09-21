@@ -28,15 +28,46 @@ function checkRateLimit(userId: string): void {
   rateLimitMap.set(userId, timestamps);
 }
 
-export async function requestEmailVerification(userId: string): Promise<{
+export async function requestEmailVerification(
+  userId: string,
+  emailFromBody?: string
+): Promise<{
   success: boolean;
   expiresInMinutes: number;
   devCode?: string;
 }> {
-  const profile = await prisma.profile.findUnique({ where: { userId } });
+  let profile = await prisma.profile.findUnique({ where: { userId } });
 
-  if (!profile || !profile.email) {
+  const targetEmail =
+    emailFromBody?.trim().toLowerCase() || profile?.email?.trim().toLowerCase();
+
+  if (!targetEmail) {
     throw new AppError("Email is not set in user profile", 400);
+  }
+
+  // If email was explicitly provided in request body, validate uniqueness and update profile
+  if (emailFromBody) {
+    const existing = await prisma.profile.findFirst({
+      where: {
+        email: targetEmail,
+        NOT: { userId },
+      },
+    });
+
+    if (existing) {
+      throw new AppError("Email is already registered by another user", 409);
+    }
+
+    if (!profile) {
+      profile = await prisma.profile.create({
+        data: { userId, email: targetEmail },
+      });
+    } else if (profile.email !== targetEmail) {
+      profile = await prisma.profile.update({
+        where: { userId },
+        data: { email: targetEmail, emailVerifiedAt: null },
+      });
+    }
   }
 
   checkRateLimit(userId);
@@ -49,7 +80,7 @@ export async function requestEmailVerification(userId: string): Promise<{
   await prisma.emailVerification.create({
     data: {
       userId,
-      email: profile.email,
+      email: targetEmail,
       tokenHash: codeHash,
       otpHash: codeHash,
       expiresAt,
@@ -57,7 +88,7 @@ export async function requestEmailVerification(userId: string): Promise<{
   });
 
   await emailProvider.sendVerificationEmail({
-    to: profile.email,
+    to: targetEmail,
     code,
     expiresAt,
   });
@@ -104,7 +135,7 @@ export async function confirmEmailVerification(
     }),
     prisma.profile.update({
       where: { userId },
-      data: { emailVerifiedAt: new Date() },
+      data: { email: verification.email, emailVerifiedAt: new Date() },
     }),
   ]);
 

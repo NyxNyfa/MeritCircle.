@@ -101,6 +101,7 @@ export async function getProfile(): Promise<{ profile: any }> {
 
 export async function updateProfile(data: {
   username?: string;
+  email?: string;
   avatarUrl?: string;
   xUrl?: string;
   telegramUrl?: string;

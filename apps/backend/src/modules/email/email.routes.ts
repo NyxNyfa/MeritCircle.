@@ -1,6 +1,6 @@
 import { Router, Request, Response, NextFunction } from "express";
 import { authMiddleware } from "../../middleware/auth";
-import { confirmEmailSchema } from "./email.schema";
+import { requestEmailSchema, confirmEmailSchema } from "./email.schema";
 import {
   requestEmailVerification,
   confirmEmailVerification,
@@ -14,7 +14,8 @@ emailRouter.post(
   authMiddleware,
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const result = await requestEmailVerification(req.user!.id);
+      const { email } = requestEmailSchema.parse(req.body || {});
+      const result = await requestEmailVerification(req.user!.id, email);
       res.json(result);
     } catch (error) {
       next(error);

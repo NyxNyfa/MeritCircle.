@@ -87,6 +87,7 @@ export const OnboardingForm: React.FC<{ onComplete?: () => void }> = ({ onComple
     try {
       await updateProfile({
         username: username.trim(),
+        email: email.trim() || undefined,
         avatarUrl: avatarUrl.trim() || undefined,
         xUrl: xUrl.trim() || undefined,
         telegramUrl: telegramUrl.trim() || undefined,

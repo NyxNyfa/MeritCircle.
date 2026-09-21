@@ -47,6 +47,22 @@ describe("Phase 09 - Email Verification Module", () => {
     expect(res.body.error).toMatch(/email is not set/i);
   });
 
+  it("POST /api/email/verify/request accepts email in body even if profile email is not set", async () => {
+    const res = await request(app)
+      .post("/api/email/verify/request")
+      .set("Authorization", `Bearer ${token}`)
+      .send({ email: "newuser@example.com" });
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(res.body.expiresInMinutes).toBe(10);
+    expect(res.body).toHaveProperty("devCode");
+
+    const dbState = (await import("./mock-prisma")).dbState;
+    const profile = dbState.profiles.get(userId);
+    expect(profile?.email).toBe("newuser@example.com");
+  });
+
   it("POST /api/email/verify/request creates hashed verification record (no plaintext)", async () => {
     // Set email
     await mockPrisma.profile.update({
