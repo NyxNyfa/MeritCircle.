@@ -15,3 +15,7 @@ packages/contracts/typechain-types/
 .env.local
 .env.*.local
 *.env
+
+# Local documentation & prompts
+docs/
+prompt.md
