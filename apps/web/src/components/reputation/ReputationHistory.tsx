@@ -14,6 +14,25 @@ export interface ReputationEvent {
   createdAt: string;
 }
 
+const EVENT_LABELS: Record<string, string> = {
+  USERNAME_SET: "Username Configured",
+  EMAIL_VERIFIED: "Email Verified",
+  WALLET_CONNECTED: "Wallet Connected",
+  SOCIAL_X_ADDED: "X (Twitter) Linked",
+  SOCIAL_TELEGRAM_ADDED: "Telegram Linked",
+  SOCIAL_DISCORD_ADDED: "Discord Linked",
+  AVATAR_UPLOADED: "Avatar Uploaded",
+  PROFILE_COMPLETED: "Profile Completed",
+  JOIN_POOL: "Pool Joined",
+  CONTRIBUTION_ON_TIME: "On-Time Contribution",
+  CONTRIBUTION_EARLY_BONUS: "Early Contribution Bonus",
+  CONTRIBUTION_LATE: "Late Contribution Penalty",
+  CONTRIBUTION_UNPAID: "Default Penalty",
+  GROUP_COMPLETED: "Group Completed",
+  AUCTION_SUCCESSFULLY_REPAID: "Auction Repaid",
+  ADMIN_ADJUSTMENT: "Administrative Adjustment",
+};
+
 export const ReputationHistory: React.FC<{ events: ReputationEvent[] }> = ({ events }) => {
   if (!events || events.length === 0) {
     return (
@@ -46,12 +65,14 @@ export const ReputationHistory: React.FC<{ events: ReputationEvent[] }> = ({ eve
 
       <div style={{ display: "flex", flexDirection: "column", gap: spacing["3"] }}>
         {events.map((ev, idx) => {
-          const typeName = ev.eventType || ev.type || "ACTIVITY";
-          const delta = ev.pointsDelta ?? ev.points ?? 0;
-          const isPositive = delta >= 0;
+          const rawType = ev.eventType || ev.type || "";
+          const typeName = EVENT_LABELS[rawType] || rawType || ev.reason || "Reputation Event";
+          const delta = Number(ev.pointsDelta ?? ev.points ?? 0);
+          const badgeVariant = delta > 0 ? "success" : delta < 0 ? "danger" : "neutral";
+          const badgeText = delta > 0 ? `+${delta} pts` : `${delta} pts`;
           return (
             <div
-              key={ev.id || `${typeName}-${idx}-${ev.createdAt}`}
+              key={ev.id || `${rawType}-${idx}-${ev.createdAt}`}
               style={{
                 display: "flex",
                 alignItems: "center",
@@ -67,8 +88,8 @@ export const ReputationHistory: React.FC<{ events: ReputationEvent[] }> = ({ eve
                   <span style={{ fontWeight: 600, fontSize: "14px", color: color.text.primary }}>
                     {typeName}
                   </span>
-                  <Badge variant={isPositive ? "success" : "danger"}>
-                    {isPositive ? `+${delta}` : `${delta}`} pts
+                  <Badge variant={badgeVariant}>
+                    {badgeText}
                   </Badge>
                 </div>
                 <div style={{ fontSize: "12px", color: color.text.muted, marginTop: "2px" }}>

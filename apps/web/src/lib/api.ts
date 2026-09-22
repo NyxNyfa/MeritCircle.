@@ -197,13 +197,35 @@ export async function getMyReputation(): Promise<{
 
 export async function getMyReputationHistory(): Promise<{ events: any[] }> {
   try {
-    return await fetchApi<{ events: any[] }>("/api/reputation/me/history", {
-      method: "GET",
+    let res: any = null;
+    try {
+      res = await fetchApi<{ events: any[] }>("/api/reputation/me/history", {
+        method: "GET",
+      });
+    } catch {
+      res = await fetchApi<{ events: any[] }>("/api/reputation/history", {
+        method: "GET",
+      });
+    }
+
+    const rawEvents: any[] = res?.events || [];
+    const normalizedEvents = rawEvents.map((ev: any, idx: number) => {
+      const typeName = ev.type || ev.eventType || "ACTIVITY";
+      const delta = Number(ev.points ?? ev.pointsDelta ?? 0);
+      return {
+        id: ev.id || `${typeName}-${idx}-${ev.createdAt}`,
+        type: typeName,
+        eventType: typeName,
+        points: delta,
+        pointsDelta: delta,
+        reason: ev.reason,
+        createdAt: ev.createdAt,
+      };
     });
+
+    return { events: normalizedEvents };
   } catch {
-    return await fetchApi<{ events: any[] }>("/api/reputation/history", {
-      method: "GET",
-    });
+    return { events: [] };
   }
 }
 

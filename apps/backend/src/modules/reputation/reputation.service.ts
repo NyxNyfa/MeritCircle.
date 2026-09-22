@@ -101,8 +101,26 @@ export async function applyReputationEvent(
 }
 
 export async function getReputation(userId: string) {
+  const events = await prisma.reputationEvent.findMany({
+    where: { userId },
+  });
+
   const rep = await prisma.reputation.findUnique({ where: { userId } });
-  const points = rep?.points ?? 0;
+  let points = rep?.points ?? 0;
+
+  if (events.length > 0) {
+    const totalPoints = events.reduce((sum, e) => sum + (e.points || 0), 0);
+    points = clampReputationPoints(totalPoints);
+    if (!rep || rep.points !== points) {
+      const tierInfo = getTierFromPoints(points);
+      await prisma.reputation.upsert({
+        where: { userId },
+        update: { points, tier: tierInfo.tier },
+        create: { userId, points, tier: tierInfo.tier },
+      });
+    }
+  }
+
   const tierInfo = getTierFromPoints(points);
 
   let nextTierPoints: number | null = null;

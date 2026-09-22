@@ -3,6 +3,7 @@ import { prisma } from "../../db/client";
 import { AppError } from "../../middleware/error";
 import { UpdateProfileInput } from "./profile.schema";
 import { applyReputationEvent } from "../reputation/reputation.service";
+import { clampReputationPoints, getTierFromPoints } from "@merit-circle/domain";
 
 export async function getProfile(userId: string) {
   // Ensure verified profile achievements have their reputation events awarded
@@ -53,9 +54,24 @@ export async function getProfile(userId: string) {
   }
 
   const profile = user.profile;
+  const events = await prisma.reputationEvent.findMany({
+    where: { userId },
+  });
   const rep = await prisma.reputation.findUnique({ where: { userId } });
-  const currentPoints = rep?.points ?? user.reputation?.points ?? 0;
-  const currentTier = rep?.tier ?? user.reputation?.tier ?? 1;
+  let currentPoints = rep?.points ?? user.reputation?.points ?? 0;
+  if (events.length > 0) {
+    const totalPoints = events.reduce((sum, e) => sum + (e.points || 0), 0);
+    currentPoints = clampReputationPoints(totalPoints);
+    if (!rep || rep.points !== currentPoints) {
+      const tierInfo = getTierFromPoints(currentPoints);
+      await prisma.reputation.upsert({
+        where: { userId },
+        update: { points: currentPoints, tier: tierInfo.tier },
+        create: { userId, points: currentPoints, tier: tierInfo.tier },
+      });
+    }
+  }
+  const currentTier = getTierFromPoints(currentPoints).tier;
 
   return {
     id: user.id,
