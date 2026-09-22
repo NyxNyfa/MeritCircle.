@@ -8,6 +8,7 @@ import { usePools } from "../../hooks/usePools";
 import { useAuth } from "../../hooks/useAuth";
 import { PoolCard, PoolData } from "../../components/pool/PoolCard";
 import { JoinPoolModal } from "../../components/pool/JoinPoolModal";
+import { LiquidRadioGroup } from "../../components/ui/liquid-radio";
 
 function PoolsMarketplaceContent() {
   const { pools, isLoading, error, refresh } = usePools();
@@ -53,49 +54,17 @@ function PoolsMarketplaceContent() {
           </p>
         </div>
 
-        {/* Filter Tabs */}
-        <div
-          style={{
-            display: "flex",
-            gap: "6px",
-            backgroundColor: color.background.card,
-            padding: "4px 6px",
-            borderRadius: radius.full,
-            border: `1px solid ${color.border.subtle}`,
-          }}
-        >
-          {(
-            [
-              { id: "ALL", label: "All Pools" },
-              { id: "BASIC", label: "Basic ROSCA" },
-              { id: "AUCTION", label: "Auction ROSCA" },
-              { id: "ELIGIBLE", label: "Eligible for Me" },
-            ] as const
-          ).map((tab) => {
-            const isActive = selectedFilter === tab.id;
-            return (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => setSelectedFilter(tab.id)}
-                style={{
-                  padding: "6px 16px",
-                  borderRadius: radius.full,
-                  border: "none",
-                  backgroundColor: isActive ? color.brand.primary : "transparent",
-                  color: isActive ? "#FFFFFF" : color.text.secondary,
-                  fontSize: "13px",
-                  fontWeight: isActive ? 700 : 500,
-                  cursor: "pointer",
-                  boxShadow: isActive ? "0 0 16px rgba(77, 142, 255, 0.4)" : "none",
-                  transition: "all 0.15s ease",
-                }}
-              >
-                {tab.label}
-              </button>
-            );
-          })}
-        </div>
+        {/* Liquid Glass Filter Radio Group */}
+        <LiquidRadioGroup<"ALL" | "BASIC" | "AUCTION" | "ELIGIBLE">
+          value={selectedFilter}
+          onChange={(val) => setSelectedFilter(val)}
+          options={[
+            { value: "ALL", label: "All Pools" },
+            { value: "BASIC", label: "Basic ROSCA" },
+            { value: "AUCTION", label: "Auction ROSCA" },
+            { value: "ELIGIBLE", label: "Eligible for Me" },
+          ]}
+        />
       </div>
 
       {/* Content Area */}
