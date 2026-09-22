@@ -1,12 +1,20 @@
 import { logger } from "../../utils/logger";
 import { AppError } from "../../middleware/error";
 
+export interface EmailSendResult {
+  success: boolean;
+  delivered: boolean;
+  fallbackUsed: boolean;
+  provider: string;
+  error?: string;
+}
+
 export interface EmailProvider {
   sendVerificationEmail(params: {
     to: string;
     code: string;
     expiresAt: Date;
-  }): Promise<void>;
+  }): Promise<EmailSendResult>;
 }
 
 export class ConsoleEmailProvider implements EmailProvider {
@@ -14,10 +22,16 @@ export class ConsoleEmailProvider implements EmailProvider {
     to: string;
     code: string;
     expiresAt: Date;
-  }): Promise<void> {
+  }): Promise<EmailSendResult> {
     console.log(`[Email] Send verification email to ${params.to}`);
     console.log(`[Email] Code: ${params.code}`);
     console.log(`[Email] Expires: 10 minutes`);
+    return {
+      success: true,
+      delivered: true,
+      fallbackUsed: false,
+      provider: "console",
+    };
   }
 }
 
@@ -34,7 +48,7 @@ export class ResendEmailProvider implements EmailProvider {
     to: string;
     code: string;
     expiresAt: Date;
-  }): Promise<void> {
+  }): Promise<EmailSendResult> {
     const html = `
       <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 560px; margin: 0 auto; padding: 32px 24px; background-color: #0d1117; color: #e6edf3; border-radius: 12px; border: 1px solid #30363d;">
         <div style="text-align: center; margin-bottom: 24px;">
@@ -95,6 +109,12 @@ export class ResendEmailProvider implements EmailProvider {
     }
 
     logger.info(`[Resend] Verification email successfully sent to ${params.to}`);
+    return {
+      success: true,
+      delivered: true,
+      fallbackUsed: false,
+      provider: "resend",
+    };
   }
 }
 
@@ -103,7 +123,7 @@ export class DelegatingEmailProvider implements EmailProvider {
     to: string;
     code: string;
     expiresAt: Date;
-  }): Promise<void> {
+  }): Promise<EmailSendResult> {
     if (process.env.NODE_ENV === "test") {
       const consoleProvider = new ConsoleEmailProvider();
       return consoleProvider.sendVerificationEmail(params);
@@ -118,8 +138,7 @@ export class DelegatingEmailProvider implements EmailProvider {
           process.env.EMAIL_FROM?.trim()
         );
         try {
-          await resendProvider.sendVerificationEmail(params);
-          return;
+          return await resendProvider.sendVerificationEmail(params);
         } catch (resendError: any) {
           if (process.env.RESEND_STRICT === "true") {
             throw resendError;
@@ -129,7 +148,13 @@ export class DelegatingEmailProvider implements EmailProvider {
           );
           const consoleProvider = new ConsoleEmailProvider();
           await consoleProvider.sendVerificationEmail(params);
-          return;
+          return {
+            success: true,
+            delivered: false,
+            fallbackUsed: true,
+            provider: "resend_fallback_console",
+            error: resendError?.message || String(resendError),
+          };
         }
       }
       logger.warn(

@@ -315,13 +315,13 @@ describe("Phase 09 - Email Verification Module", () => {
       const delegating = new DelegatingEmailProvider();
 
       // Should not throw, should fall back to console
-      await expect(
-        delegating.sendVerificationEmail({
-          to: "fallback_user@example.com",
-          code: "112233",
-          expiresAt: new Date(),
-        })
-      ).resolves.toBeUndefined();
+      const result = await delegating.sendVerificationEmail({
+        to: "fallback_user@example.com",
+        code: "112233",
+        expiresAt: new Date(),
+      });
+      expect(result.fallbackUsed).toBe(true);
+      expect(result.success).toBe(true);
 
       process.env.NODE_ENV = originalEnv;
       process.env.EMAIL_PROVIDER = originalProvider;

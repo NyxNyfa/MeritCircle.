@@ -121,7 +121,7 @@ export async function requestEmailVerification(
     throw dbErr;
   }
 
-  await emailProvider.sendVerificationEmail({
+  const sendResult = await emailProvider.sendVerificationEmail({
     to: targetEmail,
     code,
     expiresAt,
@@ -132,8 +132,12 @@ export async function requestEmailVerification(
     expiresInMinutes: OTP_EXPIRES_MINUTES,
     ...(process.env.NODE_ENV !== "production" ||
     process.env.NEXT_PUBLIC_DEMO_PAYMENT_MODE === "true" ||
-    process.env.EMAIL_PROVIDER === "console"
+    process.env.EMAIL_PROVIDER === "console" ||
+    sendResult?.fallbackUsed
       ? { devCode: code }
+      : {}),
+    ...(sendResult?.fallbackUsed
+      ? { deliveryNotice: "Email delivery service in sandbox mode. OTP code is provided directly." }
       : {}),
   };
 }
