@@ -4,6 +4,7 @@ import React from "react";
 import { color, radius, spacing } from "@merit-circle/ui";
 import { useWallet } from "../../hooks/useWallet";
 import { useAuth } from "../../hooks/useAuth";
+import { useReputation } from "../../hooks/useReputation";
 import { formatAddress, formatPoint, formatTier } from "../../lib/format";
 import { PanelLeftClose, PanelLeftOpen, AlertTriangleIcon, StarIcon, UserIcon, ZapIcon } from "./Icons";
 import { LiquidMetalButton } from "../ui/liquid-metal-button";
@@ -39,6 +40,16 @@ export const Topbar: React.FC<TopbarProps> = ({
 }) => {
   const { address, isConnected, isCorrectNetwork, switchNetwork } = useWallet();
   const { user, isAuthenticated, loginWithWallet, logout } = useAuth();
+  const { points: repPoints, tier: repTier } = useReputation();
+
+  const currentPoints =
+    user?.reputationPoints && user.reputationPoints > 0
+      ? user.reputationPoints
+      : repPoints || user?.reputationPoints || 0;
+  const currentTier =
+    user?.tier && user.tier > 1
+      ? user.tier
+      : repTier || user?.tier || 1;
 
   const isAdmin = activeHref?.startsWith("/admin");
   const currentTitle =
@@ -218,7 +229,7 @@ export const Topbar: React.FC<TopbarProps> = ({
               }}
             >
               <StarIcon size={14} style={{ color: color.brand.accentElectric }} />
-              {formatPoint(user.reputationPoints)}
+              {formatPoint(currentPoints)}
             </span>
             <span style={{ color: "rgba(255, 255, 255, 0.2)" }}>|</span>
             <span
@@ -228,7 +239,7 @@ export const Topbar: React.FC<TopbarProps> = ({
                 fontWeight: 600,
               }}
             >
-              {formatTier(user.tier)}
+              {formatTier(currentTier)}
             </span>
           </div>
         )}

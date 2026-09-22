@@ -9,11 +9,13 @@ import { getPool } from "../../../lib/api";
 import { getErrorMessage } from "../../../lib/error";
 import { formatWeiToBnb, formatTier } from "../../../lib/format";
 import { useAuth } from "../../../hooks/useAuth";
+import { useReputation } from "../../../hooks/useReputation";
 import { JoinPoolModal } from "../../../components/pool/JoinPoolModal";
 import { ZapIcon, CoinsIcon, CheckIcon, XIcon } from "../../../components/layout/Icons";
 
 function PoolDetailContent({ poolId }: { poolId?: string }) {
   const { user, isAuthenticated } = useAuth();
+  const { tier: repTier } = useReputation();
   const routeParams = useParams();
   const [pool, setPool] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -68,7 +70,7 @@ function PoolDetailContent({ poolId }: { poolId?: string }) {
   }
 
   const isAuction = pool.mode === "AUCTION";
-  const userTier = user?.tier || 1;
+  const userTier = (user?.tier && user.tier > 1) ? user.tier : (repTier || user?.tier || 1);
   const isTierEligible = userTier >= pool.minimumTier;
   const isProfileComplete = Boolean(user?.username && user?.isEmailVerified);
   const isPoolActive = pool.isActive !== undefined ? pool.isActive : pool.status === "ACTIVE";

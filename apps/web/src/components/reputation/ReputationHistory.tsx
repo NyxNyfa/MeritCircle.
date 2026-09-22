@@ -5,9 +5,11 @@ import { color, radius, spacing, Card, Badge } from "@merit-circle/ui";
 import { formatDate } from "../../lib/format";
 
 export interface ReputationEvent {
-  id: string;
-  eventType: string;
-  pointsDelta: number;
+  id?: string;
+  eventType?: string;
+  type?: string;
+  pointsDelta?: number;
+  points?: number;
   reason?: string;
   createdAt: string;
 }
@@ -43,11 +45,13 @@ export const ReputationHistory: React.FC<{ events: ReputationEvent[] }> = ({ eve
       </h3>
 
       <div style={{ display: "flex", flexDirection: "column", gap: spacing["3"] }}>
-        {events.map((ev) => {
-          const isPositive = ev.pointsDelta >= 0;
+        {events.map((ev, idx) => {
+          const typeName = ev.eventType || ev.type || "ACTIVITY";
+          const delta = ev.pointsDelta ?? ev.points ?? 0;
+          const isPositive = delta >= 0;
           return (
             <div
-              key={ev.id}
+              key={ev.id || `${typeName}-${idx}-${ev.createdAt}`}
               style={{
                 display: "flex",
                 alignItems: "center",
@@ -61,10 +65,10 @@ export const ReputationHistory: React.FC<{ events: ReputationEvent[] }> = ({ eve
               <div>
                 <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                   <span style={{ fontWeight: 600, fontSize: "14px", color: color.text.primary }}>
-                    {ev.eventType}
+                    {typeName}
                   </span>
                   <Badge variant={isPositive ? "success" : "danger"}>
-                    {isPositive ? `+${ev.pointsDelta}` : `${ev.pointsDelta}`} pts
+                    {isPositive ? `+${delta}` : `${delta}`} pts
                   </Badge>
                 </div>
                 <div style={{ fontSize: "12px", color: color.text.muted, marginTop: "2px" }}>

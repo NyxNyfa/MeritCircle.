@@ -5,6 +5,7 @@ import { color, radius, spacing, Button, Card, EmptyState } from "@merit-circle/
 import { AppProviders } from "../../providers/AppProviders";
 import { Shell } from "../../components/layout/Shell";
 import { useAuth } from "../../hooks/useAuth";
+import { useReputation } from "../../hooks/useReputation";
 import { OnboardingForm } from "../../components/profile/OnboardingForm";
 import { formatAddress, formatPoint, formatTier } from "../../lib/format";
 import {
@@ -21,14 +22,25 @@ import {
 
 function SettingsContent() {
   const { user, isAuthenticated, isLoading: authLoading, refreshProfile } = useAuth();
+  const { points: repPoints, tier: repTier, refresh: refreshReputation } = useReputation();
   const [isEditing, setIsEditing] = useState(false);
   const [copied, setCopied] = useState(false);
+
+  const displayPoints =
+    user?.reputationPoints && user.reputationPoints > 0
+      ? user.reputationPoints
+      : repPoints || user?.reputationPoints || 0;
+  const displayTier =
+    user?.tier && user.tier > 1
+      ? user.tier
+      : repTier || user?.tier || 1;
 
   React.useEffect(() => {
     if (isAuthenticated) {
       refreshProfile();
+      refreshReputation();
     }
-  }, [isAuthenticated, refreshProfile]);
+  }, [isAuthenticated, refreshProfile, refreshReputation]);
 
   const handleCopyAddress = () => {
     if (!user?.walletAddress) return;
@@ -111,6 +123,7 @@ function SettingsContent() {
           onComplete={() => {
             setIsEditing(false);
             refreshProfile();
+            refreshReputation();
           }}
         />
       ) : (
@@ -245,7 +258,7 @@ function SettingsContent() {
                 <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
                   <StarIcon size={18} style={{ color: color.brand.accentElectric }} />
                   <span style={{ fontSize: "22px", fontWeight: 800, color: color.text.primary, fontFamily: "'JetBrains Mono', monospace" }}>
-                    {formatPoint(user?.reputationPoints || 0)}
+                    {formatPoint(displayPoints)}
                   </span>
                 </div>
                 <div
@@ -255,7 +268,7 @@ function SettingsContent() {
                     color: color.brand.accentCyan,
                   }}
                 >
-                  {formatTier(user?.tier || 1)}
+                  {formatTier(displayTier)}
                 </div>
               </div>
             </div>
@@ -410,7 +423,7 @@ function SettingsContent() {
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: "13px" }}>
                   <span style={{ color: color.text.secondary }}>4. Minimum Tier</span>
                   <span style={{ color: color.status.success, display: "inline-flex", alignItems: "center", gap: "4px", fontWeight: 600 }}>
-                    <CheckIcon size={14} /> Tier {user?.tier || 1}
+                    <CheckIcon size={14} /> Tier {displayTier}
                   </span>
                 </div>
               </div>

@@ -53,8 +53,9 @@ export async function getProfile(userId: string) {
   }
 
   const profile = user.profile;
-  const currentPoints = user.reputation?.points ?? 0;
-  const currentTier = user.reputation?.tier ?? 1;
+  const rep = await prisma.reputation.findUnique({ where: { userId } });
+  const currentPoints = rep?.points ?? user.reputation?.points ?? 0;
+  const currentTier = rep?.tier ?? user.reputation?.tier ?? 1;
 
   return {
     id: user.id,

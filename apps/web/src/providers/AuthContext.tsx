@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
 import { AuthUser, getToken, getStoredUser, setStoredUser, clearSession, setToken } from "../lib/auth";
-import { requestNonce, verifyWallet, getSession, logout as apiLogout, getProfile } from "../lib/api";
+import { requestNonce, verifyWallet, getSession, logout as apiLogout, getProfile, getMyReputation } from "../lib/api";
 import { getErrorMessage } from "../lib/error";
 import { useWallet } from "./WalletContext";
 
@@ -29,8 +29,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const refreshProfile = useCallback(async (): Promise<void> => {
     if (!getToken()) return;
     try {
-      const res = await getProfile();
+      const [res, repRes] = await Promise.all([
+        getProfile().catch(() => null),
+        getMyReputation().catch(() => null),
+      ]);
       const p = (res as any)?.profile || res;
+      const pts =
+        repRes?.points ??
+        repRes?.reputationPoints ??
+        p?.reputationPoints ??
+        (p as any)?.points ??
+        0;
+      const tr = repRes?.tier ?? p?.tier ?? 1;
+
       if (p && (p.walletAddress || p.username !== undefined || p.id)) {
         setUser((prev) => {
           const updated: AuthUser = {
@@ -44,8 +55,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             xUrl: p.xUrl ?? prev?.xUrl ?? null,
             telegramUrl: p.telegramUrl ?? prev?.telegramUrl ?? null,
             discordHandle: p.discordHandle ?? prev?.discordHandle ?? null,
-            reputationPoints: p.reputationPoints ?? (p as any).points ?? prev?.reputationPoints ?? 0,
-            tier: p.tier ?? prev?.tier ?? 1,
+            reputationPoints: pts,
+            tier: tr,
             createdAt: prev?.createdAt || new Date().toISOString(),
             updatedAt: new Date().toISOString(),
           };

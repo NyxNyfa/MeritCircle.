@@ -125,6 +125,7 @@ export async function getReputationHistory(userId: string) {
     where: { userId },
     orderBy: { createdAt: "desc" },
     select: {
+      id: true,
       type: true,
       points: true,
       reason: true,
@@ -132,5 +133,15 @@ export async function getReputationHistory(userId: string) {
     },
   });
 
-  return { events };
+  return {
+    events: events.map((e) => ({
+      id: e.id,
+      type: e.type,
+      eventType: e.type,
+      points: e.points,
+      pointsDelta: e.points,
+      reason: e.reason,
+      createdAt: e.createdAt,
+    })),
+  };
 }
