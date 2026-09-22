@@ -19,6 +19,25 @@ import {
   StarIcon,
 } from "../../components/layout/Icons";
 
+const EVENT_LABELS: Record<string, string> = {
+  USERNAME_SET: "Username Configured",
+  EMAIL_VERIFIED: "Email Verified",
+  WALLET_CONNECTED: "Wallet Connected",
+  SOCIAL_X_ADDED: "X (Twitter) Linked",
+  SOCIAL_TELEGRAM_ADDED: "Telegram Linked",
+  SOCIAL_DISCORD_ADDED: "Discord Linked",
+  AVATAR_UPLOADED: "Avatar Uploaded",
+  PROFILE_COMPLETED: "Profile Completed",
+  JOIN_POOL: "Pool Joined",
+  CONTRIBUTION_ON_TIME: "On-Time Contribution",
+  CONTRIBUTION_EARLY_BONUS: "Early Contribution Bonus",
+  CONTRIBUTION_LATE: "Late Contribution Penalty",
+  CONTRIBUTION_UNPAID: "Default Penalty",
+  GROUP_COMPLETED: "Group Completed",
+  AUCTION_SUCCESSFULLY_REPAID: "Auction Repaid",
+  ADMIN_ADJUSTMENT: "Administrative Adjustment",
+};
+
 function DashboardContent() {
   const { user, isAuthenticated, isLoading: authLoading, loginWithWallet } = useAuth();
   const { points, tier, maxActiveGroups, history } = useReputation();
@@ -347,32 +366,40 @@ function DashboardContent() {
               </div>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: spacing["3"] }}>
-                {history.slice(0, 5).map((ev: any) => (
-                  <div
-                    key={ev.id}
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                      paddingBottom: "8px",
-                      borderBottom: `1px solid ${color.border.subtle}`,
-                      fontSize: "12px",
-                    }}
-                  >
-                    <div>
-                      <div style={{ fontWeight: 600, color: color.text.primary }}>{ev.eventType}</div>
-                      <div style={{ color: color.text.muted }}>{formatDate(ev.createdAt)}</div>
-                    </div>
-                    <span
+                {history.slice(0, 5).map((ev: any) => {
+                  const rawType = ev.eventType || ev.type || "";
+                  const typeName = EVENT_LABELS[rawType] || rawType || ev.reason || "Reputation Event";
+                  const delta = Number(ev.pointsDelta ?? ev.points ?? 0);
+                  const isPositive = delta > 0;
+                  const deltaText = isPositive ? `+${delta} pts` : `${delta} pts`;
+
+                  return (
+                    <div
+                      key={ev.id}
                       style={{
-                        fontWeight: 700,
-                        color: ev.pointsDelta >= 0 ? color.status.success : color.status.error,
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        paddingBottom: "8px",
+                        borderBottom: `1px solid ${color.border.subtle}`,
+                        fontSize: "12px",
                       }}
                     >
-                      {ev.pointsDelta >= 0 ? `+${ev.pointsDelta}` : ev.pointsDelta} pts
-                    </span>
-                  </div>
-                ))}
+                      <div>
+                        <div style={{ fontWeight: 600, color: color.text.primary }}>{typeName}</div>
+                        <div style={{ color: color.text.muted }}>{formatDate(ev.createdAt)}</div>
+                      </div>
+                      <span
+                        style={{
+                          fontWeight: 700,
+                          color: delta > 0 ? color.status.success : delta < 0 ? color.status.error : color.text.muted,
+                        }}
+                      >
+                        {deltaText}
+                      </span>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </Card>

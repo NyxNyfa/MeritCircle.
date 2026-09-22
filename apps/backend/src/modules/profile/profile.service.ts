@@ -24,7 +24,7 @@ export async function getProfile(userId: string) {
       await applyReputationEvent({
         userId,
         type: ReputationEventType.USERNAME_SET,
-        points: 10,
+        points: 20,
         reason: "Username set",
       });
     }
@@ -161,7 +161,7 @@ export async function updateProfile(userId: string, input: UpdateProfileInput) {
     await applyReputationEvent({
       userId,
       type: ReputationEventType.USERNAME_SET,
-      points: 10,
+      points: 20,
       reason: "Username set",
     });
   }
@@ -170,7 +170,7 @@ export async function updateProfile(userId: string, input: UpdateProfileInput) {
     await applyReputationEvent({
       userId,
       type: ReputationEventType.SOCIAL_X_ADDED,
-      points: 5,
+      points: 10,
       reason: "X (Twitter) profile linked",
     });
   }
@@ -179,7 +179,7 @@ export async function updateProfile(userId: string, input: UpdateProfileInput) {
     await applyReputationEvent({
       userId,
       type: ReputationEventType.SOCIAL_TELEGRAM_ADDED,
-      points: 5,
+      points: 10,
       reason: "Telegram account linked",
     });
   }
@@ -188,7 +188,7 @@ export async function updateProfile(userId: string, input: UpdateProfileInput) {
     await applyReputationEvent({
       userId,
       type: ReputationEventType.SOCIAL_DISCORD_ADDED,
-      points: 5,
+      points: 10,
       reason: "Discord handle linked",
     });
   }
@@ -197,7 +197,7 @@ export async function updateProfile(userId: string, input: UpdateProfileInput) {
     await applyReputationEvent({
       userId,
       type: ReputationEventType.AVATAR_UPLOADED,
-      points: 15,
+      points: 10,
       reason: "Avatar uploaded",
     });
   }

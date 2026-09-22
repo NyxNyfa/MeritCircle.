@@ -75,7 +75,7 @@ describe("Phase 09 - Profile Module", () => {
     expect(res.status).toBe(401);
   });
 
-  it("PATCH /api/profile updates username and awards USERNAME_SET (+10)", async () => {
+  it("PATCH /api/profile updates username and awards USERNAME_SET (+20)", async () => {
     const res = await request(app)
       .patch("/api/profile")
       .set("Authorization", `Bearer ${token1}`)
@@ -84,11 +84,11 @@ describe("Phase 09 - Profile Module", () => {
     expect(res.status).toBe(200);
     expect(res.body.username).toBe("alice_crypto");
 
-    // Check reputation award (+10)
+    // Check reputation award (+20)
     const rep = await mockPrisma.reputation.findUnique({
       where: { userId: userId1 },
     });
-    expect(rep.points).toBe(10);
+    expect(rep.points).toBe(20);
   });
 
   it("PUT /api/profile also updates profile successfully", async () => {
@@ -183,7 +183,7 @@ describe("Phase 09 - Profile Module", () => {
   });
 
   it("PATCH /api/profile does not award duplicate one-time reputation events", async () => {
-    // 1st update: username set -> +10
+    // 1st update: username set -> +20
     await request(app)
       .patch("/api/profile")
       .set("Authorization", `Bearer ${token1}`)
@@ -192,9 +192,9 @@ describe("Phase 09 - Profile Module", () => {
     const rep1 = await mockPrisma.reputation.findUnique({
       where: { userId: userId1 },
     });
-    expect(rep1.points).toBe(10);
+    expect(rep1.points).toBe(20);
 
-    // 2nd update: username changed to alice_2 -> should NOT award +10 again
+    // 2nd update: username changed to alice_2 -> should NOT award +20 again
     await request(app)
       .patch("/api/profile")
       .set("Authorization", `Bearer ${token1}`)
@@ -203,6 +203,6 @@ describe("Phase 09 - Profile Module", () => {
     const rep2 = await mockPrisma.reputation.findUnique({
       where: { userId: userId1 },
     });
-    expect(rep2.points).toBe(10);
+    expect(rep2.points).toBe(20);
   });
 });
