@@ -139,11 +139,16 @@ export async function updateProfile(data: {
   });
 }
 
-export async function requestEmailVerification(email: string): Promise<{ message: string }> {
-  return fetchApi<{ message: string }>("/api/email/verify/request", {
-    method: "POST",
-    body: JSON.stringify({ email }),
-  });
+export async function requestEmailVerification(
+  email: string
+): Promise<{ success?: boolean; expiresInMinutes?: number; devCode?: string; message?: string }> {
+  return fetchApi<{ success?: boolean; expiresInMinutes?: number; devCode?: string; message?: string }>(
+    "/api/email/verify/request",
+    {
+      method: "POST",
+      body: JSON.stringify({ email }),
+    }
+  );
 }
 
 export async function confirmEmailVerification(code: string): Promise<{ success: boolean; emailVerified: boolean }> {

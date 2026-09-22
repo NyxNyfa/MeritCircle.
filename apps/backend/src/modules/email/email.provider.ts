@@ -57,19 +57,33 @@ export class ResendEmailProvider implements EmailProvider {
       </div>
     `;
 
-    const res = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${this.apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        from: this.from,
-        to: [params.to],
-        subject: `Your Merit Circle Verification Code: ${params.code}`,
-        html,
-      }),
-    });
+    let res: Response;
+    try {
+      res = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${this.apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          from: this.from,
+          to: [params.to],
+          subject: `Your Merit Circle Verification Code: ${params.code}`,
+          html,
+        }),
+      });
+    } catch (networkError: any) {
+      const errorMsg =
+        networkError?.message || "Network error while connecting to Resend API";
+      logger.error(
+        `[Resend] Network failure sending email to ${params.to}: ${errorMsg}`
+      );
+      throw new AppError(
+        `Failed to communicate with email delivery service: ${errorMsg}`,
+        502,
+        "EMAIL_DELIVERY_FAILED"
+      );
+    }
 
     if (!res.ok) {
       const errorBody = (await res.json().catch(() => ({}))) as any;
@@ -103,7 +117,20 @@ export class DelegatingEmailProvider implements EmailProvider {
           apiKey.trim(),
           process.env.EMAIL_FROM?.trim()
         );
-        return resendProvider.sendVerificationEmail(params);
+        try {
+          await resendProvider.sendVerificationEmail(params);
+          return;
+        } catch (resendError: any) {
+          if (process.env.RESEND_STRICT === "true") {
+            throw resendError;
+          }
+          logger.warn(
+            `[Email] Resend delivery failed for ${params.to} (${resendError?.message || resendError}). Falling back to ConsoleEmailProvider.`
+          );
+          const consoleProvider = new ConsoleEmailProvider();
+          await consoleProvider.sendVerificationEmail(params);
+          return;
+        }
       }
       logger.warn(
         "[Email] EMAIL_PROVIDER is set to 'resend' but RESEND_API_KEY is not set. Falling back to ConsoleEmailProvider."

@@ -81,11 +81,13 @@ export const OnboardingForm: React.FC<{ onComplete?: () => void }> = ({ onComple
     setIsVerifying(true);
     setMessage(null);
     try {
-      await requestEmailVerification(email);
+      const res = await requestEmailVerification(email);
       setIsCodeSent(true);
       setMessage({
         type: "success",
-        text: `Verification code sent to ${email}. Please check your inbox (or spam folder).`,
+        text: res?.devCode
+          ? `Verification code sent to ${email} (Demo OTP: ${res.devCode}).`
+          : `Verification code sent to ${email}. Please check your inbox (or spam folder).`,
       });
     } catch (err: any) {
       setMessage({ type: "error", text: getErrorMessage(err) });

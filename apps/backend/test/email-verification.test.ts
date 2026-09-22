@@ -277,6 +277,73 @@ describe("Phase 09 - Email Verification Module", () => {
 
       vi.unstubAllGlobals();
     });
+
+    it("handles network failure and wraps in AppError 502", async () => {
+      const fetchMock = vi.fn().mockRejectedValue(new TypeError("fetch failed"));
+      vi.stubGlobal("fetch", fetchMock);
+
+      const { ResendEmailProvider } = await import(
+        "../src/modules/email/email.provider"
+      );
+      const provider = new ResendEmailProvider("re_test_key");
+      await expect(
+        provider.sendVerificationEmail({
+          to: "recipient@example.com",
+          code: "123456",
+          expiresAt: new Date(),
+        })
+      ).rejects.toThrow(/Failed to communicate with email delivery service/i);
+
+      vi.unstubAllGlobals();
+    });
+
+    it("DelegatingEmailProvider gracefully falls back to console on Resend failure when not strict", async () => {
+      const fetchMock = vi.fn().mockRejectedValue(new Error("Connection timeout"));
+      vi.stubGlobal("fetch", fetchMock);
+
+      const originalEnv = process.env.NODE_ENV;
+      const originalProvider = process.env.EMAIL_PROVIDER;
+      const originalKey = process.env.RESEND_API_KEY;
+
+      process.env.NODE_ENV = "production";
+      process.env.EMAIL_PROVIDER = "resend";
+      process.env.RESEND_API_KEY = "re_mock_key_123";
+
+      const { DelegatingEmailProvider } = await import(
+        "../src/modules/email/email.provider"
+      );
+      const delegating = new DelegatingEmailProvider();
+
+      // Should not throw, should fall back to console
+      await expect(
+        delegating.sendVerificationEmail({
+          to: "fallback_user@example.com",
+          code: "112233",
+          expiresAt: new Date(),
+        })
+      ).resolves.toBeUndefined();
+
+      process.env.NODE_ENV = originalEnv;
+      process.env.EMAIL_PROVIDER = originalProvider;
+      process.env.RESEND_API_KEY = originalKey;
+      vi.unstubAllGlobals();
+    });
+  });
+
+  it("POST /api/email/verify/request returns 404 if user does not exist in DB", async () => {
+    const invalidUserToken = signJwt({
+      sub: "non_existent_user_9999",
+      walletAddress: "0x0000000000000000000000000000000000009999",
+      role: "USER",
+    });
+
+    const res = await request(app)
+      .post("/api/email/verify/request")
+      .set("Authorization", `Bearer ${invalidUserToken}`)
+      .send({ email: "ghost@example.com" });
+
+    expect(res.status).toBe(404);
+    expect(res.body.error.code).toBe("USER_NOT_FOUND");
   });
 });
 

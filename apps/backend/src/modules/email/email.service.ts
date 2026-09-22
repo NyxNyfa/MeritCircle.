@@ -4,6 +4,7 @@ import { generateOtp, hashToken } from "../../utils/crypto";
 import { emailProvider } from "./email.provider";
 import { applyReputationEvent } from "../reputation/reputation.service";
 import { ReputationEventType } from "@prisma/client";
+import { logger } from "../../utils/logger";
 
 // In-memory rate limiter for verification requests (userId => timestamps[])
 const rateLimitMap = new Map<string, number[]>();
@@ -41,7 +42,16 @@ export async function requestEmailVerification(
   expiresInMinutes: number;
   devCode?: string;
 }> {
-  let profile = await prisma.profile.findUnique({ where: { userId } });
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    include: { profile: true },
+  });
+
+  if (!user) {
+    throw new AppError("User not found", 404, "USER_NOT_FOUND");
+  }
+
+  let profile = user.profile;
 
   const targetEmail =
     emailFromBody?.trim().toLowerCase() || profile?.email?.trim().toLowerCase();
@@ -63,15 +73,22 @@ export async function requestEmailVerification(
       throw new AppError("Email is already registered by another user", 409, "EMAIL_ALREADY_EXISTS");
     }
 
-    if (!profile) {
-      profile = await prisma.profile.create({
-        data: { userId, email: targetEmail },
-      });
-    } else if (profile.email !== targetEmail) {
-      profile = await prisma.profile.update({
-        where: { userId },
-        data: { email: targetEmail, emailVerifiedAt: null },
-      });
+    try {
+      if (!profile) {
+        profile = await prisma.profile.create({
+          data: { userId, email: targetEmail },
+        });
+      } else if (profile.email !== targetEmail) {
+        profile = await prisma.profile.update({
+          where: { userId },
+          data: { email: targetEmail, emailVerifiedAt: null },
+        });
+      }
+    } catch (profileErr: any) {
+      if (profileErr?.code === "P2002") {
+        throw new AppError("Email is already registered by another user", 409, "EMAIL_ALREADY_EXISTS");
+      }
+      throw profileErr;
     }
   }
 
@@ -82,15 +99,27 @@ export async function requestEmailVerification(
   const expiresAt = new Date(Date.now() + OTP_EXPIRES_MINUTES * 60 * 1000);
 
   // Store hashed verification in EmailVerification table
-  await prisma.emailVerification.create({
-    data: {
-      userId,
-      email: targetEmail,
-      tokenHash: codeHash,
-      otpHash: codeHash,
-      expiresAt,
-    },
-  });
+  try {
+    await prisma.emailVerification.create({
+      data: {
+        userId,
+        email: targetEmail,
+        tokenHash: codeHash,
+        otpHash: codeHash,
+        expiresAt,
+      },
+    });
+  } catch (dbErr: any) {
+    logger.error("[Email] Failed to persist email verification record:", dbErr?.message || dbErr);
+    if (dbErr?.code === "P2021") {
+      throw new AppError(
+        "Database table EmailVerification does not exist. Please run database migrations.",
+        500,
+        "DATABASE_SCHEMA_ERROR"
+      );
+    }
+    throw dbErr;
+  }
 
   await emailProvider.sendVerificationEmail({
     to: targetEmail,
