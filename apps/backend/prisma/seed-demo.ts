@@ -141,8 +141,8 @@ interface PoolDef {
 const POOLS: PoolDef[] = [
   {
     externalPoolId: "START-1",
-    name: "Starter Circle",
-    description: "Beginner basic pool with 3 members",
+    name: "Starter Circle (Newcomer)",
+    description: "Kelompok arisan perdana untuk Newcomer (3 anggota) tanpa syarat minimal poin reputasi.",
     mode: "BASIC",
     minimumTier: 1,
     groupSize: 3,
@@ -152,7 +152,7 @@ const POOLS: PoolDef[] = [
     auctionOpenDay: null,
     auctionCloseDay: null,
     settlementDay: 30,
-    contributionAmountWei: "500000000000000",
+    contributionAmountWei: "800000000000000", // 0.0008 tBNB (Termurah / Newcomer)
     maxDiscountBps: null,
   },
   {
@@ -168,7 +168,7 @@ const POOLS: PoolDef[] = [
     auctionOpenDay: null,
     auctionCloseDay: null,
     settlementDay: 30,
-    contributionAmountWei: "1000000000000000",
+    contributionAmountWei: "1000000000000000", // 0.0010 tBNB
     maxDiscountBps: null,
   },
   {
@@ -184,7 +184,7 @@ const POOLS: PoolDef[] = [
     auctionOpenDay: null,
     auctionCloseDay: null,
     settlementDay: 30,
-    contributionAmountWei: "1500000000000000",
+    contributionAmountWei: "1500000000000000", // 0.0015 tBNB
     maxDiscountBps: null,
   },
   {
@@ -200,7 +200,7 @@ const POOLS: PoolDef[] = [
     auctionOpenDay: null,
     auctionCloseDay: null,
     settlementDay: 30,
-    contributionAmountWei: "2000000000000000",
+    contributionAmountWei: "2000000000000000", // 0.0020 tBNB
     maxDiscountBps: null,
   },
   {
@@ -216,7 +216,7 @@ const POOLS: PoolDef[] = [
     auctionOpenDay: null,
     auctionCloseDay: null,
     settlementDay: 30,
-    contributionAmountWei: "2000000000000000",
+    contributionAmountWei: "3000000000000000", // 0.0030 tBNB
     maxDiscountBps: null,
   },
   {
@@ -232,7 +232,7 @@ const POOLS: PoolDef[] = [
     auctionOpenDay: null,
     auctionCloseDay: null,
     settlementDay: 30,
-    contributionAmountWei: "3000000000000000",
+    contributionAmountWei: "4000000000000000", // 0.0040 tBNB
     maxDiscountBps: null,
   },
   {
@@ -248,7 +248,7 @@ const POOLS: PoolDef[] = [
     auctionOpenDay: null,
     auctionCloseDay: null,
     settlementDay: 30,
-    contributionAmountWei: "4000000000000000",
+    contributionAmountWei: "5000000000000000", // 0.0050 tBNB
     maxDiscountBps: null,
   },
   {
@@ -264,7 +264,7 @@ const POOLS: PoolDef[] = [
     auctionOpenDay: null,
     auctionCloseDay: null,
     settlementDay: 30,
-    contributionAmountWei: "5000000000000000",
+    contributionAmountWei: "8000000000000000", // 0.0080 tBNB
     maxDiscountBps: null,
   },
   {
@@ -280,7 +280,7 @@ const POOLS: PoolDef[] = [
     auctionOpenDay: 11,
     auctionCloseDay: 25,
     settlementDay: 30,
-    contributionAmountWei: "5000000000000000",
+    contributionAmountWei: "10000000000000000", // 0.0100 tBNB
     maxDiscountBps: 1000,
   },
   {
@@ -296,7 +296,7 @@ const POOLS: PoolDef[] = [
     auctionOpenDay: 11,
     auctionCloseDay: 25,
     settlementDay: 30,
-    contributionAmountWei: "4000000000000000",
+    contributionAmountWei: "12000000000000000", // 0.0120 tBNB
     maxDiscountBps: 1200,
   },
   {
@@ -312,7 +312,7 @@ const POOLS: PoolDef[] = [
     auctionOpenDay: 11,
     auctionCloseDay: 25,
     settlementDay: 30,
-    contributionAmountWei: "10000000000000000",
+    contributionAmountWei: "20000000000000000", // 0.0200 tBNB
     maxDiscountBps: 1500,
   },
   {
@@ -328,7 +328,7 @@ const POOLS: PoolDef[] = [
     auctionOpenDay: 11,
     auctionCloseDay: 25,
     settlementDay: 30,
-    contributionAmountWei: "20000000000000000",
+    contributionAmountWei: "50000000000000000", // 0.0500 tBNB
     maxDiscountBps: 2000,
   },
 ];

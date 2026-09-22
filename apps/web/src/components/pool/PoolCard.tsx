@@ -38,6 +38,9 @@ export const PoolCard: React.FC<PoolCardProps> = ({
   let isJoinable = true;
   let disabledReason = "";
 
+  const isPoolActive = pool.isActive !== undefined ? pool.isActive : (pool as any).status === "ACTIVE";
+  const userTier = Math.max(1, user?.tier || 1);
+
   if (!isAuthenticated || !user) {
     isJoinable = false;
     disabledReason = "Connect wallet first";
@@ -47,10 +50,10 @@ export const PoolCard: React.FC<PoolCardProps> = ({
   } else if (!user.isEmailVerified) {
     isJoinable = false;
     disabledReason = "Verify email first";
-  } else if (user.tier < pool.minimumTier) {
+  } else if (userTier < pool.minimumTier) {
     isJoinable = false;
     disabledReason = `Requires ${formatTier(pool.minimumTier)}`;
-  } else if (!pool.isActive) {
+  } else if (!isPoolActive) {
     isJoinable = false;
     disabledReason = "Pool is not currently active";
   }
@@ -78,8 +81,8 @@ export const PoolCard: React.FC<PoolCardProps> = ({
             {isAuction ? <ZapIcon size={12} /> : <CoinsIcon size={12} />}
             <span>{isAuction ? "AUCTION ROSCA" : "BASIC ROSCA"}</span>
           </Badge>
-          <span style={{ fontSize: "12px", color: color.text.muted, fontWeight: 600 }}>
-            Min. Tier {pool.minimumTier}
+          <span style={{ fontSize: "12px", color: pool.minimumTier <= 1 ? color.brand.accentElectric : color.text.muted, fontWeight: 600 }}>
+            {pool.minimumTier <= 1 ? "Tier 1 (Newcomer — 0+ pts)" : `Min. Tier ${pool.minimumTier}`}
           </span>
         </div>
 

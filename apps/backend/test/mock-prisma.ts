@@ -39,6 +39,26 @@ export const dbState: MockDbState = {
 export function seedDefaultPools(): void {
   const defaultPools = [
     {
+      id: "pool_starter_1",
+      externalPoolId: "START-1",
+      name: "Starter Circle (Newcomer)",
+      description: "Kelompok arisan perdana untuk Newcomer (3 anggota) tanpa syarat minimal poin reputasi.",
+      mode: "BASIC",
+      minimumTier: 1,
+      groupSize: 3,
+      cycleCount: 3,
+      cycleDurationDays: 30,
+      paymentWindowDays: 10,
+      auctionOpenDay: null,
+      auctionCloseDay: null,
+      settlementDay: 30,
+      contributionAmountWei: "800000000000000",
+      maxDiscountBps: null,
+      status: "ACTIVE",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    },
+    {
       id: "pool_basic_1",
       externalPoolId: "CIT-1",
       name: "Citizen Circle A",

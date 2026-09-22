@@ -11,11 +11,11 @@ function LandingPageContent() {
   const [selectedTier, setSelectedTier] = useState<number>(2);
 
   const samplePools = [
-    { tier: 1, name: "START-1 (Newcomer)", members: 3, contrib: "0.05 tBNB", payout: "0.15 tBNB", minRep: 0 },
-    { tier: 2, name: "CIT-1 (Citizen)", members: 5, contrib: "0.10 tBNB", payout: "0.50 tBNB", minRep: 200 },
-    { tier: 3, name: "BLD-1 (Builder)", members: 5, contrib: "0.25 tBNB", payout: "1.25 tBNB", minRep: 400 },
-    { tier: 4, name: "TRU-A1 (Trusted Auction)", members: 5, contrib: "0.50 tBNB", payout: "2.50 tBNB", minRep: 600 },
-    { tier: 5, name: "PRM-A1 (Prime Auction)", members: 6, contrib: "1.00 tBNB", payout: "6.00 tBNB", minRep: 800 },
+    { tier: 1, name: "START-1 (Newcomer)", members: 3, contrib: "0.0008 tBNB", payout: "0.0024 tBNB", minRep: 0 },
+    { tier: 2, name: "CIT-1 (Citizen)", members: 3, contrib: "0.0010 tBNB", payout: "0.0030 tBNB", minRep: 101 },
+    { tier: 3, name: "BLD-1 (Builder)", members: 5, contrib: "0.0030 tBNB", payout: "0.0150 tBNB", minRep: 401 },
+    { tier: 4, name: "TRU-A1 (Trusted Auction)", members: 5, contrib: "0.0100 tBNB", payout: "0.0500 tBNB", minRep: 701 },
+    { tier: 5, name: "PRM-A1 (Prime Auction)", members: 10, contrib: "0.0200 tBNB", payout: "0.2000 tBNB", minRep: 901 },
   ];
 
   const currentPool = samplePools.find((p) => p.tier === selectedTier) || samplePools[1];

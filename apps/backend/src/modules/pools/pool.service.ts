@@ -13,13 +13,24 @@ export async function getPools() {
       id: p.id,
       externalPoolId: p.externalPoolId,
       name: p.name,
+      description: p.description,
       mode: p.mode,
       minimumTier: p.minimumTier,
       groupSize: p.groupSize,
       cycleCount: p.cycleCount,
+      cycleDurationDays: p.cycleDurationDays,
+      paymentWindowDays: p.paymentWindowDays,
+      auctionOpenDay: p.auctionOpenDay,
+      auctionCloseDay: p.auctionCloseDay,
+      settlementDay: p.settlementDay,
       contributionAmountWei: p.contributionAmountWei,
       maxDiscountBps: p.maxDiscountBps,
       status: p.status,
+      isActive: p.status === "ACTIVE",
+      auctionWindowDays:
+        p.auctionCloseDay && p.auctionOpenDay
+          ? p.auctionCloseDay - p.auctionOpenDay + 1
+          : 15,
     })),
   };
 }

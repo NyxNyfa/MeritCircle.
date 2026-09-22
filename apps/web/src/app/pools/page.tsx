@@ -21,8 +21,9 @@ function PoolsMarketplaceContent() {
     if (selectedFilter === "BASIC") return p.mode === "BASIC";
     if (selectedFilter === "AUCTION") return p.mode === "AUCTION";
     if (selectedFilter === "ELIGIBLE") {
-      const userTier = user?.tier || 1;
-      return p.minimumTier <= userTier && p.isActive;
+      const userTier = Math.max(1, user?.tier || 1);
+      const isPoolActive = p.isActive !== undefined ? p.isActive : p.status === "ACTIVE";
+      return p.minimumTier <= userTier && isPoolActive;
     }
     return true;
   });
