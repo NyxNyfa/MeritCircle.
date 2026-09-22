@@ -31,16 +31,27 @@ export const OnboardingForm: React.FC<{
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   React.useEffect(() => {
-    if (user) {
-      if (user.username) setUsername(user.username);
-      if (user.email) setEmail(user.email);
-      setIsEmailVerified(Boolean(user.isEmailVerified));
-      if (user.xUrl) setXUrl(user.xUrl);
-      if (user.telegramUrl) setTelegramUrl(user.telegramUrl);
-      if (user.discordHandle) setDiscordHandle(user.discordHandle);
-      if (user.avatarUrl) setAvatarUrl(user.avatarUrl);
-    }
-  }, [user]);
+    setUsername(user?.username || "");
+    setEmail(user?.email || "");
+    setIsEmailVerified(Boolean(user?.isEmailVerified));
+    setXUrl(user?.xUrl || "");
+    setTelegramUrl(user?.telegramUrl || "");
+    setDiscordHandle(user?.discordHandle || "");
+    setAvatarUrl(user?.avatarUrl || "");
+    setVerificationCode("");
+    setIsCodeSent(false);
+    setMessage(null);
+  }, [
+    user?.id,
+    user?.walletAddress,
+    user?.username,
+    user?.email,
+    user?.isEmailVerified,
+    user?.xUrl,
+    user?.telegramUrl,
+    user?.discordHandle,
+    user?.avatarUrl,
+  ]);
 
   const processImageFile = (file: File) => {
     if (file.type !== "image/png" && !file.name.toLowerCase().endsWith(".png")) {
@@ -81,7 +92,7 @@ export const OnboardingForm: React.FC<{
 
   // Reputation preview calculation
   // Wallet connected: +10, Username: +20, Verified Email: +40, Socials: +10 each, Avatar: +10
-  let calculatedPreviewPoints = 10;
+  let calculatedPreviewPoints = user?.walletAddress ? 10 : 0;
   if (username.trim()) calculatedPreviewPoints += 20;
   if (isEmailVerified) calculatedPreviewPoints += 40;
   if (xUrl.trim()) calculatedPreviewPoints += 10;

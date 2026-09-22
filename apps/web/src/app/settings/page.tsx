@@ -27,20 +27,21 @@ function SettingsContent() {
   const [copied, setCopied] = useState(false);
 
   const displayPoints =
-    user?.reputationPoints && user.reputationPoints > 0
-      ? user.reputationPoints
-      : repPoints || user?.reputationPoints || 0;
+    !isAuthenticated || !user
+      ? 0
+      : (user.reputationPoints ?? repPoints ?? 0);
   const displayTier =
-    user?.tier && user.tier > 1
-      ? user.tier
-      : repTier || user?.tier || 1;
+    !isAuthenticated || !user
+      ? 1
+      : (user.tier ?? repTier ?? 1);
 
   React.useEffect(() => {
+    setIsEditing(false);
     if (isAuthenticated) {
       refreshProfile();
       refreshReputation();
     }
-  }, [isAuthenticated, refreshProfile, refreshReputation]);
+  }, [isAuthenticated, user?.id, user?.walletAddress, refreshProfile, refreshReputation]);
 
   const handleCopyAddress = () => {
     if (!user?.walletAddress) return;

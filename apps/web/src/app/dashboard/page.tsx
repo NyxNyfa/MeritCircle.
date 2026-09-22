@@ -47,11 +47,14 @@ function DashboardContent() {
   const [loadingData, setLoadingData] = useState(true);
 
   useEffect(() => {
-    if (!isAuthenticated) {
+    if (!isAuthenticated || !user) {
+      setActiveGroups([]);
+      setUpcomingContributions([]);
       setLoadingData(false);
       return;
     }
 
+    setLoadingData(true);
     Promise.all([getMyGroups(), getMyContributions()])
       .then(([groupsRes, contribsRes]) => {
         setActiveGroups(groupsRes.groups || []);
@@ -65,7 +68,7 @@ function DashboardContent() {
       .finally(() => {
         setLoadingData(false);
       });
-  }, [isAuthenticated]);
+  }, [isAuthenticated, user?.id, user?.walletAddress]);
 
   if (!isAuthenticated && !authLoading) {
     return (

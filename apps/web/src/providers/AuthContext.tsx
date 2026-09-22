@@ -44,20 +44,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (p && (p.walletAddress || p.username !== undefined || p.id)) {
         setUser((prev) => {
+          const isSameUser = Boolean(prev && p.id && prev.id === p.id);
           const updated: AuthUser = {
-            id: prev?.id || p.id || "",
-            walletAddress: p.walletAddress || prev?.walletAddress || "",
-            role: p.role || prev?.role || "USER",
-            username: p.username ?? prev?.username ?? null,
-            email: p.email ?? prev?.email ?? null,
+            id: p.id || (isSameUser ? prev?.id : "") || "",
+            walletAddress: p.walletAddress || (isSameUser ? prev?.walletAddress : "") || "",
+            role: p.role || (isSameUser ? prev?.role : "USER") || "USER",
+            username: p.username !== undefined ? p.username : (isSameUser ? prev?.username : null) ?? null,
+            email: p.email !== undefined ? p.email : (isSameUser ? prev?.email : null) ?? null,
             isEmailVerified: Boolean(p.emailVerifiedAt),
-            avatarUrl: p.avatarUrl ?? prev?.avatarUrl ?? null,
-            xUrl: p.xUrl ?? prev?.xUrl ?? null,
-            telegramUrl: p.telegramUrl ?? prev?.telegramUrl ?? null,
-            discordHandle: p.discordHandle ?? prev?.discordHandle ?? null,
+            avatarUrl: p.avatarUrl !== undefined ? p.avatarUrl : (isSameUser ? prev?.avatarUrl : null) ?? null,
+            xUrl: p.xUrl !== undefined ? p.xUrl : (isSameUser ? prev?.xUrl : null) ?? null,
+            telegramUrl: p.telegramUrl !== undefined ? p.telegramUrl : (isSameUser ? prev?.telegramUrl : null) ?? null,
+            discordHandle: p.discordHandle !== undefined ? p.discordHandle : (isSameUser ? prev?.discordHandle : null) ?? null,
             reputationPoints: pts,
             tier: tr,
-            createdAt: prev?.createdAt || new Date().toISOString(),
+            createdAt: (isSameUser ? prev?.createdAt : null) || new Date().toISOString(),
             updatedAt: new Date().toISOString(),
           };
           setStoredUser(updated);
@@ -68,6 +69,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // ignore
     }
   }, []);
+
+  // Sync wallet account changes from MetaMask/provider
+  useEffect(() => {
+    if (address && user?.walletAddress) {
+      if (address.toLowerCase() !== user.walletAddress.toLowerCase()) {
+        clearSession();
+        setTokenState(null);
+        setUser(null);
+      }
+    }
+  }, [address, user?.walletAddress]);
 
   // Initial session restoration
   useEffect(() => {

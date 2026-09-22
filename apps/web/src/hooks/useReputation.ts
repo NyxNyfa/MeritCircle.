@@ -16,7 +16,7 @@ export interface ReputationState {
 }
 
 export function useReputation(): ReputationState {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const [points, setPoints] = useState<number>(0);
   const [tier, setTier] = useState<number>(1);
   const [maxActiveGroups, setMaxActiveGroups] = useState<number>(1);
@@ -25,7 +25,11 @@ export function useReputation(): ReputationState {
   const [error, setError] = useState<string | null>(null);
 
   const fetchReputation = useCallback(async () => {
-    if (!isAuthenticated) {
+    if (!isAuthenticated || !user) {
+      setPoints(0);
+      setTier(1);
+      setMaxActiveGroups(1);
+      setHistory([]);
       setIsLoading(false);
       return;
     }
@@ -48,7 +52,7 @@ export function useReputation(): ReputationState {
     } finally {
       setIsLoading(false);
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, user?.id, user?.walletAddress]);
 
   useEffect(() => {
     fetchReputation();

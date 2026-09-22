@@ -43,13 +43,13 @@ export const Topbar: React.FC<TopbarProps> = ({
   const { points: repPoints, tier: repTier } = useReputation();
 
   const currentPoints =
-    user?.reputationPoints && user.reputationPoints > 0
-      ? user.reputationPoints
-      : repPoints || user?.reputationPoints || 0;
+    !isAuthenticated || !user
+      ? 0
+      : (user.reputationPoints ?? repPoints ?? 0);
   const currentTier =
-    user?.tier && user.tier > 1
-      ? user.tier
-      : repTier || user?.tier || 1;
+    !isAuthenticated || !user
+      ? 1
+      : (user.tier ?? repTier ?? 1);
 
   const isAdmin = activeHref?.startsWith("/admin");
   const currentTitle =
