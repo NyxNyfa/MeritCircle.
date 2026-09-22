@@ -6,6 +6,7 @@ import { AppProviders } from "../../providers/AppProviders";
 import { useWallet } from "../../hooks/useWallet";
 import { useAuth } from "../../hooks/useAuth";
 import { formatAddress } from "../../lib/format";
+import { LockIcon, AlertTriangleIcon, CheckIcon } from "../../components/layout/Icons";
 
 function ConnectPageContent() {
   const { address, isConnected, isCorrectNetwork, switchNetwork } = useWallet();
@@ -56,12 +57,11 @@ function ConnectPageContent() {
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            fontSize: "24px",
             margin: `0 auto ${spacing["4"]}`,
             color: "#FFFFFF",
           }}
         >
-          🔐
+          <LockIcon size={26} />
         </div>
 
         <h1 style={{ fontSize: "24px", fontWeight: 800, margin: 0, marginBottom: "8px", color: color.text.primary }}>
@@ -86,7 +86,10 @@ function ConnectPageContent() {
               textAlign: "left",
             }}
           >
-            <div style={{ fontWeight: 700, marginBottom: "4px" }}>⚠️ Jaringan Tidak Cocok</div>
+            <div style={{ fontWeight: 700, marginBottom: "4px", display: "flex", alignItems: "center", gap: "6px" }}>
+              <AlertTriangleIcon size={16} />
+              <span>Jaringan Tidak Cocok</span>
+            </div>
             Dompet Anda terhubung ke jaringan lain. Silakan beralih ke BNB Smart Chain Testnet (Chain ID 97).
             <div style={{ marginTop: "10px" }}>
               <Button size="sm" variant="outline" onClick={switchNetwork}>
@@ -124,8 +127,9 @@ function ConnectPageContent() {
                 fontSize: "14px",
               }}
             >
-              <div style={{ color: color.status.success, fontWeight: 600, marginBottom: "4px" }}>
-                ✓ Connected & Authenticated
+              <div style={{ color: color.status.success, fontWeight: 600, marginBottom: "4px", display: "flex", alignItems: "center", gap: "6px" }}>
+                <CheckIcon size={16} />
+                <span>Connected & Authenticated</span>
               </div>
               <div style={{ color: color.text.secondary }}>
                 {formatAddress(user.walletAddress)} ({user.username || "Profile Incomplete"})
@@ -151,7 +155,7 @@ function ConnectPageContent() {
               loading={isLoading || redirecting}
               onClick={handleConnectAndLogin}
             >
-              🦊 Connect & Sign Nonce
+              Connect & Sign Nonce
             </Button>
             <a
               href="/"

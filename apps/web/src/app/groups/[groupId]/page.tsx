@@ -8,6 +8,7 @@ import { getGroup, getGroupCycles, getRewardLedger } from "../../../lib/api";
 import { getErrorMessage } from "../../../lib/error";
 import { formatAddress, formatDate, formatWeiToBnb } from "../../../lib/format";
 import { CycleTimeline, CycleInfo } from "../../../components/group/CycleTimeline";
+import { ZapIcon, UserIcon } from "../../../components/layout/Icons";
 
 function GroupHubContent({ groupId }: { groupId?: string }) {
   const [group, setGroup] = useState<any>(null);
@@ -99,9 +100,13 @@ function GroupHubContent({ groupId }: { groupId?: string }) {
               textDecoration: "none",
               fontSize: "14px",
               fontWeight: 600,
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "8px",
             }}
           >
-            ⚡ Masuk Ruang Lelang
+            <ZapIcon size={16} />
+            <span>Masuk Ruang Lelang</span>
           </a>
         )}
       </div>
@@ -234,7 +239,7 @@ function GroupHubContent({ groupId }: { groupId?: string }) {
                   }}
                 >
                   <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                    <span>👤</span>
+                    <UserIcon size={14} />
                     <span>{m.user?.username || formatAddress(m.user?.walletAddress || m.walletAddress)}</span>
                   </div>
                   <Badge variant={m.hasReceivedPayout ? "success" : "neutral"}>

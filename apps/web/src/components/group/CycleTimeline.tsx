@@ -3,6 +3,7 @@
 import React from "react";
 import { color, radius, spacing, Badge } from "@merit-circle/ui";
 import { formatWeiToBnb, formatDate } from "../../lib/format";
+import { CheckIcon } from "../layout/Icons";
 
 export interface CycleInfo {
   id: string;
@@ -58,7 +59,7 @@ export const CycleTimeline: React.FC<{
                   fontSize: "13px",
                 }}
               >
-                {isCompleted ? "✓" : cycle.cycleNumber}
+                {isCompleted ? <CheckIcon size={16} strokeWidth={2.5} /> : cycle.cycleNumber}
               </div>
 
               <div>

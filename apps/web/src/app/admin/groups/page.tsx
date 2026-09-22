@@ -15,6 +15,7 @@ import { AppProviders } from "../../../providers/AppProviders";
 import { AdminShell } from "../../../components/layout/AdminShell";
 import { getAdminGroups } from "../../../lib/api";
 import { getErrorMessage } from "../../../lib/error";
+import { RefreshIcon } from "../../../components/layout/Icons";
 
 interface GroupListItem {
   id: string;
@@ -74,8 +75,9 @@ function AdminGroupsContent() {
           </p>
         </div>
 
-        <Button variant="secondary" onClick={fetchGroups} disabled={isLoading}>
-          🔄 Refresh
+        <Button variant="secondary" onClick={fetchGroups} disabled={isLoading} style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
+          <RefreshIcon size={14} />
+          <span>Refresh</span>
         </Button>
       </div>
 

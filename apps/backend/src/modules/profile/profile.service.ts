@@ -7,7 +7,7 @@ import { applyReputationEvent } from "../reputation/reputation.service";
 export async function getProfile(userId: string) {
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    include: { profile: true },
+    include: { profile: true, reputation: true },
   });
 
   if (!user) {
@@ -17,6 +17,7 @@ export async function getProfile(userId: string) {
   const profile = user.profile;
 
   return {
+    id: user.id,
     username: profile?.username ?? null,
     email: profile?.email ?? null,
     emailVerifiedAt: profile?.emailVerifiedAt
@@ -27,13 +28,16 @@ export async function getProfile(userId: string) {
     telegramUrl: profile?.telegramUrl ?? null,
     discordHandle: profile?.discordHandle ?? null,
     walletAddress: user.walletAddress,
+    role: user.role,
+    reputationPoints: user.reputation?.points ?? 0,
+    tier: user.reputation?.tier ?? 1,
   };
 }
 
 export async function updateProfile(userId: string, input: UpdateProfileInput) {
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    include: { profile: true },
+    include: { profile: true, reputation: true },
   });
 
   if (!user) {
@@ -157,6 +161,7 @@ export async function updateProfile(userId: string, input: UpdateProfileInput) {
   });
 
   return {
+    id: user.id,
     username: updatedProfile.username ?? null,
     email: updatedProfile.email ?? null,
     emailVerifiedAt: updatedProfile.emailVerifiedAt
@@ -167,5 +172,8 @@ export async function updateProfile(userId: string, input: UpdateProfileInput) {
     telegramUrl: updatedProfile.telegramUrl ?? null,
     discordHandle: updatedProfile.discordHandle ?? null,
     walletAddress: user.walletAddress,
+    role: user.role,
+    reputationPoints: user.reputation?.points ?? 0,
+    tier: user.reputation?.tier ?? 1,
   };
 }

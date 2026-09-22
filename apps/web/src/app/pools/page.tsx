@@ -66,8 +66,8 @@ function PoolsMarketplaceContent() {
           {(
             [
               { id: "ALL", label: "All Pools" },
-              { id: "BASIC", label: "🪙 Basic" },
-              { id: "AUCTION", label: "⚡ Auction" },
+              { id: "BASIC", label: "Basic ROSCA" },
+              { id: "AUCTION", label: "Auction ROSCA" },
               { id: "ELIGIBLE", label: "Eligible for Me" },
             ] as const
           ).map((tab) => {

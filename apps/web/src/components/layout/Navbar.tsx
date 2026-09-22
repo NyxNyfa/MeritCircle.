@@ -2,21 +2,30 @@
 
 import React from "react";
 import { color, radius, spacing } from "@merit-circle/ui";
+import {
+  BarChartIcon,
+  CoinsIcon,
+  CreditCardIcon,
+  ZapIcon,
+  StarIcon,
+  SettingsIcon,
+  ShieldIcon,
+} from "./Icons";
 
 export interface NavItem {
   label: string;
   href: string;
-  icon: string;
+  icon: React.ReactNode;
   badge?: string;
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { label: "Dashboard", href: "/dashboard", icon: "📊" },
-  { label: "Pool Marketplace", href: "/pools", icon: "🪙" },
-  { label: "Payment Hub", href: "/pay", icon: "💳" },
-  { label: "Auction", href: "/auction", icon: "⚡" },
-  { label: "Reputation", href: "/reputation", icon: "⭐" },
-  { label: "Settings", href: "/settings", icon: "⚙️" },
+  { label: "Dashboard", href: "/dashboard", icon: <BarChartIcon size={18} /> },
+  { label: "Pool Marketplace", href: "/pools", icon: <CoinsIcon size={18} /> },
+  { label: "Payment Hub", href: "/pay", icon: <CreditCardIcon size={18} /> },
+  { label: "Auction", href: "/auction", icon: <ZapIcon size={18} /> },
+  { label: "Reputation", href: "/reputation", icon: <StarIcon size={18} /> },
+  { label: "Settings", href: "/settings", icon: <SettingsIcon size={18} /> },
 ];
 
 export interface NavbarProps {
@@ -152,7 +161,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activeHref = "/dashboard" }) => 
             border: "1px solid rgba(255, 255, 255, 0.08)",
           }}
         >
-          <span>🛡️</span>
+          <ShieldIcon size={16} />
           <span>Admin Control Panel</span>
         </a>
 

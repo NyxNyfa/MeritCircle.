@@ -28,9 +28,20 @@ export const LoadingState: React.FC<LoadingStateProps> = ({
           fontSize: "14px",
         }}
       >
-        <div style={{ fontSize: "28px" }} aria-hidden="true">
-          ⏳
-        </div>
+        <svg
+          width={28}
+          height={28}
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="#4D8EFF"
+          strokeWidth={2.5}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          style={{ animation: "spin 1s linear infinite" }}
+          aria-hidden="true"
+        >
+          <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+        </svg>
         <span>{message}</span>
       </div>
     );

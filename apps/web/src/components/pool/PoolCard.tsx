@@ -4,6 +4,7 @@ import React from "react";
 import { color, radius, spacing, Card, Badge, Button } from "@merit-circle/ui";
 import { formatWeiToBnb, formatTier } from "../../lib/format";
 import { useAuth } from "../../hooks/useAuth";
+import { ZapIcon, CoinsIcon } from "../layout/Icons";
 
 export interface PoolData {
   id: string;
@@ -73,8 +74,9 @@ export const PoolCard: React.FC<PoolCardProps> = ({
       <div>
         {/* Card Header: Mode Badge and Tier Requirement */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: spacing["3"] }}>
-          <Badge variant={isAuction ? "info" : "neutral"}>
-            {isAuction ? "⚡ AUCTION ROSCA" : "🪙 BASIC ROSCA"}
+          <Badge variant={isAuction ? "info" : "neutral"} style={{ display: "inline-flex", alignItems: "center", gap: "5px" }}>
+            {isAuction ? <ZapIcon size={12} /> : <CoinsIcon size={12} />}
+            <span>{isAuction ? "AUCTION ROSCA" : "BASIC ROSCA"}</span>
           </Badge>
           <span style={{ fontSize: "12px", color: color.text.muted, fontWeight: 600 }}>
             Min. Tier {pool.minimumTier}
@@ -181,7 +183,7 @@ export const PoolCard: React.FC<PoolCardProps> = ({
               textAlign: "center",
             }}
           >
-            ℹ️ {disabledReason}
+            {disabledReason}
           </div>
         )}
       </div>

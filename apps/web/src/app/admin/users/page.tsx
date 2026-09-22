@@ -17,6 +17,7 @@ import { AppProviders } from "../../../providers/AppProviders";
 import { AdminShell } from "../../../components/layout/AdminShell";
 import { getAdminUsers, adjustUserReputation } from "../../../lib/api";
 import { getErrorMessage } from "../../../lib/error";
+import { RefreshIcon, CheckIcon, AlertTriangleIcon } from "../../../components/layout/Icons";
 
 interface UserItem {
   id: string;
@@ -125,8 +126,9 @@ function AdminUsersContent() {
           </p>
         </div>
 
-        <Button variant="secondary" onClick={fetchUsers} disabled={isLoading}>
-          🔄 Refresh
+        <Button variant="secondary" onClick={fetchUsers} disabled={isLoading} style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
+          <RefreshIcon size={14} />
+          <span>Refresh</span>
         </Button>
       </div>
 
@@ -174,7 +176,10 @@ function AdminUsersContent() {
                     </td>
                     <td style={{ padding: "12px 10px" }}>
                       {u.emailVerifiedAt ? (
-                        <Badge variant="success">✓ Verified</Badge>
+                        <Badge variant="success" style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                          <CheckIcon size={12} />
+                          <span>Verified</span>
+                        </Badge>
                       ) : (
                         <Badge variant="neutral">Unverified</Badge>
                       )}
@@ -229,9 +234,15 @@ function AdminUsersContent() {
                 padding: spacing["3"],
                 fontSize: "13px",
                 color: "#fca5a5",
+                display: "flex",
+                alignItems: "flex-start",
+                gap: "8px",
               }}
             >
-              ⚠️ <strong>Warning:</strong> Admin adjustment will be recorded in audit log. Final reputation points are clamped between 0 and 1000, and user tier is recalculated automatically.
+              <AlertTriangleIcon size={16} style={{ flexShrink: 0, marginTop: "2px" }} />
+              <span>
+                <strong>Warning:</strong> Admin adjustment will be recorded in audit log. Final reputation points are clamped between 0 and 1000, and user tier is recalculated automatically.
+              </span>
             </div>
 
             <div style={{ display: "flex", gap: spacing["4"] }}>

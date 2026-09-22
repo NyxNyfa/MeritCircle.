@@ -9,6 +9,7 @@ import { getErrorMessage } from "../../../lib/error";
 import { formatWeiToBnb, formatTier } from "../../../lib/format";
 import { useAuth } from "../../../hooks/useAuth";
 import { JoinPoolModal } from "../../../components/pool/JoinPoolModal";
+import { ZapIcon, CoinsIcon, CheckIcon, XIcon } from "../../../components/layout/Icons";
 
 function PoolDetailContent({ poolId }: { poolId?: string }) {
   const { user, isAuthenticated } = useAuth();
@@ -78,8 +79,9 @@ function PoolDetailContent({ poolId }: { poolId?: string }) {
         {/* Detail Body */}
         <div>
           <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: spacing["2"] }}>
-            <Badge variant={isAuction ? "info" : "neutral"}>
-              {isAuction ? "⚡ AUCTION ROSCA" : "🪙 BASIC ROSCA"}
+            <Badge variant={isAuction ? "info" : "neutral"} style={{ display: "inline-flex", alignItems: "center", gap: "5px" }}>
+              {isAuction ? <ZapIcon size={12} /> : <CoinsIcon size={12} />}
+              <span>{isAuction ? "AUCTION ROSCA" : "BASIC ROSCA"}</span>
             </Badge>
             <span style={{ fontSize: "13px", color: color.text.muted }}>
               Requires {formatTier(pool.minimumTier)}
@@ -157,8 +159,9 @@ function PoolDetailContent({ poolId }: { poolId?: string }) {
                 padding: spacing["6"],
               }}
             >
-              <h3 style={{ fontSize: "15px", fontWeight: 700, margin: 0, marginBottom: spacing["3"], color: color.brand.accentElectric }}>
-                ⚡ Peraturan Siklus Lelang & Siklus Final
+              <h3 style={{ fontSize: "15px", fontWeight: 700, margin: 0, marginBottom: spacing["3"], color: color.brand.accentElectric, display: "flex", alignItems: "center", gap: "6px" }}>
+                <ZapIcon size={16} />
+                <span>Peraturan Siklus Lelang & Siklus Final</span>
               </h3>
               <ul style={{ margin: 0, paddingLeft: "20px", fontSize: "13px", color: color.text.secondary, lineHeight: 1.6 }}>
                 <li>Lelang diskon hanya dibuka pada siklus non-final (siklus 1 s.d. {pool.cycleCount - 1}).</li>
@@ -189,25 +192,33 @@ function PoolDetailContent({ poolId }: { poolId?: string }) {
 
             <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginBottom: spacing["6"], fontSize: "13px" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                <span>{isAuthenticated ? "✓" : "✕"}</span>
+                <span style={{ display: "inline-flex", color: isAuthenticated ? color.status.success : color.text.muted }}>
+                  {isAuthenticated ? <CheckIcon size={14} /> : <XIcon size={14} />}
+                </span>
                 <span style={{ color: isAuthenticated ? color.status.success : color.text.muted }}>
                   Dompet Terhubung
                 </span>
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                <span>{user?.username ? "✓" : "✕"}</span>
+                <span style={{ display: "inline-flex", color: user?.username ? color.status.success : color.text.muted }}>
+                  {user?.username ? <CheckIcon size={14} /> : <XIcon size={14} />}
+                </span>
                 <span style={{ color: user?.username ? color.status.success : color.text.muted }}>
                   Username Ditetapkan
                 </span>
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                <span>{user?.isEmailVerified ? "✓" : "✕"}</span>
+                <span style={{ display: "inline-flex", color: user?.isEmailVerified ? color.status.success : color.text.muted }}>
+                  {user?.isEmailVerified ? <CheckIcon size={14} /> : <XIcon size={14} />}
+                </span>
                 <span style={{ color: user?.isEmailVerified ? color.status.success : color.text.muted }}>
                   Email Terverifikasi
                 </span>
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                <span>{isTierEligible ? "✓" : "✕"}</span>
+                <span style={{ display: "inline-flex", color: isTierEligible ? color.status.success : color.text.muted }}>
+                  {isTierEligible ? <CheckIcon size={14} /> : <XIcon size={14} />}
+                </span>
                 <span style={{ color: isTierEligible ? color.status.success : color.text.muted }}>
                   Tier Memenuhi Syarat (Min. Tier {pool.minimumTier})
                 </span>

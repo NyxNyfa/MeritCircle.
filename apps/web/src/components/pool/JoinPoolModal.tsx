@@ -7,6 +7,7 @@ import { formatWeiToBnb } from "../../lib/format";
 import { joinPool } from "../../lib/api";
 import { getErrorMessage } from "../../lib/error";
 import { useAuth } from "../../hooks/useAuth";
+import { XIcon, AlertTriangleIcon } from "../layout/Icons";
 
 export interface JoinPoolModalProps {
   pool: PoolData | null;
@@ -88,11 +89,14 @@ export const JoinPoolModal: React.FC<JoinPoolModalProps> = ({
               background: "transparent",
               border: "none",
               color: color.text.muted,
-              fontSize: "18px",
               cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: "4px",
             }}
           >
-            ✕
+            <XIcon size={18} />
           </button>
         </div>
 
@@ -145,7 +149,10 @@ export const JoinPoolModal: React.FC<JoinPoolModalProps> = ({
               lineHeight: 1.5,
             }}
           >
-            <div style={{ fontWeight: 600, marginBottom: "4px" }}>⚠️ Profile Requirements Needed to Join:</div>
+            <div style={{ fontWeight: 600, marginBottom: "4px", display: "flex", alignItems: "center", gap: "6px" }}>
+              <AlertTriangleIcon size={16} />
+              <span>Profile Requirements Needed to Join:</span>
+            </div>
             {!hasUsername && <div>• Set a username in your profile (+20 Reputation)</div>}
             {!hasEmailVerified && <div>• Verify your email address (+40 Reputation)</div>}
             <div style={{ marginTop: "8px" }}>

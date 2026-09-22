@@ -26,6 +26,38 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
+  const refreshProfile = useCallback(async (): Promise<void> => {
+    if (!getToken()) return;
+    try {
+      const res = await getProfile();
+      const p = (res as any)?.profile || res;
+      if (p && (p.walletAddress || p.username !== undefined || p.id)) {
+        setUser((prev) => {
+          const updated: AuthUser = {
+            id: prev?.id || p.id || "",
+            walletAddress: p.walletAddress || prev?.walletAddress || "",
+            role: p.role || prev?.role || "USER",
+            username: p.username ?? prev?.username ?? null,
+            email: p.email ?? prev?.email ?? null,
+            isEmailVerified: Boolean(p.emailVerifiedAt),
+            avatarUrl: p.avatarUrl ?? prev?.avatarUrl ?? null,
+            xUrl: p.xUrl ?? prev?.xUrl ?? null,
+            telegramUrl: p.telegramUrl ?? prev?.telegramUrl ?? null,
+            discordHandle: p.discordHandle ?? prev?.discordHandle ?? null,
+            reputationPoints: p.reputationPoints ?? prev?.reputationPoints ?? 0,
+            tier: p.tier ?? prev?.tier ?? 1,
+            createdAt: prev?.createdAt || new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          };
+          setStoredUser(updated);
+          return updated;
+        });
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
+
   // Initial session restoration
   useEffect(() => {
     const existingToken = getToken();
@@ -36,12 +68,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (existingUser) {
         setUser(existingUser);
       }
-      // Re-validate session with backend
+      // Re-validate session with backend and sync complete profile
       getSession()
         .then((res) => {
           if (res?.user) {
-            setUser(res.user);
-            setStoredUser(res.user);
+            refreshProfile();
           }
         })
         .catch(() => {
@@ -56,7 +87,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } else {
       setIsLoading(false);
     }
-  }, []);
+  }, [refreshProfile]);
 
   const loginWithWallet = async (): Promise<boolean> => {
     setIsLoading(true);
@@ -84,6 +115,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setTokenState(verifyRes.token);
       setUser(verifyRes.user);
 
+      // Sync full profile & reputation immediately
+      await refreshProfile();
+
       return true;
     } catch (err: any) {
       setError(getErrorMessage(err));
@@ -106,22 +140,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setIsLoading(false);
     }
   };
-
-  const refreshProfile = useCallback(async (): Promise<void> => {
-    if (!getToken()) return;
-    try {
-      const res = await getProfile();
-      if (res?.profile) {
-        setUser((prev) => {
-          const updated = prev ? { ...prev, ...res.profile } : (res.profile as AuthUser);
-          setStoredUser(updated);
-          return updated;
-        });
-      }
-    } catch {
-      // ignore
-    }
-  }, []);
 
   const isAuthenticated = Boolean(token && user);
 

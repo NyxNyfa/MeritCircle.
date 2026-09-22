@@ -10,6 +10,14 @@ import { getMyGroups, getMyContributions } from "../../lib/api";
 import { formatAddress, formatDate, formatPoint, formatTier, formatWeiToBnb } from "../../lib/format";
 import { GroupCard, GroupData } from "../../components/group/GroupCard";
 import { LiquidMetalButton } from "../../components/ui/liquid-metal-button";
+import {
+  ZapIcon,
+  UserIcon,
+  RefreshIcon,
+  CreditCardIcon,
+  CoinsIcon,
+  StarIcon,
+} from "../../components/layout/Icons";
 
 function DashboardContent() {
   const { user, isAuthenticated, isLoading: authLoading, loginWithWallet } = useAuth();
@@ -51,7 +59,7 @@ function DashboardContent() {
               size="md"
               variant="primary"
               onClick={loginWithWallet}
-              icon={<span>⚡</span>}
+              icon={<ZapIcon size={16} />}
             >
               Connect Wallet
             </LiquidMetalButton>
@@ -91,7 +99,7 @@ function DashboardContent() {
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              fontSize: "26px",
+              color: color.brand.primary,
             }}
           >
             {user?.avatarUrl ? (
@@ -101,7 +109,7 @@ function DashboardContent() {
                 style={{ width: "100%", height: "100%", borderRadius: "18px", objectFit: "cover" }}
               />
             ) : (
-              "👤"
+              <UserIcon size={24} />
             )}
           </div>
           <div>
@@ -166,7 +174,7 @@ function DashboardContent() {
         >
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
             <span style={{ fontSize: "12px", color: color.text.muted, fontWeight: 500 }}>Reputation Score</span>
-            <span style={{ fontSize: "14px" }}>⭐</span>
+            <StarIcon size={16} />
           </div>
           <div
             style={{
@@ -198,7 +206,7 @@ function DashboardContent() {
         >
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
             <span style={{ fontSize: "12px", color: color.text.muted, fontWeight: 500 }}>Active ROSCAs</span>
-            <span style={{ fontSize: "14px" }}>🔄</span>
+            <RefreshIcon size={16} />
           </div>
           <div
             style={{
@@ -225,7 +233,7 @@ function DashboardContent() {
         >
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
             <span style={{ fontSize: "12px", color: color.text.muted, fontWeight: 500 }}>Next Contribution</span>
-            <span style={{ fontSize: "14px" }}>💳</span>
+            <CreditCardIcon size={16} />
           </div>
           <div
             style={{
@@ -252,7 +260,7 @@ function DashboardContent() {
         >
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
             <span style={{ fontSize: "12px", color: color.text.muted, fontWeight: 500 }}>Auction & Surplus</span>
-            <span style={{ fontSize: "14px" }}>⚡</span>
+            <ZapIcon size={16} />
           </div>
           <div style={{ fontSize: "20px", fontWeight: 800, color: color.brand.accentElectric, marginBottom: "6px" }}>
             {activeGroups.some((g) => g.mode === "AUCTION") ? "Active Auction" : "Standard Pools"}
@@ -290,7 +298,9 @@ function DashboardContent() {
                 textAlign: "center",
               }}
             >
-              <div style={{ fontSize: "32px", marginBottom: "8px" }}>🪙</div>
+              <div style={{ marginBottom: "8px", display: "flex", justifyContent: "center", color: color.brand.primary }}>
+                <CoinsIcon size={36} />
+              </div>
               <div style={{ fontWeight: 600, marginBottom: "4px" }}>No Active Circles Yet</div>
               <p style={{ fontSize: "13px", color: color.text.secondary, marginBottom: spacing["4"] }}>
                 Browse the marketplace and join a rotating circle that matches your financial tier.

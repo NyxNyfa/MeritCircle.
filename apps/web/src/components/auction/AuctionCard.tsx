@@ -5,6 +5,7 @@ import { color, radius, spacing, Card, Badge, Button, Input } from "@merit-circl
 import { formatWeiToBnb, formatBpsToPercent } from "../../lib/format";
 import { submitBid } from "../../lib/api";
 import { getErrorMessage } from "../../lib/error";
+import { ShieldIcon } from "../layout/Icons";
 
 export interface AuctionData {
   id: string;
@@ -132,8 +133,9 @@ export const AuctionCard: React.FC<{
             lineHeight: 1.5,
           }}
         >
-          <div style={{ fontWeight: 600, color: color.status.info, marginBottom: "4px" }}>
-            ℹ️ Final Cycle ROSCA Guarantee
+          <div style={{ fontWeight: 600, color: color.status.info, marginBottom: "4px", display: "flex", alignItems: "center", gap: "6px" }}>
+            <ShieldIcon size={16} />
+            <span>Final Cycle ROSCA Guarantee</span>
           </div>
           Pada siklus final, tidak ada proses lelang diskon. Penerima terakhir berhak atas 100% total
           reward pool secara utuh tanpa potongan, dan seluruh sisa carried reward disalurkan tuntas.

@@ -8,6 +8,7 @@ import { useAuth } from "../../hooks/useAuth";
 import { getMyContributions } from "../../lib/api";
 import { getErrorMessage } from "../../lib/error";
 import { PaymentCard, ContributionItem } from "../../components/payment/PaymentCard";
+import { PartyPopperIcon } from "../../components/layout/Icons";
 
 function PaymentHubContent() {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
@@ -110,7 +111,9 @@ function PaymentHubContent() {
                   color: color.text.muted,
                 }}
               >
-                <div style={{ fontSize: "32px", marginBottom: "8px" }}>🎉</div>
+                <div style={{ marginBottom: "8px", display: "flex", justifyContent: "center", color: color.status.success }}>
+                  <PartyPopperIcon size={36} />
+                </div>
                 <div style={{ fontWeight: 600, color: color.status.success, marginBottom: "4px" }}>
                   Semua Iuran Lunas!
                 </div>

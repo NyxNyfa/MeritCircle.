@@ -17,6 +17,7 @@ import { AppProviders } from "../../../providers/AppProviders";
 import { AdminShell } from "../../../components/layout/AdminShell";
 import { getAdminUsers, adjustUserReputation } from "../../../lib/api";
 import { getErrorMessage } from "../../../lib/error";
+import { RefreshIcon } from "../../../components/layout/Icons";
 
 function AdminReputationContent() {
   const [users, setUsers] = useState<any[]>([]);
@@ -82,7 +83,7 @@ function AdminReputationContent() {
     try {
       const res = await adjustUserReputation(selectedUserId, pointsNum, reasonInput.trim());
       setAdjustSuccess(
-        `✓ Adjusted user reputation! New Points: ${res.reputationPoints}, Tier: ${res.tier}`
+        `Adjusted user reputation! New Points: ${res.reputationPoints}, Tier: ${res.tier}`
       );
       await fetchReputationData();
     } catch (err: any) {
@@ -111,8 +112,9 @@ function AdminReputationContent() {
           </p>
         </div>
 
-        <Button variant="secondary" onClick={fetchReputationData} disabled={isLoading}>
-          🔄 Refresh
+        <Button variant="secondary" onClick={fetchReputationData} disabled={isLoading} style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
+          <RefreshIcon size={14} />
+          <span>Refresh</span>
         </Button>
       </div>
 

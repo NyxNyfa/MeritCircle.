@@ -5,6 +5,7 @@ import { color, radius, spacing, Button, Card } from "@merit-circle/ui";
 import { AppProviders } from "../providers/AppProviders";
 import { Topbar } from "../components/layout/Topbar";
 import { LiquidMetalButton } from "../components/ui/liquid-metal-button";
+import { ShieldIcon, ZapIcon, TargetIcon } from "../components/layout/Icons";
 
 function LandingPageContent() {
   const [selectedTier, setSelectedTier] = useState<number>(2);
@@ -95,7 +96,7 @@ function LandingPageContent() {
             pointerEvents: "none",
           }}
         >
-          <span>🟡</span>
+          <span className="mc-live-dot" style={{ backgroundColor: "#F59E0B", boxShadow: "0 0 8px #F59E0B" }} />
           <span>BNB Chain Testnet</span>
         </div>
 
@@ -119,7 +120,7 @@ function LandingPageContent() {
             pointerEvents: "none",
           }}
         >
-          <span>🛡️</span>
+          <ShieldIcon size={16} />
           <span>1000 Pts Reputation</span>
         </div>
 
@@ -263,11 +264,11 @@ function LandingPageContent() {
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                fontSize: "24px",
                 marginBottom: "20px",
+                color: color.brand.primary,
               }}
             >
-              🛡️
+              <ShieldIcon size={24} />
             </div>
             <h3
               style={{
@@ -304,11 +305,11 @@ function LandingPageContent() {
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                fontSize: "24px",
                 marginBottom: "20px",
+                color: "#00E5FF",
               }}
             >
-              ⚡
+              <ZapIcon size={24} />
             </div>
             <h3
               style={{
@@ -345,11 +346,11 @@ function LandingPageContent() {
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                fontSize: "24px",
                 marginBottom: "20px",
+                color: "#F59E0B",
               }}
             >
-              🎯
+              <TargetIcon size={24} />
             </div>
             <h3
               style={{

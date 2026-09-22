@@ -127,7 +127,23 @@ export const Button: React.FC<ButtonProps> = ({
       className={`mc-button mc-button--${variant} ${liquidClass} ${className}`.trim()}
       {...props}
     >
-      {loading && <span className="mc-spinner" aria-hidden="true">⏳</span>}
+      {loading && (
+        <svg
+          width={16}
+          height={16}
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={2.5}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className="mc-spinner"
+          style={{ animation: "spin 1s linear infinite" }}
+          aria-hidden="true"
+        >
+          <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+        </svg>
+      )}
       {!loading && leftIcon}
       <span>{children}</span>
       {!loading && rightIcon}

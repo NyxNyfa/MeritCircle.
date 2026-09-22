@@ -119,8 +119,24 @@ export async function logout(): Promise<void> {
   }
 }
 
-export async function getProfile(): Promise<{ profile: any }> {
-  return fetchApi<{ profile: any }>("/api/profile", {
+export interface UserProfileResponse {
+  id?: string;
+  username: string | null;
+  email: string | null;
+  emailVerifiedAt: string | null;
+  avatarUrl: string | null;
+  xUrl: string | null;
+  telegramUrl: string | null;
+  discordHandle: string | null;
+  walletAddress: string;
+  role?: string;
+  reputationPoints?: number;
+  tier?: number;
+  profile?: UserProfileResponse;
+}
+
+export async function getProfile(): Promise<UserProfileResponse> {
+  return fetchApi<UserProfileResponse>("/api/profile", {
     method: "GET",
   });
 }
@@ -132,8 +148,8 @@ export async function updateProfile(data: {
   xUrl?: string;
   telegramUrl?: string;
   discordHandle?: string;
-}): Promise<{ profile: any }> {
-  return fetchApi<{ profile: any }>("/api/profile", {
+}): Promise<UserProfileResponse> {
+  return fetchApi<UserProfileResponse>("/api/profile", {
     method: "PATCH",
     body: JSON.stringify(data),
   });

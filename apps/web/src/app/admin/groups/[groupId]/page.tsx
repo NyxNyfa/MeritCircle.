@@ -15,6 +15,7 @@ import { AppProviders } from "../../../../providers/AppProviders";
 import { AdminShell } from "../../../../components/layout/AdminShell";
 import { getAdminGroup, fillDemoGroup } from "../../../../lib/api";
 import { getErrorMessage } from "../../../../lib/error";
+import { BotIcon, StarIcon } from "../../../../components/layout/Icons";
 
 function AdminGroupDetailContent({ initialGroupId }: { initialGroupId?: string }) {
   const [groupId, setGroupId] = useState<string>(initialGroupId || "");
@@ -124,11 +125,14 @@ function AdminGroupDetailContent({ initialGroupId }: { initialGroupId?: string }
                     variant="primary"
                     onClick={handleFillDemo}
                     disabled={isFilling}
+                    style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
                   >
-                    {isFilling ? "Filling..." : "🤖 Fill group with demo users"}
+                    <BotIcon size={14} />
+                    <span>{isFilling ? "Filling..." : "Fill group with demo users"}</span>
                   </Button>
-                  <span style={{ fontSize: "11px", color: "#f59e0b" }}>
-                    ★ Demo Tool • Fills slots & activates cycles
+                  <span style={{ fontSize: "11px", color: "#f59e0b", display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                    <StarIcon size={12} />
+                    <span>Demo Tool • Fills slots & activates cycles</span>
                   </span>
                 </div>
               )}

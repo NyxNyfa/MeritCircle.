@@ -7,6 +7,7 @@ import { AdminShell } from "../../components/layout/AdminShell";
 import { getAdminOverview } from "../../lib/api";
 import { getErrorMessage } from "../../lib/error";
 import { useAuth } from "../../hooks/useAuth";
+import { RefreshIcon } from "../../components/layout/Icons";
 
 interface OverviewMetrics {
   totalUsers: number;
@@ -69,8 +70,9 @@ function AdminDashboardContent() {
         </div>
 
         <div style={{ display: "flex", gap: "10px" }}>
-          <Button variant="secondary" onClick={fetchOverview} disabled={isLoading}>
-            🔄 Refresh
+          <Button variant="secondary" onClick={fetchOverview} disabled={isLoading} style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
+            <RefreshIcon size={14} />
+            <span>Refresh</span>
           </Button>
           <a href="/admin/pools" style={{ textDecoration: "none" }}>
             <Button variant="primary">+ Create Pool</Button>

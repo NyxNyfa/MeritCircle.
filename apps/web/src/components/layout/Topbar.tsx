@@ -5,7 +5,7 @@ import { color, radius, spacing } from "@merit-circle/ui";
 import { useWallet } from "../../hooks/useWallet";
 import { useAuth } from "../../hooks/useAuth";
 import { formatAddress, formatPoint, formatTier } from "../../lib/format";
-import { PanelLeftClose, PanelLeftOpen } from "./Icons";
+import { PanelLeftClose, PanelLeftOpen, AlertTriangleIcon, StarIcon, UserIcon, ZapIcon } from "./Icons";
 import { LiquidMetalButton } from "../ui/liquid-metal-button";
 
 export interface TopbarProps {
@@ -167,7 +167,7 @@ export const Topbar: React.FC<TopbarProps> = ({
               cursor: "pointer",
             }}
           >
-            <span>⚠️</span>
+            <AlertTriangleIcon size={14} />
             <span>Switch to BNB Testnet (97)</span>
           </button>
         ) : (
@@ -212,9 +212,13 @@ export const Topbar: React.FC<TopbarProps> = ({
                 fontWeight: 800,
                 color: color.brand.accentElectric,
                 fontFamily: "'JetBrains Mono', monospace",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "5px",
               }}
             >
-              ⭐ {formatPoint(user.reputationPoints)}
+              <StarIcon size={14} style={{ color: color.brand.accentElectric }} />
+              {formatPoint(user.reputationPoints)}
             </span>
             <span style={{ color: "rgba(255, 255, 255, 0.2)" }}>|</span>
             <span
@@ -247,7 +251,7 @@ export const Topbar: React.FC<TopbarProps> = ({
                 fontWeight: 600,
               }}
             >
-              <span style={{ fontSize: "14px" }}>👤</span>
+              <UserIcon size={14} style={{ color: color.text.muted }} />
               <span style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                 {user.username || formatAddress(user.walletAddress)}
               </span>
@@ -274,7 +278,7 @@ export const Topbar: React.FC<TopbarProps> = ({
             size="sm"
             variant="primary"
             onClick={loginWithWallet}
-            icon={<span>⚡</span>}
+            icon={<ZapIcon size={14} />}
           >
             Connect Wallet
           </LiquidMetalButton>

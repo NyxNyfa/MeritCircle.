@@ -4,6 +4,16 @@ import React from "react";
 import { color, radius, spacing, Badge } from "@merit-circle/ui";
 import { useAuth } from "../../hooks/useAuth";
 import { Topbar } from "./Topbar";
+import {
+  BarChartIcon,
+  UsersIcon,
+  CoinsIcon,
+  RefreshIcon,
+  ZapIcon,
+  StarIcon,
+  FileTextIcon,
+  HomeIcon,
+} from "./Icons";
 
 export interface AdminShellProps {
   children: React.ReactNode;
@@ -13,18 +23,18 @@ export interface AdminShellProps {
 interface AdminNavItem {
   label: string;
   href: string;
-  icon: string;
+  icon: React.ReactNode;
   badge?: string;
 }
 
 const ADMIN_NAV_ITEMS: AdminNavItem[] = [
-  { label: "Dashboard", href: "/admin", icon: "📊" },
-  { label: "Users", href: "/admin/users", icon: "👥" },
-  { label: "Pools", href: "/admin/pools", icon: "🪙" },
-  { label: "Groups", href: "/admin/groups", icon: "🔄" },
-  { label: "Auctions", href: "/admin/auctions", icon: "⚡" },
-  { label: "Reputation", href: "/admin/reputation", icon: "⭐" },
-  { label: "Audit Logs", href: "/admin/audit", icon: "📜" },
+  { label: "Dashboard", href: "/admin", icon: <BarChartIcon size={16} /> },
+  { label: "Users", href: "/admin/users", icon: <UsersIcon size={16} /> },
+  { label: "Pools", href: "/admin/pools", icon: <CoinsIcon size={16} /> },
+  { label: "Groups", href: "/admin/groups", icon: <RefreshIcon size={16} /> },
+  { label: "Auctions", href: "/admin/auctions", icon: <ZapIcon size={16} /> },
+  { label: "Reputation", href: "/admin/reputation", icon: <StarIcon size={16} /> },
+  { label: "Audit Logs", href: "/admin/audit", icon: <FileTextIcon size={16} /> },
 ];
 
 export const AdminShell: React.FC<AdminShellProps> = ({ children, activeHref = "/admin" }) => {
@@ -175,13 +185,11 @@ export const AdminShell: React.FC<AdminShellProps> = ({ children, activeHref = "
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    fontSize: "8px",
                     color: "#FFFFFF",
-                    fontWeight: 800,
                     border: "2px solid #141824",
                   }}
                 >
-                  ⚡
+                  <ZapIcon size={8} strokeWidth={2.5} />
                 </span>
               </div>
               <div>
@@ -218,7 +226,7 @@ export const AdminShell: React.FC<AdminShellProps> = ({ children, activeHref = "
                     transition: "all 0.15s ease",
                   }}
                 >
-                  <span style={{ fontSize: "16px" }}>{item.icon}</span>
+                  <span style={{ display: "flex", alignItems: "center" }}>{item.icon}</span>
                   <span style={{ flex: 1 }}>{item.label}</span>
                   {item.badge && <Badge variant="neutral">{item.badge}</Badge>}
                 </a>
@@ -242,7 +250,7 @@ export const AdminShell: React.FC<AdminShellProps> = ({ children, activeHref = "
                 transition: "color 0.15s ease",
               }}
             >
-              <span>🏠</span>
+              <HomeIcon size={16} />
               <span>Back to User App</span>
             </a>
           </div>

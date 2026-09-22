@@ -21,6 +21,7 @@ import {
   settleCycle,
 } from "../../../lib/api";
 import { getErrorMessage } from "../../../lib/error";
+import { RefreshIcon, CheckIcon, FlagIcon } from "../../../components/layout/Icons";
 
 interface AuctionCycleItem {
   groupId: string;
@@ -158,8 +159,9 @@ function AdminAuctionsContent() {
           </p>
         </div>
 
-        <Button variant="secondary" onClick={fetchAuctions} disabled={isLoading}>
-          🔄 Refresh
+        <Button variant="secondary" onClick={fetchAuctions} disabled={isLoading} style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
+          <RefreshIcon size={14} />
+          <span>Refresh</span>
         </Button>
       </div>
 
@@ -174,9 +176,13 @@ function AdminAuctionsContent() {
             color: "#4ade80",
             fontSize: "13px",
             fontWeight: 600,
+            display: "flex",
+            alignItems: "center",
+            gap: "8px",
           }}
         >
-          ✓ {actionSuccess}
+          <CheckIcon size={16} />
+          <span>{actionSuccess}</span>
         </div>
       )}
 
@@ -280,8 +286,16 @@ function AdminAuctionsContent() {
                                   variant="primary"
                                   disabled={isBusy}
                                   onClick={() => handleSettleCycle(item.cycleId)}
+                                  style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
                                 >
-                                  {isBusy ? "Settling..." : "🏁 Settle Final Cycle (100%)"}
+                                  {isBusy ? (
+                                    "Settling..."
+                                  ) : (
+                                    <>
+                                      <FlagIcon size={14} />
+                                      <span>Settle Final Cycle (100%)</span>
+                                    </>
+                                  )}
                                 </Button>
                               ) : (
                                 <Badge variant="success">Settled</Badge>

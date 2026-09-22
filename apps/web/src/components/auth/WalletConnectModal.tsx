@@ -4,6 +4,7 @@ import React from "react";
 import { color, radius, spacing, Button, Card } from "@merit-circle/ui";
 import { useWallet } from "../../hooks/useWallet";
 import { useAuth } from "../../hooks/useAuth";
+import { XIcon, LockIcon } from "../layout/Icons";
 
 export interface WalletConnectModalProps {
   isOpen: boolean;
@@ -72,11 +73,14 @@ export const WalletConnectModal: React.FC<WalletConnectModalProps> = ({
               background: "transparent",
               border: "none",
               color: color.text.muted,
-              fontSize: "18px",
               cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: "4px",
             }}
           >
-            ✕
+            <XIcon size={18} />
           </button>
         </div>
 
@@ -129,7 +133,7 @@ export const WalletConnectModal: React.FC<WalletConnectModalProps> = ({
             loading={isLoading}
             onClick={handleConnectAndSign}
           >
-            🦊 Connect MetaMask / Web3 Wallet
+            Connect Web3 Wallet
           </Button>
           <Button variant="ghost" size="md" onClick={onClose}>
             Cancel
@@ -144,9 +148,14 @@ export const WalletConnectModal: React.FC<WalletConnectModalProps> = ({
             fontSize: "12px",
             color: color.text.muted,
             textAlign: "center",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: "6px",
           }}
         >
-          🔒 Non-custodial & secure. No private keys are ever stored or shared.
+          <LockIcon size={14} />
+          <span>Non-custodial & secure. No private keys are ever stored or shared.</span>
         </div>
       </Card>
     </div>

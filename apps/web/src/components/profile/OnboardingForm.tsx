@@ -6,8 +6,12 @@ import { useAuth } from "../../hooks/useAuth";
 import { updateProfile, requestEmailVerification, confirmEmailVerification } from "../../lib/api";
 import { formatPoint, formatTier } from "../../lib/format";
 import { getErrorMessage } from "../../lib/error";
+import { CheckIcon, ImageIcon } from "../layout/Icons";
 
-export const OnboardingForm: React.FC<{ onComplete?: () => void }> = ({ onComplete }) => {
+export const OnboardingForm: React.FC<{
+  onComplete?: () => void;
+  onCancel?: () => void;
+}> = ({ onComplete, onCancel }) => {
   const { user, refreshProfile } = useAuth();
 
   const [username, setUsername] = useState(user?.username || "");
@@ -25,6 +29,18 @@ export const OnboardingForm: React.FC<{ onComplete?: () => void }> = ({ onComple
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  React.useEffect(() => {
+    if (user) {
+      if (user.username) setUsername(user.username);
+      if (user.email) setEmail(user.email);
+      setIsEmailVerified(Boolean(user.isEmailVerified));
+      if (user.xUrl) setXUrl(user.xUrl);
+      if (user.telegramUrl) setTelegramUrl(user.telegramUrl);
+      if (user.discordHandle) setDiscordHandle(user.discordHandle);
+      if (user.avatarUrl) setAvatarUrl(user.avatarUrl);
+    }
+  }, [user]);
 
   const processImageFile = (file: File) => {
     if (file.type !== "image/png" && !file.name.toLowerCase().endsWith(".png")) {
@@ -232,8 +248,9 @@ export const OnboardingForm: React.FC<{ onComplete?: () => void }> = ({ onComple
             </div>
 
             {isEmailVerified ? (
-              <span style={{ fontSize: "12px", color: color.status.success, marginTop: "4px", display: "block" }}>
-                ✓ Email verified (+40 reputation points)
+              <span style={{ fontSize: "12px", color: color.status.success, marginTop: "4px", display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                <CheckIcon size={14} />
+                Email verified (+40 reputation points)
               </span>
             ) : (
               isCodeSent && (
@@ -300,8 +317,9 @@ export const OnboardingForm: React.FC<{ onComplete?: () => void }> = ({ onComple
                   <div style={{ fontSize: "13px", fontWeight: 600, color: color.text.primary }}>
                     PNG Profile Picture Loaded
                   </div>
-                  <div style={{ fontSize: "12px", color: color.status.success, marginTop: "2px" }}>
-                    ✓ Ready to save (+10 reputation points)
+                  <div style={{ fontSize: "12px", color: color.status.success, marginTop: "2px", display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                    <CheckIcon size={14} />
+                    Ready to save (+10 reputation points)
                   </div>
                 </div>
                 <div style={{ display: "flex", gap: "8px", flexShrink: 0 }}>
@@ -341,7 +359,9 @@ export const OnboardingForm: React.FC<{ onComplete?: () => void }> = ({ onComple
                   transition: "all 0.2s ease",
                 }}
               >
-                <div style={{ fontSize: "28px", marginBottom: "6px" }}>🖼️</div>
+                <div style={{ display: "flex", justifyContent: "center", marginBottom: "6px" }}>
+                  <ImageIcon size={28} style={{ color: color.text.muted }} />
+                </div>
                 <div style={{ fontSize: "13px", fontWeight: 600, color: color.text.primary }}>
                   Click to browse or drag & drop PNG profile picture
                 </div>
@@ -387,15 +407,26 @@ export const OnboardingForm: React.FC<{ onComplete?: () => void }> = ({ onComple
             />
           </div>
 
-          <div style={{ marginTop: spacing["4"] }}>
+          <div style={{ marginTop: spacing["4"], display: "flex", gap: "12px" }}>
+            {onCancel && (
+              <Button
+                type="button"
+                variant="secondary"
+                size="lg"
+                onClick={onCancel}
+                style={{ flex: 1 }}
+              >
+                Cancel
+              </Button>
+            )}
             <Button
               type="submit"
               variant="liquid-metal"
               size="lg"
               loading={isSaving}
-              style={{ width: "100%" }}
+              style={{ flex: onCancel ? 2 : 1 }}
             >
-              Save Profile & Enter Platform
+              Save Profile
             </Button>
           </div>
         </form>

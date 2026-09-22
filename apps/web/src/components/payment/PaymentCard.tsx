@@ -6,6 +6,7 @@ import { formatWeiToBnb, formatDate } from "../../lib/format";
 import { createPaymentIntent, confirmContribution } from "../../lib/api";
 import { payContribution } from "../../lib/payment-adapter";
 import { getErrorMessage } from "../../lib/error";
+import { CheckIcon, AlertTriangleIcon } from "../layout/Icons";
 
 export interface ContributionItem {
   id: string;
@@ -93,7 +94,7 @@ export const PaymentCard: React.FC<{
             {formatWeiToBnb(contribution.amountWei)}
           </div>
           <div style={{ fontSize: "11px", fontWeight: 600, color: isLate ? color.status.error : color.text.muted, marginTop: "2px" }}>
-            {isLate ? "⚠️ Overdue: -10 pts/day penalty" : "Due on time (+10 reputation) • Late penalty: -10 pts/day"}
+            {isLate ? "Overdue: -10 pts/day penalty" : "Due on time (+10 reputation) • Late penalty: -10 pts/day"}
           </div>
         </div>
       </div>
@@ -121,7 +122,7 @@ export const PaymentCard: React.FC<{
 
       {step && (
         <div style={{ fontSize: "12px", color: color.brand.accentCyan, marginBottom: spacing["3"] }}>
-          ℹ️ {step}
+          {step}
         </div>
       )}
 
@@ -135,9 +136,13 @@ export const PaymentCard: React.FC<{
             border: `1px solid ${color.status.success}`,
             fontSize: "12px",
             color: color.status.success,
+            display: "flex",
+            alignItems: "center",
+            gap: "8px",
           }}
         >
-          ✓ Transaction successful: <code style={{ wordBreak: "break-all" }}>{txHash}</code>
+          <CheckIcon size={14} />
+          <span>Transaction successful: <code style={{ wordBreak: "break-all" }}>{txHash}</code></span>
         </div>
       )}
 
@@ -151,9 +156,13 @@ export const PaymentCard: React.FC<{
             border: `1px solid ${color.status.error}`,
             fontSize: "12px",
             color: color.status.error,
+            display: "flex",
+            alignItems: "center",
+            gap: "8px",
           }}
         >
-          ✕ {error}
+          <AlertTriangleIcon size={14} />
+          <span>{error}</span>
         </div>
       )}
 
