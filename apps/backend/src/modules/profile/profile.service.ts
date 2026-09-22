@@ -5,6 +5,44 @@ import { UpdateProfileInput } from "./profile.schema";
 import { applyReputationEvent } from "../reputation/reputation.service";
 
 export async function getProfile(userId: string) {
+  // Ensure verified profile achievements have their reputation events awarded
+  const userCheck = await prisma.user.findUnique({
+    where: { id: userId },
+    include: { profile: true },
+  });
+
+  if (!userCheck) {
+    throw new AppError("User not found", 404);
+  }
+
+  if (userCheck.profile?.username && userCheck.profile.username.trim().length > 0) {
+    const existingEvent = await prisma.reputationEvent.findFirst({
+      where: { userId, type: ReputationEventType.USERNAME_SET },
+    });
+    if (!existingEvent) {
+      await applyReputationEvent({
+        userId,
+        type: ReputationEventType.USERNAME_SET,
+        points: 10,
+        reason: "Username set",
+      });
+    }
+  }
+
+  if (userCheck.profile?.emailVerifiedAt) {
+    const existingEvent = await prisma.reputationEvent.findFirst({
+      where: { userId, type: ReputationEventType.EMAIL_VERIFIED },
+    });
+    if (!existingEvent) {
+      await applyReputationEvent({
+        userId,
+        type: ReputationEventType.EMAIL_VERIFIED,
+        points: 40,
+        reason: "Email successfully verified",
+      });
+    }
+  }
+
   const user = await prisma.user.findUnique({
     where: { id: userId },
     include: { profile: true, reputation: true },
@@ -15,6 +53,8 @@ export async function getProfile(userId: string) {
   }
 
   const profile = user.profile;
+  const currentPoints = user.reputation?.points ?? 0;
+  const currentTier = user.reputation?.tier ?? 1;
 
   return {
     id: user.id,
@@ -29,8 +69,9 @@ export async function getProfile(userId: string) {
     discordHandle: profile?.discordHandle ?? null,
     walletAddress: user.walletAddress,
     role: user.role,
-    reputationPoints: user.reputation?.points ?? 0,
-    tier: user.reputation?.tier ?? 1,
+    points: currentPoints,
+    reputationPoints: currentPoints,
+    tier: currentTier,
   };
 }
 
@@ -98,7 +139,8 @@ export async function updateProfile(userId: string, input: UpdateProfileInput) {
     : undefined;
 
   // Award reputation events for first-time completions
-  if (input.username && !currentProfile.username) {
+  // Note: applyReputationEvent automatically ensures one-time events are only awarded once
+  if (input.username && input.username.trim().length > 0) {
     await applyReputationEvent({
       userId,
       type: ReputationEventType.USERNAME_SET,
@@ -107,7 +149,7 @@ export async function updateProfile(userId: string, input: UpdateProfileInput) {
     });
   }
 
-  if (input.xUrl && !currentProfile.xUrl) {
+  if (input.xUrl && input.xUrl.trim().length > 0) {
     await applyReputationEvent({
       userId,
       type: ReputationEventType.SOCIAL_X_ADDED,
@@ -116,7 +158,7 @@ export async function updateProfile(userId: string, input: UpdateProfileInput) {
     });
   }
 
-  if (input.telegramUrl && !currentProfile.telegramUrl) {
+  if (input.telegramUrl && input.telegramUrl.trim().length > 0) {
     await applyReputationEvent({
       userId,
       type: ReputationEventType.SOCIAL_TELEGRAM_ADDED,
@@ -125,7 +167,7 @@ export async function updateProfile(userId: string, input: UpdateProfileInput) {
     });
   }
 
-  if (input.discordHandle && !currentProfile.discordHandle) {
+  if (input.discordHandle && input.discordHandle.trim().length > 0) {
     await applyReputationEvent({
       userId,
       type: ReputationEventType.SOCIAL_DISCORD_ADDED,
@@ -134,7 +176,7 @@ export async function updateProfile(userId: string, input: UpdateProfileInput) {
     });
   }
 
-  if (input.avatarUrl && !currentProfile.avatarUrl) {
+  if (input.avatarUrl && input.avatarUrl.trim().length > 0) {
     await applyReputationEvent({
       userId,
       type: ReputationEventType.AVATAR_UPLOADED,
@@ -160,6 +202,13 @@ export async function updateProfile(userId: string, input: UpdateProfileInput) {
     data: updateData,
   });
 
+  // Fetch updated reputation after awards
+  const updatedRep = await prisma.reputation.findUnique({
+    where: { userId },
+  });
+  const currentPoints = updatedRep?.points ?? 0;
+  const currentTier = updatedRep?.tier ?? 1;
+
   return {
     id: user.id,
     username: updatedProfile.username ?? null,
@@ -173,7 +222,8 @@ export async function updateProfile(userId: string, input: UpdateProfileInput) {
     discordHandle: updatedProfile.discordHandle ?? null,
     walletAddress: user.walletAddress,
     role: user.role,
-    reputationPoints: user.reputation?.points ?? 0,
-    tier: user.reputation?.tier ?? 1,
+    points: currentPoints,
+    reputationPoints: currentPoints,
+    tier: currentTier,
   };
 }

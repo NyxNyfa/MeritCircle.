@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import { useParams } from "next/navigation";
 import { color, radius, spacing, Card, Badge, Button, LoadingState } from "@merit-circle/ui";
 import { AppProviders } from "../../../providers/AppProviders";
 import { Shell } from "../../../components/layout/Shell";
@@ -13,19 +14,24 @@ import { ZapIcon, CoinsIcon, CheckIcon, XIcon } from "../../../components/layout
 
 function PoolDetailContent({ poolId }: { poolId?: string }) {
   const { user, isAuthenticated } = useAuth();
+  const routeParams = useParams();
   const [pool, setPool] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isJoinModalOpen, setIsJoinModalOpen] = useState(false);
 
   useEffect(() => {
-    // In client router, poolId can be extracted from pathname
-    const id = poolId || (typeof window !== "undefined" ? window.location.pathname.split("/").pop() : "");
+    let id = poolId || (routeParams?.poolId as string);
+    if (!id && typeof window !== "undefined") {
+      const parts = window.location.pathname.split("/").filter(Boolean);
+      id = parts[parts.length - 1];
+    }
     if (!id) return;
 
     getPool(id)
       .then((res) => {
-        setPool(res.pool);
+        const poolData = res?.pool || res;
+        setPool(poolData);
       })
       .catch((err) => {
         setError(getErrorMessage(err));
@@ -33,7 +39,7 @@ function PoolDetailContent({ poolId }: { poolId?: string }) {
       .finally(() => {
         setIsLoading(false);
       });
-  }, [poolId]);
+  }, [poolId, routeParams?.poolId]);
 
   if (isLoading) {
     return (
@@ -65,7 +71,8 @@ function PoolDetailContent({ poolId }: { poolId?: string }) {
   const userTier = user?.tier || 1;
   const isTierEligible = userTier >= pool.minimumTier;
   const isProfileComplete = Boolean(user?.username && user?.isEmailVerified);
-  const isJoinable = isAuthenticated && isTierEligible && isProfileComplete && pool.isActive;
+  const isPoolActive = pool.isActive !== undefined ? pool.isActive : pool.status === "ACTIVE";
+  const isJoinable = isAuthenticated && isTierEligible && isProfileComplete && isPoolActive;
 
   return (
     <Shell activeHref="/pools">
@@ -136,7 +143,13 @@ function PoolDetailContent({ poolId }: { poolId?: string }) {
                 <>
                   <div style={{ display: "flex", justifyContent: "space-between", paddingBottom: "10px", borderBottom: `1px solid ${color.border.subtle}` }}>
                     <span style={{ color: color.text.muted }}>Auction Window:</span>
-                    <span style={{ fontWeight: 600 }}>{pool.auctionWindowDays} Hari</span>
+                    <span style={{ fontWeight: 600 }}>
+                      {pool.auctionWindowDays ||
+                        (pool.auctionCloseDay && pool.auctionOpenDay
+                          ? pool.auctionCloseDay - pool.auctionOpenDay + 1
+                          : 15)}{" "}
+                      Hari
+                    </span>
                   </div>
 
                   <div style={{ display: "flex", justifyContent: "space-between" }}>
@@ -250,10 +263,10 @@ function PoolDetailContent({ poolId }: { poolId?: string }) {
   );
 }
 
-export default function PoolDetailPage() {
+export default function PoolDetailPage({ params }: { params?: { poolId?: string } }) {
   return (
     <AppProviders>
-      <PoolDetailContent />
+      <PoolDetailContent poolId={params?.poolId} />
     </AppProviders>
   );
 }

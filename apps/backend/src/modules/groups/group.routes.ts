@@ -8,19 +8,23 @@ import {
 
 export const groupRouter: Router = Router();
 
-// GET /api/groups/me
-groupRouter.get(
-  "/api/groups/me",
-  authMiddleware,
-  async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      const result = await getUserGroups(req.user!.id);
-      res.json(result);
-    } catch (error) {
-      next(error);
-    }
+// GET /api/groups, /api/groups/me, /api/groups/my
+const getMyGroupsHandler = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const result = await getUserGroups(req.user!.id);
+    res.json(result);
+  } catch (error) {
+    next(error);
   }
-);
+};
+
+groupRouter.get("/api/groups", authMiddleware, getMyGroupsHandler);
+groupRouter.get("/api/groups/me", authMiddleware, getMyGroupsHandler);
+groupRouter.get("/api/groups/my", authMiddleware, getMyGroupsHandler);
 
 // GET /api/groups/:groupId
 groupRouter.get(

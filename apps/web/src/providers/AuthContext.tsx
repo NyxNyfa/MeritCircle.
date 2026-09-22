@@ -44,7 +44,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             xUrl: p.xUrl ?? prev?.xUrl ?? null,
             telegramUrl: p.telegramUrl ?? prev?.telegramUrl ?? null,
             discordHandle: p.discordHandle ?? prev?.discordHandle ?? null,
-            reputationPoints: p.reputationPoints ?? prev?.reputationPoints ?? 0,
+            reputationPoints: p.reputationPoints ?? (p as any).points ?? prev?.reputationPoints ?? 0,
             tier: p.tier ?? prev?.tier ?? 1,
             createdAt: prev?.createdAt || new Date().toISOString(),
             updatedAt: new Date().toISOString(),

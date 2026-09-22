@@ -179,23 +179,32 @@ export async function confirmEmailVerification(code: string): Promise<{ success:
  * ========================================================================= */
 
 export async function getMyReputation(): Promise<{
+  points: number;
   reputationPoints: number;
   tier: number;
   maxActiveGroups: number;
 }> {
-  return fetchApi<{
-    reputationPoints: number;
-    tier: number;
-    maxActiveGroups: number;
-  }>("/api/reputation/me", {
+  const data = await fetchApi<any>("/api/reputation/me", {
     method: "GET",
   });
+  const points = data?.points ?? data?.reputationPoints ?? 0;
+  return {
+    ...data,
+    points,
+    reputationPoints: points,
+  };
 }
 
 export async function getMyReputationHistory(): Promise<{ events: any[] }> {
-  return fetchApi<{ events: any[] }>("/api/reputation/history", {
-    method: "GET",
-  });
+  try {
+    return await fetchApi<{ events: any[] }>("/api/reputation/me/history", {
+      method: "GET",
+    });
+  } catch {
+    return await fetchApi<{ events: any[] }>("/api/reputation/history", {
+      method: "GET",
+    });
+  }
 }
 
 /* =========================================================================
@@ -208,10 +217,12 @@ export async function getPools(): Promise<{ pools: any[] }> {
   });
 }
 
-export async function getPool(poolId: string): Promise<{ pool: any }> {
-  return fetchApi<{ pool: any }>(`/api/pools/${poolId}`, {
+export async function getPool(poolId: string): Promise<{ pool: any } & any> {
+  const data = await fetchApi<any>(`/api/pools/${poolId}`, {
     method: "GET",
   });
+  const pool = data?.pool || data;
+  return { ...data, pool };
 }
 
 export async function joinPool(poolId: string): Promise<{ membership: any; group?: any }> {
@@ -221,7 +232,7 @@ export async function joinPool(poolId: string): Promise<{ membership: any; group
 }
 
 export async function getMyGroups(): Promise<{ groups: any[] }> {
-  return fetchApi<{ groups: any[] }>("/api/groups", {
+  return fetchApi<{ groups: any[] }>("/api/groups/me", {
     method: "GET",
   });
 }
@@ -249,7 +260,7 @@ export async function getCycle(cycleId: string): Promise<{ cycle: any }> {
  * ========================================================================= */
 
 export async function getMyContributions(): Promise<{ contributions: any[] }> {
-  return fetchApi<{ contributions: any[] }>("/api/contributions", {
+  return fetchApi<{ contributions: any[] }>("/api/contributions/me", {
     method: "GET",
   });
 }

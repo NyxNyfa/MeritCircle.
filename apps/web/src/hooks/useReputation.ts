@@ -35,13 +35,14 @@ export function useReputation(): ReputationState {
     try {
       const [repRes, histRes] = await Promise.all([
         getMyReputation(),
-        getMyReputationHistory(),
+        getMyReputationHistory().catch(() => ({ events: [] })),
       ]);
 
-      setPoints(repRes.reputationPoints);
-      setTier(repRes.tier);
-      setMaxActiveGroups(repRes.maxActiveGroups);
-      setHistory(histRes.events || []);
+      const userPoints = (repRes as any).points ?? repRes.reputationPoints ?? 0;
+      setPoints(userPoints);
+      setTier(repRes.tier ?? 1);
+      setMaxActiveGroups(repRes.maxActiveGroups ?? 1);
+      setHistory(histRes?.events || []);
     } catch (err: any) {
       setError(getErrorMessage(err));
     } finally {

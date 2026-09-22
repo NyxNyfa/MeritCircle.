@@ -32,11 +32,14 @@ function AuctionHubContent() {
 
       // 2. Query auction for active cycle in each auction group
       for (const grp of groups) {
-        if (grp.mode === "AUCTION") {
+        const isAuctionGroup = grp.mode === "AUCTION" || grp.poolMode === "AUCTION";
+        if (isAuctionGroup) {
           try {
             const cyclesRes = await getGroupCycles(grp.id);
+            const targetCycleNum = grp.currentCycleNumber ?? grp.currentCycle;
             const currentCycle = (cyclesRes.cycles || []).find(
-              (c: any) => c.cycleNumber === grp.currentCycleNumber
+              (c: any) =>
+                c.cycleNumber === targetCycleNum || c.status === "AUCTION_OPEN"
             );
 
             if (currentCycle) {

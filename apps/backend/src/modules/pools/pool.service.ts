@@ -52,6 +52,11 @@ export async function getPoolById(poolId: string) {
     contributionAmountWei: pool.contributionAmountWei,
     maxDiscountBps: pool.maxDiscountBps,
     status: pool.status,
+    isActive: pool.status === "ACTIVE",
+    auctionWindowDays:
+      pool.auctionCloseDay && pool.auctionOpenDay
+        ? pool.auctionCloseDay - pool.auctionOpenDay + 1
+        : 15,
   };
 }
 

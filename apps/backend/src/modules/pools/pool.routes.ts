@@ -23,7 +23,7 @@ poolRouter.get(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const result = await getPoolById(req.params.poolId);
-      res.json(result);
+      res.json({ ...result, pool: result });
     } catch (error) {
       next(error);
     }
