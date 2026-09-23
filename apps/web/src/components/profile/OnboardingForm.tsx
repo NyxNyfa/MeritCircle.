@@ -91,14 +91,16 @@ export const OnboardingForm: React.FC<{
   };
 
   // Reputation preview calculation
-  // Wallet connected: +10, Username: +20, Verified Email: +40, Socials: +10 each, Avatar: +10
-  let calculatedPreviewPoints = user?.walletAddress ? 10 : 0;
-  if (username.trim()) calculatedPreviewPoints += 20;
-  if (isEmailVerified) calculatedPreviewPoints += 40;
-  if (xUrl.trim()) calculatedPreviewPoints += 10;
-  if (telegramUrl.trim()) calculatedPreviewPoints += 10;
-  if (discordHandle.trim()) calculatedPreviewPoints += 10;
-  if (avatarUrl.trim()) calculatedPreviewPoints += 10;
+  // Start with the user's actual current points from the database
+  let calculatedPreviewPoints = user?.reputationPoints || 0;
+  
+  // Only add points for fields that are newly being filled out (not previously set)
+  if (!user?.username && username.trim()) calculatedPreviewPoints += 20;
+  if (!user?.isEmailVerified && isEmailVerified) calculatedPreviewPoints += 40;
+  if (!user?.xUrl && xUrl.trim()) calculatedPreviewPoints += 10;
+  if (!user?.telegramUrl && telegramUrl.trim()) calculatedPreviewPoints += 10;
+  if (!user?.discordHandle && discordHandle.trim()) calculatedPreviewPoints += 10;
+  if (!user?.avatarUrl && avatarUrl.trim()) calculatedPreviewPoints += 10;
 
   const handleSendVerificationCode = async () => {
     if (!email || !email.includes("@")) {
