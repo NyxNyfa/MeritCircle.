@@ -1,5 +1,6 @@
 import { Router, Request, Response, NextFunction } from "express";
 import { adminGuard } from "./admin.guard";
+import { AppError } from "../../middleware/error";
 import {
   adjustReputationSchema,
   createPoolSchema,
@@ -175,6 +176,9 @@ adminRouter.post(
   adminGuard,
   async (req: Request, res: Response, next: NextFunction) => {
     try {
+      if (process.env.NODE_ENV === "production") {
+        throw new AppError("Fill demo is disabled in production environment.", 403, "DEMO_DISABLED");
+      }
       const parsed = fillDemoSchema.parse(req.body || {});
       const data = await fillDemoGroup(req.user!.id, req.params.groupId, parsed.prefix);
       res.json(data);

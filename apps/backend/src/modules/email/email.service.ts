@@ -131,7 +131,6 @@ export async function requestEmailVerification(
     success: true,
     expiresInMinutes: OTP_EXPIRES_MINUTES,
     ...(process.env.NODE_ENV !== "production" ||
-    process.env.NEXT_PUBLIC_DEMO_PAYMENT_MODE === "true" ||
     process.env.EMAIL_PROVIDER === "console" ||
     sendResult?.fallbackUsed
       ? { devCode: code }

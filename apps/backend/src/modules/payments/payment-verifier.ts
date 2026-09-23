@@ -129,7 +129,7 @@ export class OnChainPaymentVerifier implements PaymentVerifier {
   }
 }
 
-export class MockPaymentVerifier implements PaymentVerifier {
+export class TestPaymentVerifier implements PaymentVerifier {
   async verifyContribution(params: {
     txHash: string;
     expectedPayerWallet: string;
@@ -162,10 +162,10 @@ export class MockPaymentVerifier implements PaymentVerifier {
   }
 }
 
-// In deploy / production environment, default to real OnChainPaymentVerifier
+// In production, default strictly to real OnChainPaymentVerifier
 export let paymentVerifier: PaymentVerifier =
   process.env.NODE_ENV === "test"
-    ? new MockPaymentVerifier()
+    ? new TestPaymentVerifier()
     : new OnChainPaymentVerifier();
 
 export function setPaymentVerifier(verifier: PaymentVerifier): void {

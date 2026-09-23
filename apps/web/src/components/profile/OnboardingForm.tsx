@@ -114,9 +114,7 @@ export const OnboardingForm: React.FC<{
       setIsCodeSent(true);
       setMessage({
         type: "success",
-        text: res?.devCode
-          ? `Verification code sent to ${email} (Demo OTP: ${res.devCode}).`
-          : `Verification code sent to ${email}. Please check your inbox (or spam folder).`,
+        text: `Verification code sent to ${email}. Please check your inbox (or spam folder).`,
       });
     } catch (err: any) {
       setMessage({ type: "error", text: getErrorMessage(err) });

@@ -227,6 +227,7 @@ export async function settleCycle(
   // 7. Call Settlement Provider
   const providerResult = await provider.settleCycle({
     groupId: cycle.groupId,
+    contractGroupId: cycle.group.contractGroupId || undefined,
     cycleId: cycle.id,
     cycleNumber: cycle.cycleNumber,
     recipientUserId,
@@ -235,15 +236,15 @@ export async function settleCycle(
     type: payoutType,
   });
 
-  if (!providerResult.success) {
+  if (!providerResult.success || !providerResult.txHash) {
     throw new AppError(
-      providerResult.reason || "Settlement provider execution failed",
+      providerResult.reason || "Settlement provider execution failed on chain",
       500,
       "SETTLEMENT_PROVIDER_FAILED"
     );
   }
 
-  const txHash = providerResult.txHash || `mock-settlement-${cycle.id}`;
+  const txHash = providerResult.txHash;
 
   // 8. DB Updates
   // Create Payout record
