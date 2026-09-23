@@ -3,47 +3,9 @@ import { prisma } from "../../db/client";
 import { AppError } from "../../middleware/error";
 import { UpdateProfileInput } from "./profile.schema";
 import { applyReputationEvent } from "../reputation/reputation.service";
-import { clampReputationPoints, getTierFromPoints } from "@merit-circle/domain";
+import { getTierFromPoints } from "@merit-circle/domain";
 
 export async function getProfile(userId: string) {
-  // Ensure verified profile achievements have their reputation events awarded
-  const userCheck = await prisma.user.findUnique({
-    where: { id: userId },
-    include: { profile: true },
-  });
-
-  if (!userCheck) {
-    throw new AppError("User not found", 404);
-  }
-
-  if (userCheck.profile?.username && userCheck.profile.username.trim().length > 0) {
-    const existingEvent = await prisma.reputationEvent.findFirst({
-      where: { userId, type: ReputationEventType.USERNAME_SET },
-    });
-    if (!existingEvent) {
-      await applyReputationEvent({
-        userId,
-        type: ReputationEventType.USERNAME_SET,
-        points: 20,
-        reason: "Username set",
-      });
-    }
-  }
-
-  if (userCheck.profile?.emailVerifiedAt) {
-    const existingEvent = await prisma.reputationEvent.findFirst({
-      where: { userId, type: ReputationEventType.EMAIL_VERIFIED },
-    });
-    if (!existingEvent) {
-      await applyReputationEvent({
-        userId,
-        type: ReputationEventType.EMAIL_VERIFIED,
-        points: 40,
-        reason: "Email successfully verified",
-      });
-    }
-  }
-
   const user = await prisma.user.findUnique({
     where: { id: userId },
     include: { profile: true, reputation: true },
@@ -54,24 +16,9 @@ export async function getProfile(userId: string) {
   }
 
   const profile = user.profile;
-  const events = await prisma.reputationEvent.findMany({
-    where: { userId },
-  });
-  const rep = await prisma.reputation.findUnique({ where: { userId } });
-  let currentPoints = rep?.points ?? user.reputation?.points ?? 0;
-  if (events.length > 0) {
-    const totalPoints = events.reduce((sum, e) => sum + (e.points || 0), 0);
-    currentPoints = clampReputationPoints(totalPoints);
-    if (!rep || rep.points !== currentPoints) {
-      const tierInfo = getTierFromPoints(currentPoints);
-      await prisma.reputation.upsert({
-        where: { userId },
-        update: { points: currentPoints, tier: tierInfo.tier },
-        create: { userId, points: currentPoints, tier: tierInfo.tier },
-      });
-    }
-  }
-  const currentTier = getTierFromPoints(currentPoints).tier;
+  // Single source of truth: read directly from reputation table (always kept accurate by applyReputationEvent)
+  const currentPoints = user.reputation?.points ?? 0;
+  const currentTier = user.reputation?.tier ?? getTierFromPoints(currentPoints).tier;
 
   return {
     id: user.id,

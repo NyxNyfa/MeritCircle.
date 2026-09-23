@@ -21,7 +21,7 @@ docs/
 prompt.md
 
 # Local loop runners & test artifacts
-scripts/bug-loop.mjs
-packages/contracts/test/bughunt/
-packages/contracts/test/helpers/
-packages/contracts/test/results/
+scripts/
+packages/contracts/scripts/
+packages/contracts/test/
+apps/backend/test/
