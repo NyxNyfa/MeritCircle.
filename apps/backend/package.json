@@ -3,8 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "sync-env": "node ../../scripts/sync-env.js",
-    "predev": "node ../../scripts/sync-env.js",
+    "sync-env": "node -e \"try { if (require('fs').existsSync('../../scripts/sync-env.js')) require('../../scripts/sync-env.js'); } catch {}\"",
+    "predev": "node -e \"try { if (require('fs').existsSync('../../scripts/sync-env.js')) require('../../scripts/sync-env.js'); } catch {}\"",
     "dev": "tsx watch src/server.ts",
     "build": "tsc",
     "start": "tsx src/server.ts",
@@ -12,12 +12,12 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "prisma:validate": "prisma validate --schema=prisma/schema.prisma",
-    "preprisma:generate": "node ../../scripts/sync-env.js",
+    "preprisma:generate": "node -e \"try { if (require('fs').existsSync('../../scripts/sync-env.js')) require('../../scripts/sync-env.js'); } catch {}\"",
     "prisma:generate": "prisma generate --schema=prisma/schema.prisma",
-    "predb:push": "node ../../scripts/sync-env.js",
+    "predb:push": "node -e \"try { if (require('fs').existsSync('../../scripts/sync-env.js')) require('../../scripts/sync-env.js'); } catch {}\"",
     "db:push": "prisma db push --schema=prisma/schema.prisma",
     "db:seed": "tsx prisma/seed.ts",
-    "predb:seed-demo": "node ../../scripts/sync-env.js",
+    "predb:seed-demo": "node -e \"try { if (require('fs').existsSync('../../scripts/sync-env.js')) require('../../scripts/sync-env.js'); } catch {}\"",
     "db:seed-demo": "tsx prisma/seed-demo.ts"
   },
   "dependencies": {

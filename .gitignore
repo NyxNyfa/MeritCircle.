@@ -21,7 +21,8 @@ docs/
 prompt.md
 
 # Local loop runners & test artifacts
-scripts/
+scripts/*
+!scripts/sync-env.js
 packages/contracts/scripts/
 packages/contracts/test/
 apps/backend/test/

@@ -287,21 +287,43 @@ export async function getMyContributions(): Promise<{ contributions: any[] }> {
   });
 }
 
-export async function createPaymentIntent(contributionId: string): Promise<{ intent: any }> {
-  return fetchApi<{ intent: any }>("/api/payments/payment-intent", {
-    method: "POST",
-    body: JSON.stringify({ contributionId }),
-  });
+export async function createPaymentIntent(
+  contributionId: string,
+  cycleId?: string
+): Promise<{ intent: any }> {
+  try {
+    const res = await fetchApi<any>("/api/payments/payment-intent", {
+      method: "POST",
+      body: JSON.stringify({ contributionId, cycleId }),
+    });
+    return res?.intent ? res : { intent: res };
+  } catch (err: any) {
+    if (cycleId) {
+      const fallbackRes = await fetchApi<any>(`/api/cycles/${cycleId}/payment-intent`, {
+        method: "POST",
+      });
+      return fallbackRes?.intent ? fallbackRes : { intent: fallbackRes };
+    }
+    throw err;
+  }
 }
 
 export async function confirmContribution(
   paymentIntentId: string,
-  txHash: string
+  txHash: string,
+  cycleId?: string
 ): Promise<{ contribution: any; payment: any }> {
-  return fetchApi<{ contribution: any; payment: any }>("/api/payments/confirm", {
-    method: "POST",
-    body: JSON.stringify({ contributionId: paymentIntentId, paymentIntentId, txHash }),
-  });
+  try {
+    return await fetchApi<{ contribution: any; payment: any }>("/api/payments/confirm", {
+      method: "POST",
+      body: JSON.stringify({ contributionId: paymentIntentId, paymentIntentId, cycleId, txHash }),
+    });
+  } catch (err: any) {
+    return await fetchApi<{ contribution: any; payment: any }>("/api/contributions/confirm", {
+      method: "POST",
+      body: JSON.stringify({ contributionId: paymentIntentId, cycleId, txHash }),
+    });
+  }
 }
 
 /* =========================================================================
