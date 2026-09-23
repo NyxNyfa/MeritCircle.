@@ -7,6 +7,8 @@ import {
 import { prisma } from "../../db/client";
 import { AppError } from "../../middleware/error";
 import { applyReputationEvent } from "../reputation/reputation.service";
+import { logger } from "../../utils/logger";
+import { settleCycle } from "../settlements/settlement.service";
 import { paymentVerifier } from "./payment-verifier";
 import { ConfirmPaymentInput } from "./payment.schema";
 
@@ -336,6 +338,35 @@ export async function confirmPayment(
     penaltyPoint,
     rewardPoint,
   };
+
+  // 8. Auto-settlement: If all members in this cycle have now paid, automatically settle the cycle!
+  try {
+    const pendingContributionsCount = await prisma.contribution.count({
+      where: {
+        cycleId: contribution.cycleId,
+        status: "PENDING",
+      },
+    });
+
+    if (pendingContributionsCount === 0) {
+      logger.info(
+        `[AutoSettlement] All contributions paid for cycle ${contribution.cycleId}. Triggering auto-settlement...`
+      );
+      const adminUser = await prisma.user.findFirst({
+        where: { role: "ADMIN" },
+      });
+      settleCycle(adminUser ? adminUser.id : userId, contribution.cycleId).catch(
+        (settleErr: any) => {
+          logger.error(
+            `[AutoSettlement] Error executing automatic settlement for cycle ${contribution.cycleId}:`,
+            settleErr
+          );
+        }
+      );
+    }
+  } catch (err) {
+    logger.error("[AutoSettlement] Check failed:", err);
+  }
 
   return {
     ...res,

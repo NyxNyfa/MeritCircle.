@@ -8,36 +8,22 @@ import { createGroupCyclesAndContributions } from "../pools/pool.service";
  * ========================================================================= */
 
 export async function getOverview() {
-  const [
-    totalUsers,
-    totalPools,
-    formingGroups,
-    activeGroups,
-    completedGroups,
-    paymentOpenCycles,
-    auctionOpenCycles,
-    pendingContributions,
-    paidContributions,
-    lateContributions,
-    recentAuditLogs,
-  ] = await Promise.all([
-    prisma.user.count(),
-    prisma.pool.count(),
-    prisma.group.count({ where: { status: "FORMING" } }),
-    prisma.group.count({ where: { status: "ACTIVE" } }),
-    prisma.group.count({ where: { status: "COMPLETED" } }),
-    prisma.cycle.count({ where: { status: "PAYMENT_OPEN" } }),
-    prisma.cycle.count({ where: { status: "AUCTION_OPEN" } }),
-    prisma.contribution.count({ where: { status: "PENDING" } }),
-    prisma.contribution.count({
-      where: { status: { in: ["PAID_ON_TIME", "PAID_LATE"] } },
-    }),
-    prisma.contribution.count({ where: { status: "PAID_LATE" } }),
-    prisma.auditLog.findMany({
-      take: 10,
-      orderBy: { createdAt: "desc" },
-    }),
-  ]);
+  const totalUsers = await prisma.user.count();
+  const totalPools = await prisma.pool.count();
+  const formingGroups = await prisma.group.count({ where: { status: "FORMING" } });
+  const activeGroups = await prisma.group.count({ where: { status: "ACTIVE" } });
+  const completedGroups = await prisma.group.count({ where: { status: "COMPLETED" } });
+  const paymentOpenCycles = await prisma.cycle.count({ where: { status: "PAYMENT_OPEN" } });
+  const auctionOpenCycles = await prisma.cycle.count({ where: { status: "AUCTION_OPEN" } });
+  const pendingContributions = await prisma.contribution.count({ where: { status: "PENDING" } });
+  const paidContributions = await prisma.contribution.count({
+    where: { status: { in: ["PAID_ON_TIME", "PAID_LATE"] } },
+  });
+  const lateContributions = await prisma.contribution.count({ where: { status: "PAID_LATE" } });
+  const recentAuditLogs = await prisma.auditLog.findMany({
+    take: 10,
+    orderBy: { createdAt: "desc" },
+  });
 
   return {
     totalUsers,

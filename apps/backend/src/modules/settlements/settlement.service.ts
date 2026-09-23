@@ -397,12 +397,50 @@ export async function settleCycle(
       }
     }
   } else {
+    const nextCycleNumber = cycle.cycleNumber + 1;
     await prisma.group.update({
       where: { id: cycle.groupId },
       data: {
-        currentCycle: cycle.cycleNumber + 1,
+        currentCycle: nextCycleNumber,
       },
     });
+
+    // Start next cycle immediately
+    const nextCycle = await prisma.cycle.findFirst({
+      where: {
+        groupId: cycle.groupId,
+        cycleNumber: nextCycleNumber,
+      },
+    });
+
+    if (nextCycle) {
+      const now = new Date();
+      const paymentDeadline = new Date(
+        now.getTime() + pool.paymentWindowDays * 24 * 60 * 60 * 1000
+      );
+
+      await prisma.cycle.update({
+        where: { id: nextCycle.id },
+        data: {
+          status: "PAYMENT_OPEN",
+          startDate: now,
+          paymentDeadline,
+        },
+      });
+
+      // Update contributions for next cycle with due date
+      if (typeof prisma.contribution.updateMany === "function") {
+        await prisma.contribution.updateMany({
+          where: {
+            cycleId: nextCycle.id,
+            status: "PENDING",
+          },
+          data: {
+            dueDate: paymentDeadline,
+          },
+        });
+      }
+    }
   }
 
   // ContractTransaction record

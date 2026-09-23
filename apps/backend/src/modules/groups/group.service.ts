@@ -38,8 +38,15 @@ export async function getUserGroups(userId: string) {
   };
 }
 
-export async function getGroupDetail(userId: string, groupId: string) {
-  const group = await prisma.group.findUnique({
+import { ADMIN_WALLETS } from "../../middleware/auth";
+
+export async function getGroupDetail(
+  userId: string,
+  groupId: string,
+  userRole?: string,
+  userWallet?: string
+) {
+  let group = await prisma.group.findUnique({
     where: { id: groupId },
     include: {
       pool: true,
@@ -64,11 +71,43 @@ export async function getGroupDetail(userId: string, groupId: string) {
   });
 
   if (!group) {
+    group = await prisma.group.findFirst({
+      where: { contractGroupId: groupId },
+      include: {
+        pool: true,
+        members: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                walletAddress: true,
+                profile: {
+                  select: {
+                    username: true,
+                    avatarUrl: true,
+                  },
+                },
+              },
+            },
+          },
+          orderBy: { payoutSlot: "asc" },
+        },
+      },
+    });
+  }
+
+  if (!group) {
     throw new AppError("Group not found", 404, "NOT_FOUND");
   }
 
-  const isMember = group.members.some((m) => m.userId === userId);
-  if (!isMember) {
+  const isMember = Array.isArray(group.members)
+    ? group.members.some((m) => m.userId === userId)
+    : true;
+  const isAdmin =
+    userRole === "ADMIN" ||
+    ADMIN_WALLETS.includes((userWallet || "").toLowerCase());
+
+  if (!isMember && !isAdmin) {
     throw new AppError(
       "You do not have access to this resource.",
       403,
@@ -97,11 +136,11 @@ export async function getGroupDetail(userId: string, groupId: string) {
       cycleDurationDays: group.pool.cycleDurationDays,
       paymentWindowDays: group.pool.paymentWindowDays,
     },
-    members: group.members.map((m) => ({
+    members: (group.members || []).map((m: any) => ({
       userId: m.userId,
-      walletAddress: m.user.walletAddress,
-      username: m.user.profile?.username ?? null,
-      avatarUrl: m.user.profile?.avatarUrl ?? null,
+      walletAddress: m.user?.walletAddress,
+      username: m.user?.profile?.username ?? null,
+      avatarUrl: m.user?.profile?.avatarUrl ?? null,
       payoutSlot: m.payoutSlot,
       hasReceivedPayout: m.hasReceivedPayout,
       status: m.status,
@@ -109,18 +148,36 @@ export async function getGroupDetail(userId: string, groupId: string) {
   };
 }
 
-export async function getGroupCycles(userId: string, groupId: string) {
-  const group = await prisma.group.findUnique({
+export async function getGroupCycles(
+  userId: string,
+  groupId: string,
+  userRole?: string,
+  userWallet?: string
+) {
+  let group = await prisma.group.findUnique({
     where: { id: groupId },
     include: { members: true },
   });
 
   if (!group) {
+    group = await prisma.group.findFirst({
+      where: { contractGroupId: groupId },
+      include: { members: true },
+    });
+  }
+
+  if (!group) {
     throw new AppError("Group not found", 404, "NOT_FOUND");
   }
 
-  const isMember = group.members.some((m) => m.userId === userId);
-  if (!isMember) {
+  const isMember = Array.isArray(group.members)
+    ? group.members.some((m) => m.userId === userId)
+    : true;
+  const isAdmin =
+    userRole === "ADMIN" ||
+    ADMIN_WALLETS.includes((userWallet || "").toLowerCase());
+
+  if (!isMember && !isAdmin) {
     throw new AppError(
       "You do not have access to this resource.",
       403,
@@ -129,7 +186,7 @@ export async function getGroupCycles(userId: string, groupId: string) {
   }
 
   const cycles = await prisma.cycle.findMany({
-    where: { groupId },
+    where: { groupId: group.id },
     orderBy: { cycleNumber: "asc" },
   });
 

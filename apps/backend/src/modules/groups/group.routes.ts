@@ -32,7 +32,12 @@ groupRouter.get(
   authMiddleware,
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const result = await getGroupDetail(req.user!.id, req.params.groupId);
+      const result = await getGroupDetail(
+        req.user!.id,
+        req.params.groupId,
+        req.user?.role,
+        req.user?.walletAddress
+      );
       res.json({ group: result });
     } catch (error) {
       next(error);
@@ -46,7 +51,12 @@ groupRouter.get(
   authMiddleware,
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const result = await getGroupCycles(req.user!.id, req.params.groupId);
+      const result = await getGroupCycles(
+        req.user!.id,
+        req.params.groupId,
+        req.user?.role,
+        req.user?.walletAddress
+      );
       res.json(result);
     } catch (error) {
       next(error);

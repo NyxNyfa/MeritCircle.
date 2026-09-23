@@ -2,17 +2,17 @@
 
 import React from "react";
 import { color, radius, spacing, Badge } from "@merit-circle/ui";
-import { formatWeiToBnb, formatDate } from "../../lib/format";
+import { formatWeiToBnb, formatDate, formatAddress } from "../../lib/format";
 import { CheckIcon } from "../layout/Icons";
 
 export interface CycleInfo {
   id: string;
   cycleNumber: number;
   startDate: string;
-  endDate: string;
-  status: "UPCOMING" | "COLLECTING" | "AUCTION" | "SETTLING" | "COMPLETED";
+  endDate?: string;
+  status: "UPCOMING" | "COLLECTING" | "AUCTION" | "SETTLING" | "COMPLETED" | string;
   isFinalCycle: boolean;
-  rewardPoolWei: string;
+  rewardPoolWei?: string;
   recipientAddress?: string;
   carriedRewardWei?: string;
 }
@@ -20,7 +20,8 @@ export interface CycleInfo {
 export const CycleTimeline: React.FC<{
   cycles: CycleInfo[];
   currentCycleNumber: number;
-}> = ({ cycles, currentCycleNumber }) => {
+  isAuction?: boolean;
+}> = ({ cycles, currentCycleNumber, isAuction = false }) => {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: spacing["3"] }}>
       {cycles.map((cycle) => {
@@ -71,21 +72,29 @@ export const CycleTimeline: React.FC<{
                   {isCurrent && <Badge variant="info">CURRENT</Badge>}
                 </div>
                 <div style={{ fontSize: "12px", color: color.text.muted }}>
-                  {formatDate(cycle.startDate)} – {formatDate(cycle.endDate)}
+                  {formatDate(cycle.startDate)} {cycle.endDate ? `– ${formatDate(cycle.endDate)}` : ""}
                 </div>
               </div>
             </div>
 
             <div style={{ textAlign: "right", fontSize: "13px" }}>
               <div style={{ fontWeight: 600, color: color.brand.accentElectric }}>
-                Pool: {formatWeiToBnb(cycle.rewardPoolWei)}
+                Pool: {formatWeiToBnb(cycle.rewardPoolWei || "0")}
               </div>
               <div style={{ fontSize: "11px", color: color.text.muted }}>
-                {cycle.isFinalCycle
-                  ? "Full Reward Pool (No Auction)"
-                  : cycle.recipientAddress
-                  ? `Recipient: ${cycle.recipientAddress.slice(0, 6)}...`
-                  : "Auction Settlement"}
+                {isAuction ? (
+                  cycle.isFinalCycle
+                    ? "Siklus Final (Full Reward Pool)"
+                    : cycle.recipientAddress
+                    ? `Pemenang: ${formatAddress(cycle.recipientAddress)}`
+                    : "Lelang Likuiditas (Yield Auction)"
+                ) : (
+                  cycle.isFinalCycle
+                    ? "Siklus Terakhir (Pencairan Penuh)"
+                    : cycle.recipientAddress
+                    ? `Penerima: ${formatAddress(cycle.recipientAddress)}`
+                    : `Pencairan Reguler (Giliran Siklus ${cycle.cycleNumber})`
+                )}
               </div>
             </div>
           </div>

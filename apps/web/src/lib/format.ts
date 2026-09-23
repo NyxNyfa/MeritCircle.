@@ -10,11 +10,35 @@ const WEI_PER_BNB = 10n ** 18n;
  * Example: "1000000000000000000" -> "1.00 BNB"
  * Example: "500000000000000000" -> "0.50 BNB"
  */
-export function formatWeiToBnb(amountWei: string | bigint | null | undefined): string {
-  if (!amountWei) return "0.00 tBNB";
+export function formatWeiToBnb(
+  amount: string | number | bigint | null | undefined
+): string {
+  if (amount === null || amount === undefined || amount === "") return "0.00 tBNB";
 
   try {
-    const wei = typeof amountWei === "bigint" ? amountWei : BigInt(amountWei);
+    // If it's already a formatted string containing BNB / tBNB
+    if (typeof amount === "string" && (amount.includes("BNB") || amount.includes("tBNB"))) {
+      return amount;
+    }
+
+    const str = String(amount).trim();
+
+    // If input is in BNB decimal format (e.g. "0.0008" or 0.0008)
+    if (str.includes(".") || (!str.endsWith("n") && Number(str) > 0 && Number(str) < 0.001)) {
+      const num = parseFloat(str);
+      if (isNaN(num)) return "0.00 tBNB";
+      // Format up to 6 decimal places
+      let formatted = num.toFixed(6);
+      // Remove trailing zeroes while keeping at least 2 decimal places
+      while (formatted.endsWith("0") && formatted.split(".")[1].length > 2) {
+        formatted = formatted.slice(0, -1);
+      }
+      return `${formatted} tBNB`;
+    }
+
+    // Otherwise, treat as integer Wei
+    const cleanStr = str.endsWith("n") ? str.slice(0, -1) : str;
+    const wei = typeof amount === "bigint" ? amount : BigInt(cleanStr);
     const isNegative = wei < 0n;
     const absoluteWei = isNegative ? -wei : wei;
 
@@ -24,17 +48,16 @@ export function formatWeiToBnb(amountWei: string | bigint | null | undefined): s
     // Pad remainder to 18 digits
     const remainderStr = remainder.toString().padStart(18, "0");
 
-    // Display first 4 decimal digits
-    const decimals = remainderStr.slice(0, 4);
+    // Display up to 6 decimal digits so 0.0008 is cleanly captured
+    let decimals = remainderStr.slice(0, 6);
 
     // Trim trailing zeroes but leave at least 2 decimal places
-    let trimmedDecimals = decimals;
-    while (trimmedDecimals.length > 2 && trimmedDecimals.endsWith("0")) {
-      trimmedDecimals = trimmedDecimals.slice(0, -1);
+    while (decimals.length > 2 && decimals.endsWith("0")) {
+      decimals = decimals.slice(0, -1);
     }
 
     const sign = isNegative ? "-" : "";
-    return `${sign}${integerPart.toString()}.${trimmedDecimals} tBNB`;
+    return `${sign}${integerPart.toString()}.${decimals} tBNB`;
   } catch {
     return "0.00 tBNB";
   }

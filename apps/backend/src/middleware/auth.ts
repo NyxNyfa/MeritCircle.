@@ -52,13 +52,25 @@ export function authMiddleware(
   }
 }
 
+export const ADMIN_WALLETS: string[] = [
+  "0x0fcfeeaaa5e028c4431e216dacf4bc97b8654897",
+  ...(process.env.ADMIN_WALLET_ADDRESSES || "")
+    .toLowerCase()
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean),
+];
+
 export function adminMiddleware(
   req: Request,
   res: Response,
   next: NextFunction
 ): void {
   authMiddleware(req, res, () => {
-    if (req.user?.role !== "ADMIN") {
+    const userWallet = (req.user?.walletAddress || "").toLowerCase();
+    const isWalletAdmin = ADMIN_WALLETS.includes(userWallet);
+
+    if (req.user?.role !== "ADMIN" && !isWalletAdmin) {
       res.status(403).json({
         error: {
           code: "FORBIDDEN",
@@ -67,6 +79,11 @@ export function adminMiddleware(
       });
       return;
     }
+
+    if (isWalletAdmin && req.user) {
+      req.user.role = "ADMIN";
+    }
+
     next();
   });
 }

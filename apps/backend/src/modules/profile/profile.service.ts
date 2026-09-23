@@ -6,20 +6,19 @@ import { applyReputationEvent } from "../reputation/reputation.service";
 import { clampReputationPoints, getTierFromPoints } from "@merit-circle/domain";
 
 export async function getProfile(userId: string) {
-  const [user, events] = await Promise.all([
-    prisma.user.findUnique({
-      where: { id: userId },
-      include: { profile: true, reputation: true },
-    }),
-    prisma.reputationEvent.findMany({
-      where: { userId },
-      select: { points: true },
-    }),
-  ]);
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    include: { profile: true, reputation: true },
+  });
 
   if (!user) {
     throw new AppError("User not found", 404);
   }
+
+  const events = await prisma.reputationEvent.findMany({
+    where: { userId },
+    select: { points: true },
+  });
 
   // Reconcile reputation the same way as getReputation()
   let currentPoints = user.reputation?.points ?? 0;

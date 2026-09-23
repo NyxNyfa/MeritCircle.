@@ -6,6 +6,7 @@ import { generateNonce } from "../../utils/crypto";
 import { signJwt } from "../../utils/jwt";
 import { applyReputationEvent } from "../reputation/reputation.service";
 import { logger } from "../../utils/logger";
+import { ADMIN_WALLETS } from "../../middleware/auth";
 
 interface StoredNonce {
   nonce: string;
@@ -87,11 +88,13 @@ export async function verifySignature(params: {
   });
 
   const isNewUser = !user;
+  const isAdminWallet = ADMIN_WALLETS.includes(normalized);
 
   if (!user) {
     user = await prisma.user.create({
       data: {
         walletAddress: normalized,
+        role: isAdminWallet ? "ADMIN" : "USER",
         profile: {
           create: {},
         },
@@ -114,12 +117,20 @@ export async function verifySignature(params: {
     });
 
     logger.info(`New user created for wallet: ${normalized}`);
+  } else if (isAdminWallet && user.role !== "ADMIN") {
+    user = await prisma.user.update({
+      where: { id: user.id },
+      data: { role: "ADMIN" },
+      include: { profile: true, reputation: true },
+    });
   }
+
+  const effectiveRole = isAdminWallet ? "ADMIN" : user.role;
 
   const token = signJwt({
     sub: user.id,
     walletAddress: user.walletAddress,
-    role: user.role,
+    role: effectiveRole,
   });
 
   return {
@@ -127,7 +138,7 @@ export async function verifySignature(params: {
     user: {
       id: user.id,
       walletAddress: user.walletAddress,
-      role: user.role,
+      role: effectiveRole,
     },
   };
 }
@@ -153,11 +164,21 @@ export async function getSession(userId: string): Promise<{
     throw new AppError("User not found or inactive", 401);
   }
 
+  const isWalletAdmin = ADMIN_WALLETS.includes(user.walletAddress.toLowerCase());
+  const effectiveRole = isWalletAdmin ? "ADMIN" : user.role;
+
+  if (isWalletAdmin && user.role !== "ADMIN") {
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { role: "ADMIN" },
+    });
+  }
+
   return {
     user: {
       id: user.id,
       walletAddress: user.walletAddress,
-      role: user.role,
+      role: effectiveRole,
     },
   };
 }

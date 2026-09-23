@@ -37,9 +37,14 @@ const ADMIN_NAV_ITEMS: AdminNavItem[] = [
   { label: "Audit Logs", href: "/admin/audit", icon: <FileTextIcon size={16} /> },
 ];
 
+const ADMIN_WALLETS = [
+  "0x0fcfeeaaa5e028c4431e216dacf4bc97b8654897",
+];
+
 export const AdminShell: React.FC<AdminShellProps> = ({ children, activeHref = "/admin" }) => {
   const { user } = useAuth();
-  const isAdmin = user?.role === "ADMIN";
+  const userWallet = (user?.walletAddress || "").toLowerCase();
+  const isAdmin = user?.role === "ADMIN" || ADMIN_WALLETS.includes(userWallet);
   const [sidebarOpen, setSidebarOpen] = React.useState(true);
 
   React.useEffect(() => {

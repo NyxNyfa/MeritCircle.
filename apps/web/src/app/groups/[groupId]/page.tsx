@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import { useParams } from "next/navigation";
 import { color, radius, spacing, Card, Badge, LoadingState } from "@merit-circle/ui";
 import { AppProviders } from "../../../providers/AppProviders";
 import { Shell } from "../../../components/layout/Shell";
@@ -10,7 +11,8 @@ import { formatAddress, formatDate, formatWeiToBnb } from "../../../lib/format";
 import { CycleTimeline, CycleInfo } from "../../../components/group/CycleTimeline";
 import { ZapIcon, UserIcon } from "../../../components/layout/Icons";
 
-function GroupHubContent({ groupId }: { groupId?: string }) {
+function GroupHubContent({ initialGroupId }: { initialGroupId?: string }) {
+  const routeParams = useParams();
   const [group, setGroup] = useState<any>(null);
   const [cycles, setCycles] = useState<CycleInfo[]>([]);
   const [ledger, setLedger] = useState<any[]>([]);
@@ -18,7 +20,11 @@ function GroupHubContent({ groupId }: { groupId?: string }) {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const id = groupId || (typeof window !== "undefined" ? window.location.pathname.split("/").pop() : "");
+    let id = initialGroupId || (routeParams?.groupId as string);
+    if (!id && typeof window !== "undefined") {
+      const parts = window.location.pathname.split("/").filter(Boolean);
+      id = parts[parts.length - 1];
+    }
     if (!id) return;
 
     Promise.all([
@@ -39,7 +45,7 @@ function GroupHubContent({ groupId }: { groupId?: string }) {
       .finally(() => {
         setIsLoading(false);
       });
-  }, [groupId]);
+  }, [initialGroupId, routeParams?.groupId]);
 
   if (isLoading) {
     return (
@@ -67,7 +73,10 @@ function GroupHubContent({ groupId }: { groupId?: string }) {
     );
   }
 
-  const isAuction = group.mode === "AUCTION";
+  const isAuction =
+    group.mode === "AUCTION" ||
+    group.pool?.mode === "AUCTION" ||
+    group.poolMode === "AUCTION";
   const isFinalCycle = group.currentCycleNumber >= group.totalCycles;
 
   return (
@@ -83,7 +92,7 @@ function GroupHubContent({ groupId }: { groupId?: string }) {
               {group.status}
             </Badge>
             <Badge variant={isAuction ? "info" : "neutral"}>
-              {group.mode}
+              {isAuction ? "AUCTION MODE" : "BASIC MODE"}
             </Badge>
           </div>
           <div style={{ fontSize: "13px", color: color.text.muted }}>
@@ -120,7 +129,11 @@ function GroupHubContent({ groupId }: { groupId?: string }) {
           <h2 style={{ fontSize: "18px", fontWeight: 700, marginBottom: spacing["4"] }}>
             Jadwal Siklus Bergilir
           </h2>
-          <CycleTimeline cycles={cycles} currentCycleNumber={group.currentCycleNumber} />
+          <CycleTimeline
+            cycles={cycles}
+            currentCycleNumber={group.currentCycleNumber}
+            isAuction={isAuction}
+          />
 
           {/* Reward Ledger */}
           <div style={{ marginTop: spacing["8"] }}>
@@ -171,9 +184,11 @@ function GroupHubContent({ groupId }: { groupId?: string }) {
                         <div style={{ fontWeight: 700, color: color.brand.accentElectric }}>
                           {formatWeiToBnb(entry.payoutAmountWei)}
                         </div>
-                        <div style={{ fontSize: "11px", color: color.text.muted }}>
-                          Carried surplus: {formatWeiToBnb(entry.carriedRewardWei)}
-                        </div>
+                        {isAuction && entry.carriedRewardWei && (
+                          <div style={{ fontSize: "11px", color: color.text.muted }}>
+                            Carried surplus: {formatWeiToBnb(entry.carriedRewardWei)}
+                          </div>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -198,12 +213,21 @@ function GroupHubContent({ groupId }: { groupId?: string }) {
             </h3>
 
             <div style={{ display: "flex", flexDirection: "column", gap: "10px", fontSize: "13px" }}>
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span style={{ color: color.text.muted }}>Carried Reward:</span>
-                <span style={{ fontWeight: 700, color: color.brand.accentElectric }}>
-                  {formatWeiToBnb(group.carriedRewardWei || "0")}
-                </span>
-              </div>
+              {isAuction ? (
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <span style={{ color: color.text.muted }}>Carried Reward:</span>
+                  <span style={{ fontWeight: 700, color: color.brand.accentElectric }}>
+                    {formatWeiToBnb(group.carriedRewardWei || "0")}
+                  </span>
+                </div>
+              ) : (
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <span style={{ color: color.text.muted }}>Mekanisme Arisan:</span>
+                  <span style={{ fontWeight: 600, color: color.text.primary }}>
+                    Bergilir Reguler (Skor Reputasi)
+                  </span>
+                </div>
+              )}
 
               <div style={{ display: "flex", justifyContent: "space-between" }}>
                 <span style={{ color: color.text.muted }}>Status Siklus Final:</span>
@@ -257,10 +281,10 @@ function GroupHubContent({ groupId }: { groupId?: string }) {
   );
 }
 
-export default function GroupDetailPage() {
+export default function GroupDetailPage({ params }: { params?: { groupId?: string } }) {
   return (
     <AppProviders>
-      <GroupHubContent />
+      <GroupHubContent initialGroupId={params?.groupId} />
     </AppProviders>
   );
 }

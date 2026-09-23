@@ -13,9 +13,9 @@ import {
 } from "@merit-circle/ui";
 import { AppProviders } from "../../../../providers/AppProviders";
 import { AdminShell } from "../../../../components/layout/AdminShell";
-import { getAdminGroup, fillDemoGroup } from "../../../../lib/api";
+import { getAdminGroup, fillDemoGroup, settleCycle } from "../../../../lib/api";
 import { getErrorMessage } from "../../../../lib/error";
-import { BotIcon, StarIcon } from "../../../../components/layout/Icons";
+import { BotIcon, StarIcon, ZapIcon } from "../../../../components/layout/Icons";
 
 function AdminGroupDetailContent({ initialGroupId }: { initialGroupId?: string }) {
   const [groupId, setGroupId] = useState<string>(initialGroupId || "");
@@ -69,6 +69,29 @@ function AdminGroupDetailContent({ initialGroupId }: { initialGroupId?: string }
       alert(getErrorMessage(err));
     } finally {
       setIsFilling(false);
+    }
+  };
+
+  // Settle cycle state
+  const [isSettling, setIsSettling] = useState<boolean>(false);
+  const [settleMessage, setSettleMessage] = useState<string | null>(null);
+
+  const handleSettleCycle = async (cycleId: string, cycleNumber: number) => {
+    if (!confirm(`Konfirmasi Penyelesaian: Apakah Anda yakin ingin menyelesaikan Cycle #${cycleNumber} dan mendistribusikan reward on-chain ke penerima?`)) {
+      return;
+    }
+    setIsSettling(true);
+    setSettleMessage(null);
+    try {
+      const res = await settleCycle(cycleId);
+      const payoutWei = res.settlement?.payoutWei || res.settlement?.amountWei || "0";
+      const txHash = res.settlement?.txHash ? `TxHash: ${res.settlement.txHash}` : "";
+      setSettleMessage(`Sukses Settle: Cycle #${cycleNumber} berhasil diselesaikan! Payout: ${payoutWei} wei. ${txHash}. Siklus berikutnya telah dimulai.`);
+      await fetchGroup();
+    } catch (err: any) {
+      alert(getErrorMessage(err));
+    } finally {
+      setIsSettling(false);
     }
   };
 
@@ -136,6 +159,36 @@ function AdminGroupDetailContent({ initialGroupId }: { initialGroupId?: string }
                   </span>
                 </div>
               )}
+
+              {/* SETTLEMENT ACTION BUTTON (For ACTIVE groups) */}
+              {group.status === "ACTIVE" && (() => {
+                const activeCycle = group.cycles?.find(
+                  (c: any) => c.cycleNumber === group.currentCycle && c.status !== "COMPLETED"
+                );
+                if (!activeCycle) return null;
+                return (
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "6px" }}>
+                    <Button
+                      variant="primary"
+                      onClick={() => handleSettleCycle(activeCycle.id, activeCycle.cycleNumber)}
+                      disabled={isSettling}
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "6px",
+                        backgroundColor: "#10b981",
+                        borderColor: "#10b981",
+                      }}
+                    >
+                      <ZapIcon size={14} />
+                      <span>{isSettling ? "Settling..." : `Settle Cycle #${activeCycle.cycleNumber} & Distribute Payout`}</span>
+                    </Button>
+                    <span style={{ fontSize: "11px", color: color.text.muted }}>
+                      Transfer reward on-chain & start next cycle
+                    </span>
+                  </div>
+                );
+              })()}
             </div>
 
             {fillMessage && (
@@ -152,6 +205,23 @@ function AdminGroupDetailContent({ initialGroupId }: { initialGroupId?: string }
                 }}
               >
                 {fillMessage}
+              </div>
+            )}
+
+            {settleMessage && (
+              <div
+                style={{
+                  marginTop: spacing["4"],
+                  padding: spacing["3"],
+                  backgroundColor: "rgba(16, 185, 129, 0.15)",
+                  border: "1px solid rgba(16, 185, 129, 0.3)",
+                  borderRadius: radius.md,
+                  color: "#34d399",
+                  fontSize: "13px",
+                  fontWeight: 600,
+                }}
+              >
+                {settleMessage}
               </div>
             )}
           </Card>
@@ -225,57 +295,78 @@ function AdminGroupDetailContent({ initialGroupId }: { initialGroupId?: string }
                     <th style={{ padding: "8px 10px" }}>CONTRIBUTIONS</th>
                     <th style={{ padding: "8px 10px" }}>AUCTION</th>
                     <th style={{ padding: "8px 10px" }}>PAYOUT</th>
+                    <th style={{ padding: "8px 10px" }}>ACTION</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {group.cycles.map((c: any) => (
-                    <tr key={c.id} style={{ borderBottom: `1px solid ${color.border.subtle}` }}>
-                      <td style={{ padding: "8px 10px", fontWeight: 700 }}>
-                        Cycle {c.cycleNumber}
-                      </td>
-                      <td style={{ padding: "8px 10px" }}>
-                        <Badge
-                          variant={
-                            c.status === "COMPLETED"
-                              ? "success"
-                              : c.status === "PAYMENT_OPEN"
-                              ? "warning"
-                              : c.status === "AUCTION_OPEN"
-                              ? "info"
-                              : "neutral"
-                          }
-                        >
-                          {c.status}
-                        </Badge>
-                      </td>
-                      <td style={{ padding: "8px 10px" }}>
-                        {c.isFinalCycle ? (
-                          <Badge variant="warning">FINAL (100% Payout)</Badge>
-                        ) : (
-                          "No"
-                        )}
-                      </td>
-                      <td style={{ padding: "8px 10px" }}>
-                        {c.contributions ? `${c.contributions.length} recorded` : "0"}
-                      </td>
-                      <td style={{ padding: "8px 10px" }}>
-                        {c.auction ? (
-                          <Badge variant="info">{c.auction.status} ({c.auction.bids?.length || 0} bids)</Badge>
-                        ) : (
-                          <span style={{ color: color.text.muted }}>None</span>
-                        )}
-                      </td>
-                      <td style={{ padding: "8px 10px" }}>
-                        {c.payout ? (
-                          <span style={{ fontFamily: "monospace", fontSize: "12px", color: color.status.success }}>
-                            {c.payout.amountWei} wei
-                          </span>
-                        ) : (
-                          <span style={{ color: color.text.muted }}>Pending</span>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
+                  {group.cycles.map((c: any) => {
+                    const isCurrentActive = c.cycleNumber === group.currentCycle && c.status !== "COMPLETED";
+                    return (
+                      <tr key={c.id} style={{ borderBottom: `1px solid ${color.border.subtle}` }}>
+                        <td style={{ padding: "8px 10px", fontWeight: 700 }}>
+                          Cycle {c.cycleNumber}
+                        </td>
+                        <td style={{ padding: "8px 10px" }}>
+                          <Badge
+                            variant={
+                              c.status === "COMPLETED"
+                                ? "success"
+                                : c.status === "PAYMENT_OPEN"
+                                ? "warning"
+                                : c.status === "AUCTION_OPEN"
+                                ? "info"
+                                : "neutral"
+                            }
+                          >
+                            {c.status}
+                          </Badge>
+                        </td>
+                        <td style={{ padding: "8px 10px" }}>
+                          {c.isFinalCycle ? (
+                            <Badge variant="warning">FINAL (100% Payout)</Badge>
+                          ) : (
+                            "No"
+                          )}
+                        </td>
+                        <td style={{ padding: "8px 10px" }}>
+                          {c.contributions ? `${c.contributions.length} recorded` : "0"}
+                        </td>
+                        <td style={{ padding: "8px 10px" }}>
+                          {c.auction ? (
+                            <Badge variant="info">{c.auction.status} ({c.auction.bids?.length || 0} bids)</Badge>
+                          ) : (
+                            <span style={{ color: color.text.muted }}>None</span>
+                          )}
+                        </td>
+                        <td style={{ padding: "8px 10px" }}>
+                          {c.payout ? (
+                            <span style={{ fontFamily: "monospace", fontSize: "12px", color: color.status.success }}>
+                              {c.payout.amountWei} wei
+                            </span>
+                          ) : (
+                            <span style={{ color: color.text.muted }}>Pending</span>
+                          )}
+                        </td>
+                        <td style={{ padding: "8px 10px" }}>
+                          {isCurrentActive ? (
+                            <Button
+                              size="sm"
+                              variant="primary"
+                              onClick={() => handleSettleCycle(c.id, c.cycleNumber)}
+                              disabled={isSettling}
+                              style={{ backgroundColor: "#10b981", borderColor: "#10b981", fontSize: "11px", padding: "4px 8px" }}
+                            >
+                              Settle & Payout
+                            </Button>
+                          ) : c.status === "COMPLETED" ? (
+                            <Badge variant="success">Settled</Badge>
+                          ) : (
+                            <span style={{ color: color.text.muted, fontSize: "12px" }}>Upcoming</span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
