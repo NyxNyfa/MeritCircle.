@@ -1,6 +1,7 @@
 import { canJoinPool, getTierFromPoints } from "@merit-circle/domain";
 import { prisma } from "../../db/client";
 import { AppError } from "../../middleware/error";
+import { applyReputationEvent } from "../reputation/reputation.service";
 
 export async function getPools() {
   const pools = await prisma.pool.findMany({
@@ -203,6 +204,16 @@ export async function joinPool(userId: string, poolId: string) {
       await createGroupCyclesAndContributions(newGroup.id, pool, [userId]);
     }
 
+    // Award JOIN_POOL reputation event
+    await applyReputationEvent({
+      userId,
+      type: "JOIN_POOL",
+      points: 5,
+      reason: `Joined pool: ${pool.name}`,
+      referenceType: "pool",
+      referenceId: pool.id,
+    });
+
     return {
       groupId: newGroup.id,
       groupStatus: willBecomeActive ? "ACTIVE" : "FORMING",
@@ -249,6 +260,16 @@ export async function joinPool(userId: string, poolId: string) {
         now
       );
 
+      // Award JOIN_POOL reputation event
+      await applyReputationEvent({
+        userId,
+        type: "JOIN_POOL",
+        points: 5,
+        reason: `Joined pool: ${pool.name}`,
+        referenceType: "pool",
+        referenceId: pool.id,
+      });
+
       return {
         groupId: availableGroup.id,
         groupStatus: "ACTIVE",
@@ -272,6 +293,16 @@ export async function joinPool(userId: string, poolId: string) {
           },
         }),
       ]);
+
+      // Award JOIN_POOL reputation event
+      await applyReputationEvent({
+        userId,
+        type: "JOIN_POOL",
+        points: 5,
+        reason: `Joined pool: ${pool.name}`,
+        referenceType: "pool",
+        referenceId: pool.id,
+      });
 
       return {
         groupId: availableGroup.id,

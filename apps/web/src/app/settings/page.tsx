@@ -29,11 +29,11 @@ function SettingsContent() {
   const displayPoints =
     !isAuthenticated || !user
       ? 0
-      : (user.reputationPoints ?? repPoints ?? 0);
+      : (repPoints > 0 ? repPoints : user.reputationPoints ?? 0);
   const displayTier =
     !isAuthenticated || !user
       ? 1
-      : (user.tier ?? repTier ?? 1);
+      : (repTier > 0 ? repTier : user.tier ?? 1);
 
   React.useEffect(() => {
     setIsEditing(false);

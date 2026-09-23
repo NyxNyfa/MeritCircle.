@@ -101,9 +101,35 @@ export async function applyReputationEvent(
 }
 
 export async function getReputation(userId: string) {
-  // Single source of truth: the reputation table, kept accurate by every applyReputationEvent
-  const rep = await prisma.reputation.findUnique({ where: { userId } });
-  const points = rep?.points ?? 0;
+  // Events are the immutable ledger — always authoritative.
+  // The reputation table is a cache/summary. We reconcile them here.
+  const [rep, events] = await Promise.all([
+    prisma.reputation.findUnique({ where: { userId } }),
+    prisma.reputationEvent.findMany({ where: { userId }, select: { points: true } }),
+  ]);
+
+  let points: number;
+
+  if (events.length > 0) {
+    // Recompute from the immutable event ledger
+    const computed = clampReputationPoints(
+      events.reduce((sum, e) => sum + (e.points || 0), 0)
+    );
+    // Self-heal the DB cache if it has drifted
+    if (!rep || rep.points !== computed) {
+      const tierInfo = getTierFromPoints(computed);
+      await prisma.reputation.upsert({
+        where: { userId },
+        update: { points: computed, tier: tierInfo.tier },
+        create: { userId, points: computed, tier: tierInfo.tier },
+      });
+      points = computed;
+    } else {
+      points = rep.points;
+    }
+  } else {
+    points = rep?.points ?? 0;
+  }
 
   const tierInfo = getTierFromPoints(points);
 

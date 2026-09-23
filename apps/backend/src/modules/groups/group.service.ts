@@ -25,12 +25,15 @@ export async function getUserGroups(userId: string) {
       groupNumber: m.group.groupNumber,
       status: m.group.status,
       memberCount: m.group.memberCount,
+      membersCount: m.group.memberCount,
       groupSize: m.group.pool.groupSize,
+      maxMembers: m.group.pool.groupSize,
       currentCycle: m.group.currentCycle,
       currentCycleNumber: m.group.currentCycle,
       totalCycles: m.group.pool.cycleCount,
       startDate: m.group.startDate,
       mySlot: m.payoutSlot,
+      carriedRewardWei: "0",
     })),
   };
 }

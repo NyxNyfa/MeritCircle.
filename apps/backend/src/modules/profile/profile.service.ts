@@ -3,23 +3,43 @@ import { prisma } from "../../db/client";
 import { AppError } from "../../middleware/error";
 import { UpdateProfileInput } from "./profile.schema";
 import { applyReputationEvent } from "../reputation/reputation.service";
-import { getTierFromPoints } from "@merit-circle/domain";
+import { clampReputationPoints, getTierFromPoints } from "@merit-circle/domain";
 
 export async function getProfile(userId: string) {
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    include: { profile: true, reputation: true },
-  });
+  const [user, events] = await Promise.all([
+    prisma.user.findUnique({
+      where: { id: userId },
+      include: { profile: true, reputation: true },
+    }),
+    prisma.reputationEvent.findMany({
+      where: { userId },
+      select: { points: true },
+    }),
+  ]);
 
   if (!user) {
     throw new AppError("User not found", 404);
   }
 
-  const profile = user.profile;
-  // Single source of truth: read directly from reputation table (always kept accurate by applyReputationEvent)
-  const currentPoints = user.reputation?.points ?? 0;
-  const currentTier = user.reputation?.tier ?? getTierFromPoints(currentPoints).tier;
+  // Reconcile reputation the same way as getReputation()
+  let currentPoints = user.reputation?.points ?? 0;
+  if (events.length > 0) {
+    const computed = clampReputationPoints(
+      events.reduce((sum: number, e: { points: number }) => sum + (e.points || 0), 0)
+    );
+    if (!user.reputation || user.reputation.points !== computed) {
+      const tierInfo = getTierFromPoints(computed);
+      await prisma.reputation.upsert({
+        where: { userId },
+        update: { points: computed, tier: tierInfo.tier },
+        create: { userId, points: computed, tier: tierInfo.tier },
+      });
+    }
+    currentPoints = computed;
+  }
+  const currentTier = getTierFromPoints(currentPoints).tier;
 
+  const profile = user.profile;
   return {
     id: user.id,
     username: profile?.username ?? null,
