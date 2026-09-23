@@ -332,6 +332,7 @@ export async function getGroups() {
     include: {
       pool: true,
       members: true,
+      cycles: true,
     },
     orderBy: { createdAt: "desc" },
   });
@@ -340,21 +341,40 @@ export async function getGroups() {
     groups: groups.map((g) => ({
       id: g.id,
       poolId: g.poolId,
-      poolName: g.pool.name,
-      poolMode: g.pool.mode,
+      poolName: g.pool?.name ?? "ROSCA Pool",
+      poolMode: g.pool?.mode ?? "BASIC",
       groupNumber: g.groupNumber,
       status: g.status,
       memberCount: g.members.length,
-      groupSize: g.pool.groupSize,
+      groupSize: g.pool?.groupSize ?? g.members.length,
       currentCycle: g.currentCycle,
       startDate: g.startDate,
       createdAt: g.createdAt,
+      contractGroupId: g.contractGroupId,
+      cyclesCount: g.cycles.length,
+      pool: g.pool
+        ? {
+            id: g.pool.id,
+            externalPoolId: g.pool.externalPoolId,
+            name: g.pool.name,
+            mode: g.pool.mode,
+            groupSize: g.pool.groupSize,
+            contributionAmountWei: g.pool.contributionAmountWei,
+          }
+        : {
+            id: g.poolId,
+            externalPoolId: "POOL-UNKNOWN",
+            name: "ROSCA Pool",
+            mode: "BASIC" as const,
+            groupSize: g.members.length || 3,
+            contributionAmountWei: "0",
+          },
     })),
   };
 }
 
 export async function getGroup(groupId: string) {
-  const group = await prisma.group.findUnique({
+  let group = await prisma.group.findUnique({
     where: { id: groupId },
     include: {
       pool: true,
@@ -382,6 +402,37 @@ export async function getGroup(groupId: string) {
       },
     },
   });
+
+  if (!group) {
+    group = await prisma.group.findFirst({
+      where: { contractGroupId: groupId },
+      include: {
+        pool: true,
+        members: {
+          include: {
+            user: {
+              include: { profile: true, reputation: true },
+            },
+          },
+          orderBy: { payoutSlot: "asc" },
+        },
+        cycles: {
+          include: {
+            contributions: true,
+            auction: {
+              include: { bids: true },
+            },
+            payout: true,
+            rewardLedger: true,
+          },
+          orderBy: { cycleNumber: "asc" },
+        },
+        rewardLedgers: {
+          orderBy: { cycleNumber: "asc" },
+        },
+      },
+    });
+  }
 
   if (!group) {
     throw new AppError("Group not found", 404, "NOT_FOUND");

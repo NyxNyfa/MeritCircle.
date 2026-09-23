@@ -76,6 +76,26 @@ export class OnChainPaymentVerifier implements PaymentVerifier {
         };
       }
 
+      // 1.1 Optional: If BSCSCAN_API_KEY or BNB_SCAN_API_KEY is configured, cross-verify with BscScan API
+      const bscScanApiKey = process.env.BSCSCAN_API_KEY || process.env.BNB_SCAN_API_KEY;
+      if (bscScanApiKey && bscScanApiKey.trim().length > 0) {
+        try {
+          const bscUrl = `https://api-testnet.bscscan.com/api?module=transaction&action=gettxreceiptstatus&txhash=${txHash}&apikey=${bscScanApiKey.trim()}`;
+          const bscRes = await fetch(bscUrl);
+          if (bscRes.ok) {
+            const bscData: any = await bscRes.json();
+            if (bscData?.status === "1" && bscData?.result?.status === "0") {
+              return {
+                success: false,
+                reason: "BscScan API mengonfirmasi transaksi ini mengalami revert di blockchain.",
+              };
+            }
+          }
+        } catch (bscErr) {
+          console.warn("[OnChainPaymentVerifier] BscScan API call warning:", bscErr);
+        }
+      }
+
       // 2. Fetch transaction details for payer and value verification
       const tx = await this.client.getTransaction({
         hash: txHash as `0x${string}`,
