@@ -95,14 +95,8 @@ export class DefaultPaymentAdapter implements PaymentAdapter {
       }
     }
 
-    // Demo Mode: Only if explicitly forced via NEXT_PUBLIC_DEMO_PAYMENT_MODE=true
-    const randomHex = Math.random().toString(36).substring(2, 10) + Date.now().toString(36);
-    const txHash = `demo-tx-${randomHex}`;
-
-    return {
-      txHash,
-      mode: "demo",
-    };
+    // In deploy phase, all payments require a live Web3 wallet
+    throw new Error("Pembayaran hanya dapat dilakukan melalui transaksi on-chain menggunakan dompet Web3 (MetaMask) pada BNB Smart Chain Testnet.");
   }
 }
 
