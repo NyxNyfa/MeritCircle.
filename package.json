@@ -12,6 +12,8 @@
     "typecheck": "pnpm -r run --if-present typecheck",
     "test": "pnpm -r run --if-present test",
     "build": "pnpm -r run --if-present build",
+    "sim": "pnpm --filter \"@merit-circle/contracts\" run sim",
+    "test:sim": "pnpm --filter \"@merit-circle/contracts\" run test:sim",
     "start:backend": "pnpm --filter \"@merit-circle/backend\" run start",
     "start:web": "pnpm --filter \"@merit-circle/web\" run start"
   },

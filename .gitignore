@@ -19,3 +19,9 @@ packages/contracts/typechain-types/
 # Local documentation & prompts
 docs/
 prompt.md
+
+# Local loop runners & test artifacts
+scripts/bug-loop.mjs
+packages/contracts/test/bughunt/
+packages/contracts/test/helpers/
+packages/contracts/test/results/

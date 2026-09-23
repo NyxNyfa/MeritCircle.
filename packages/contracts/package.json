@@ -7,6 +7,8 @@
   "scripts": {
     "compile": "hardhat compile",
     "test": "hardhat test",
+    "sim": "hardhat run scripts/run-simulations.ts",
+    "test:sim": "hardhat test test/academic-simulation.spec.ts",
     "deploy:local": "hardhat run scripts/deploy.ts",
     "deploy:testnet": "hardhat run scripts/deploy.ts --network bscTestnet",
     "typecheck": "tsc --noEmit"

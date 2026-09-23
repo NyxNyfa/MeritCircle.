@@ -74,6 +74,8 @@ async function main() {
     "packages/contracts/contracts/MeritCircleCore.sol",
     "packages/domain/src/index.ts",
     "apps/web/src/lib/error.ts",
+    "packages/contracts/test/academic-simulation.spec.ts",
+    "apps/backend/test/spec-conformance.test.ts",
   ];
   for (const f of files) record("V01", `file exists: ${f}`, fs.existsSync(path.join(ROOT, f)));
 
