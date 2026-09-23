@@ -61,8 +61,17 @@ function PaymentHubContent() {
     );
   }
 
-  const pendingContributions = contributions.filter(
-    (c) => c.status === "PENDING"
+  const isPayableContribution = (c: ContributionItem) => {
+    if (c.status !== "PENDING") return false;
+    if (c.isPayable === true) return true;
+    if (c.cycleStatus === "PAYMENT_OPEN") return true;
+    const currentCycle = c.groupCurrentCycle || 1;
+    return c.cycleNumber <= currentCycle;
+  };
+
+  const activePayableContributions = contributions.filter(isPayableContribution);
+  const upcomingContributions = contributions.filter(
+    (c) => c.status === "PENDING" && !isPayableContribution(c)
   );
   const completedContributions = contributions.filter(
     (c) => c.status === "PAID_ON_TIME" || c.status === "PAID_LATE"
@@ -95,13 +104,18 @@ function PaymentHubContent() {
         </Card>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: spacing["8"] }}>
-          {/* Pending Dues */}
+          {/* Active Payable Dues */}
           <div>
-            <h2 style={{ fontSize: "18px", fontWeight: 700, marginBottom: spacing["4"] }}>
-              Tagihan Aktif Wajib Disetor ({pendingContributions.length})
-            </h2>
+            <div style={{ marginBottom: spacing["4"] }}>
+              <h2 style={{ fontSize: "18px", fontWeight: 700, margin: 0, marginBottom: "4px" }}>
+                Tagihan Aktif Siap Disetor ({activePayableContributions.length})
+              </h2>
+              <div style={{ fontSize: "13px", color: color.text.secondary }}>
+                Tagihan siklus berjalan yang aktif dan siap disetor langsung melalui dompet MetaMask (tBNB).
+              </div>
+            </div>
 
-            {pendingContributions.length === 0 ? (
+            {activePayableContributions.length === 0 ? (
               <Card
                 style={{
                   backgroundColor: color.background.card,
@@ -115,12 +129,12 @@ function PaymentHubContent() {
                   <PartyPopperIcon size={36} />
                 </div>
                 <div style={{ fontWeight: 600, color: color.status.success, marginBottom: "4px" }}>
-                  Semua Iuran Lunas!
+                  Semua Iuran Siklus Berjalan Lunas!
                 </div>
                 Tidak ada tagihan tertunggak pada siklus berjalan saat ini.
               </Card>
             ) : (
-              pendingContributions.map((contrib) => (
+              activePayableContributions.map((contrib) => (
                 <PaymentCard
                   key={contrib.id}
                   contribution={contrib}
@@ -130,12 +144,39 @@ function PaymentHubContent() {
             )}
           </div>
 
+          {/* Upcoming Schedule (Locked until current cycle settles) */}
+          {upcomingContributions.length > 0 && (
+            <div>
+              <div style={{ marginBottom: spacing["4"] }}>
+                <h2 style={{ fontSize: "18px", fontWeight: 700, margin: 0, marginBottom: "4px" }}>
+                  Jadwal Siklus Mendatang ({upcomingContributions.length})
+                </h2>
+                <div style={{ fontSize: "13px", color: color.text.secondary }}>
+                  Iuran siklus berikutnya. Tombol pembayaran akan otomatis terbuka setelah siklus berjalan saat ini selesai dan diselesaikan (settle).
+                </div>
+              </div>
+
+              {upcomingContributions.map((contrib) => (
+                <PaymentCard
+                  key={contrib.id}
+                  contribution={contrib}
+                  onPaymentSuccess={fetchContributions}
+                />
+              ))}
+            </div>
+          )}
+
           {/* Completed History */}
           {completedContributions.length > 0 && (
             <div>
-              <h2 style={{ fontSize: "18px", fontWeight: 700, marginBottom: spacing["4"] }}>
-                Riwayat Setoran Selesai ({completedContributions.length})
-              </h2>
+              <div style={{ marginBottom: spacing["4"] }}>
+                <h2 style={{ fontSize: "18px", fontWeight: 700, margin: 0, marginBottom: "4px" }}>
+                  Riwayat Setoran Selesai ({completedContributions.length})
+                </h2>
+                <div style={{ fontSize: "13px", color: color.text.secondary }}>
+                  Daftar transaksi setoran yang telah terverifikasi sukses on-chain di BNB Smart Chain Testnet.
+                </div>
+              </div>
 
               {completedContributions.map((contrib) => (
                 <PaymentCard

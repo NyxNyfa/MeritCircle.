@@ -16,6 +16,11 @@ export interface ContributionItem {
   groupCurrentCycle?: number;
   cycleId: string;
   cycleNumber: number;
+  cycleStatus?: string;
+  isPayable?: boolean;
+  poolName?: string;
+  poolMode?: string;
+  externalPoolId?: string;
   amountWei: string;
   dueDate: string;
   status: "PENDING" | "PAID_ON_TIME" | "PAID_LATE" | "DEFAULTED";
@@ -35,7 +40,12 @@ export const PaymentCard: React.FC<{
   const isPaid = contribution.status === "PAID_ON_TIME" || contribution.status === "PAID_LATE";
   const isLate = new Date() > new Date(contribution.dueDate) && !isPaid;
   const currentActiveCycle = contribution.groupCurrentCycle || 1;
-  const isUpcomingCycle = contribution.cycleNumber > currentActiveCycle;
+  const isPayableNow =
+    !isPaid &&
+    (contribution.isPayable === true ||
+      contribution.cycleStatus === "PAYMENT_OPEN" ||
+      contribution.cycleNumber === currentActiveCycle);
+  const isUpcomingCycle = !isPaid && !isPayableNow;
 
   const handlePay = async () => {
     setIsProcessing(true);
@@ -93,16 +103,21 @@ export const PaymentCard: React.FC<{
     >
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: spacing["4"] }}>
         <div>
-          <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px", flexWrap: "wrap" }}>
             <span style={{ fontSize: "16px", fontWeight: 700, color: color.text.primary }}>
-              Cycle #{contribution.cycleNumber} Contribution {isUpcomingCycle && "(Siklus Mendatang)"}
+              {contribution.poolName ? `${contribution.poolName} — ` : ""}Cycle #{contribution.cycleNumber} Contribution {isUpcomingCycle && "(Siklus Mendatang)"}
             </span>
+            {contribution.poolMode && (
+              <Badge variant={contribution.poolMode === "AUCTION" ? "info" : "neutral"} size="sm">
+                {contribution.poolMode === "AUCTION" ? "Auction" : "Basic"}
+              </Badge>
+            )}
             <Badge variant={isPaid ? "success" : isLate ? "danger" : isUpcomingCycle ? "neutral" : "warning"}>
-              {isPaid ? "PAID" : isUpcomingCycle ? "UPCOMING" : "PENDING"}
+              {isPaid ? "PAID" : isUpcomingCycle ? "UPCOMING" : "PAYMENT OPEN"}
             </Badge>
           </div>
           <div style={{ fontSize: "12px", color: color.text.muted }}>
-            Group #{contribution.groupNumber || 1} • Due: {formatDate(contribution.dueDate)}
+            Group #{contribution.groupNumber || 1} (Contract ID: #{contribution.contractGroupId || contribution.groupNumber || 1}) • Due: {formatDate(contribution.dueDate)}
           </div>
         </div>
 

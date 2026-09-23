@@ -91,7 +91,16 @@ function DashboardContent() {
     );
   }
 
-  const nearestContribution = upcomingContributions[0];
+  const isPayableContribution = (c: any) => {
+    if (c.status !== "PENDING") return false;
+    if (c.isPayable === true) return true;
+    if (c.cycleStatus === "PAYMENT_OPEN") return true;
+    const currentCycle = c.groupCurrentCycle || 1;
+    return c.cycleNumber <= currentCycle;
+  };
+
+  const activeDueContribution = upcomingContributions.find(isPayableContribution);
+  const nearestContribution = activeDueContribution || upcomingContributions[0];
 
   return (
     <Shell activeHref="/dashboard">
@@ -197,10 +206,11 @@ function DashboardContent() {
             <span style={{ fontSize: "24px" }}>🎉</span>
             <div>
               <div style={{ fontWeight: 700, color: color.text.white, fontSize: "15px" }}>
-                Grup Arisan Anda Aktif — Tagihan Siklus #{nearestContribution.cycleNumber} Siap Disetor
+                {nearestContribution.poolName ? `${nearestContribution.poolName} — ` : ""}Tagihan Siklus #{nearestContribution.cycleNumber} Siap Disetor
               </div>
               <div style={{ fontSize: "12px", color: color.text.muted }}>
                 Nominal: {formatWeiToBnb(nearestContribution.amountWei)} • Jatuh tempo: {formatDate(nearestContribution.dueDate)}
+                {nearestContribution.groupNumber ? ` • Group #${nearestContribution.groupNumber}` : ""}
               </div>
             </div>
           </div>
