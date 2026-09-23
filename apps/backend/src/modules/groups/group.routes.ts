@@ -33,7 +33,7 @@ groupRouter.get(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const result = await getGroupDetail(req.user!.id, req.params.groupId);
-      res.json(result);
+      res.json({ group: result });
     } catch (error) {
       next(error);
     }

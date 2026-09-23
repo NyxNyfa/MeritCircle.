@@ -293,7 +293,7 @@ export async function createGroupCyclesAndContributions(
   memberUserIds: string[],
   startDate: Date = new Date()
 ) {
-  const cycleCount = pool.groupSize;
+  const cycleCount = pool.cycleCount || pool.groupSize;
   const cycleDurationDays = pool.cycleDurationDays || 30;
   const paymentWindowDays = pool.paymentWindowDays || 10;
   const isAuction = pool.mode === "AUCTION";

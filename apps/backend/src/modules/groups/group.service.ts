@@ -76,12 +76,17 @@ export async function getGroupDetail(userId: string, groupId: string) {
   return {
     id: group.id,
     poolId: group.poolId,
+    poolName: group.pool.name,
+    mode: group.pool.mode,
     groupNumber: group.groupNumber,
     status: group.status,
     memberCount: group.memberCount,
     groupSize: group.pool.groupSize,
+    maxMembers: group.pool.groupSize,
     startDate: group.startDate,
     currentCycle: group.currentCycle,
+    currentCycleNumber: group.currentCycle,
+    totalCycles: group.pool.cycleCount,
     pool: {
       name: group.pool.name,
       mode: group.pool.mode,

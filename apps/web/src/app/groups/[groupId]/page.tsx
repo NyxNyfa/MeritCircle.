@@ -27,9 +27,11 @@ function GroupHubContent({ groupId }: { groupId?: string }) {
       getRewardLedger(id).catch(() => ({ entries: [] })),
     ])
       .then(([groupRes, cyclesRes, ledgerRes]) => {
-        setGroup(groupRes.group);
+        // Backend returns the group object directly (not wrapped in { group: ... })
+        const groupData = (groupRes as any).group || groupRes;
+        setGroup(groupData);
         setCycles(cyclesRes.cycles || []);
-        setLedger(ledgerRes.entries || []);
+        setLedger((ledgerRes as any).entries || (ledgerRes as any).ledger || []);
       })
       .catch((err) => {
         setError(getErrorMessage(err));
@@ -221,7 +223,7 @@ function GroupHubContent({ groupId }: { groupId?: string }) {
             }}
           >
             <h3 style={{ fontSize: "16px", fontWeight: 700, margin: 0, marginBottom: spacing["4"] }}>
-              Daftar Anggota ({group.members?.length || 0} / {group.maxMembers})
+              Daftar Anggota ({group.members?.length || 0} / {group.groupSize || group.maxMembers})
             </h3>
 
             <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
@@ -240,7 +242,7 @@ function GroupHubContent({ groupId }: { groupId?: string }) {
                 >
                   <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                     <UserIcon size={14} />
-                    <span>{m.user?.username || formatAddress(m.user?.walletAddress || m.walletAddress)}</span>
+                    <span>{m.username || formatAddress(m.walletAddress)}</span>
                   </div>
                   <Badge variant={m.hasReceivedPayout ? "success" : "neutral"}>
                     {m.hasReceivedPayout ? "Payout Received" : "Waiting"}

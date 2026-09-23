@@ -79,6 +79,7 @@ export async function getGroupRewardLedger(userId: string, groupId: string) {
     groupId: group.id,
     groupSize: group.pool.groupSize,
     contributionAmountWei: group.pool.contributionAmountWei,
+    entries: ledgerEntries,
     ledger: ledgerEntries,
   };
 }
