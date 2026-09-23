@@ -160,7 +160,13 @@ export async function sendContractTransaction(params: {
   }) as Promise<string>;
 
   const timeoutPromise = new Promise<never>((_, reject) =>
-    setTimeout(() => reject(new Error("Transaction request timed out after 25s")), 25000)
+    setTimeout(
+      () =>
+        reject(
+          new Error("Permintaan transaksi kedaluwarsa (timeout 3 menit). Silakan periksa notifikasi ekstensi dompet Web3 Anda.")
+        ),
+      180000
+    )
   );
 
   const txHash = await Promise.race([txPromise, timeoutPromise]);

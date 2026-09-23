@@ -178,6 +178,42 @@ function DashboardContent() {
         </div>
       </div>
 
+      {/* Active Group & Pending Due Action Banner */}
+      {nearestContribution && (
+        <div
+          className="mc-glass"
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            padding: "16px 24px",
+            borderRadius: radius.lg,
+            border: "1px solid rgba(0, 229, 255, 0.4)",
+            backgroundColor: "rgba(0, 229, 255, 0.08)",
+            marginBottom: spacing["6"],
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+            <span style={{ fontSize: "24px" }}>🎉</span>
+            <div>
+              <div style={{ fontWeight: 700, color: color.text.white, fontSize: "15px" }}>
+                Grup Arisan Anda Aktif — Tagihan Siklus #{nearestContribution.cycleNumber} Siap Disetor
+              </div>
+              <div style={{ fontSize: "12px", color: color.text.muted }}>
+                Nominal: {formatWeiToBnb(nearestContribution.amountWei)} • Jatuh tempo: {formatDate(nearestContribution.dueDate)}
+              </div>
+            </div>
+          </div>
+          <LiquidMetalButton
+            href="/pay"
+            size="sm"
+            variant="cyan"
+          >
+            Bayar via MetaMask (tBNB) →
+          </LiquidMetalButton>
+        </div>
+      )}
+
       {/* KPI Stats Grid */}
       <div
         style={{

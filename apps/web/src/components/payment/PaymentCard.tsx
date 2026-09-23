@@ -11,6 +11,9 @@ import { CheckIcon, AlertTriangleIcon } from "../layout/Icons";
 export interface ContributionItem {
   id: string;
   groupId: string;
+  contractGroupId?: string;
+  groupNumber?: number;
+  groupCurrentCycle?: number;
   cycleId: string;
   cycleNumber: number;
   amountWei: string;
@@ -31,6 +34,8 @@ export const PaymentCard: React.FC<{
 
   const isPaid = contribution.status === "PAID_ON_TIME" || contribution.status === "PAID_LATE";
   const isLate = new Date() > new Date(contribution.dueDate) && !isPaid;
+  const currentActiveCycle = contribution.groupCurrentCycle || 1;
+  const isUpcomingCycle = contribution.cycleNumber > currentActiveCycle;
 
   const handlePay = async () => {
     setIsProcessing(true);
@@ -46,21 +51,22 @@ export const PaymentCard: React.FC<{
         (res as any)?.contributionId ||
         contribution.id;
 
-      // 2. Broadcast on-chain or demo payment
-      setStep("Processing transaction...");
+      // 2. Broadcast on-chain transaction with MetaMask
+      setStep("Menunggu konfirmasi transaksi di dompet Web3 (MetaMask)...");
       const paymentResult = await payContribution({
         cycleId: contribution.cycleId,
         groupId: contribution.groupId,
+        contractGroupId: contribution.contractGroupId || String(contribution.groupNumber || 1),
         cycleNumber: contribution.cycleNumber,
         amountWei: contribution.amountWei,
       });
 
       // 3. Confirm with backend
-      setStep("Confirming payment with backend...");
+      setStep("Memverifikasi dan mencatat transaksi di sistem...");
       await confirmContribution(intentId, paymentResult.txHash, contribution.cycleId);
 
       setTxHash(paymentResult.txHash);
-      setStep("Payment confirmed!");
+      setStep("Pembayaran berhasil diverifikasi!");
       onPaymentSuccess?.();
     } catch (err: any) {
       setError(getErrorMessage(err));
@@ -84,14 +90,14 @@ export const PaymentCard: React.FC<{
         <div>
           <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px" }}>
             <span style={{ fontSize: "16px", fontWeight: 700, color: color.text.primary }}>
-              Cycle #{contribution.cycleNumber} Contribution
+              Cycle #{contribution.cycleNumber} Contribution {isUpcomingCycle && "(Siklus Mendatang)"}
             </span>
-            <Badge variant={isPaid ? "success" : isLate ? "danger" : "warning"}>
-              {contribution.status}
+            <Badge variant={isPaid ? "success" : isLate ? "danger" : isUpcomingCycle ? "neutral" : "warning"}>
+              {isPaid ? "PAID" : isUpcomingCycle ? "UPCOMING" : "PENDING"}
             </Badge>
           </div>
           <div style={{ fontSize: "12px", color: color.text.muted }}>
-            Group ID: {contribution.groupId} • Due: {formatDate(contribution.dueDate)}
+            Group #{contribution.groupNumber || 1} • Due: {formatDate(contribution.dueDate)}
           </div>
         </div>
 
@@ -100,12 +106,12 @@ export const PaymentCard: React.FC<{
             {formatWeiToBnb(contribution.amountWei)}
           </div>
           <div style={{ fontSize: "11px", fontWeight: 600, color: isLate ? color.status.error : color.text.muted, marginTop: "2px" }}>
-            {isLate ? "Overdue: -10 pts/day penalty" : "Due on time (+10 reputation) • Late penalty: -10 pts/day"}
+            {isLate ? "Overdue: -10 pts/day penalty" : "Due on time (+50 reputation) • Early bonus: +10 pts"}
           </div>
         </div>
       </div>
 
-      {/* Demo payment banner with glassmorphic container */}
+      {/* Live Web3 Smart Contract Banner */}
       <div
         style={{
           display: "flex",
@@ -122,9 +128,28 @@ export const PaymentCard: React.FC<{
           color: color.text.secondary,
         }}
       >
-        <span>Testnet Mode: Demo Payment Adapter Active</span>
-        <span style={{ color: color.brand.accentCyan, fontWeight: 600 }}>Instant Simulation</span>
+        <span>BNB Smart Chain Testnet (ID: 97)</span>
+        <span style={{ color: color.brand.accentElectric, fontWeight: 600 }}>
+          Smart Contract: 0x71a4...2A8C
+        </span>
       </div>
+
+      {isUpcomingCycle && !isPaid && (
+        <div
+          style={{
+            padding: spacing["3"],
+            marginBottom: spacing["3"],
+            borderRadius: radius.md,
+            backgroundColor: "rgba(59, 130, 246, 0.1)",
+            border: "1px solid rgba(59, 130, 246, 0.3)",
+            fontSize: "12px",
+            color: "#60a5fa",
+            lineHeight: 1.5,
+          }}
+        >
+          ⏱ <strong>Siklus #{contribution.cycleNumber} Terjadwal (1 Bulan):</strong> Tagihan ini dibuka setelah Siklus #{currentActiveCycle} selesai dan diselesaikan oleh kontrak arisan.
+        </div>
+      )}
 
       {step && (
         <div style={{ fontSize: "12px", color: color.brand.accentCyan, marginBottom: spacing["3"] }}>
@@ -148,7 +173,7 @@ export const PaymentCard: React.FC<{
           }}
         >
           <CheckIcon size={14} />
-          <span>Transaction successful: <code style={{ wordBreak: "break-all" }}>{txHash}</code></span>
+          <span>Transaksi on-chain berhasil: <code style={{ wordBreak: "break-all" }}>{txHash}</code></span>
         </div>
       )}
 
@@ -177,10 +202,13 @@ export const PaymentCard: React.FC<{
           variant="liquid-metal"
           size="md"
           loading={isProcessing}
+          disabled={isUpcomingCycle}
           onClick={handlePay}
           style={{ width: "100%" }}
         >
-          Pay {formatWeiToBnb(contribution.amountWei)} Now
+          {isUpcomingCycle
+            ? `Siklus #${contribution.cycleNumber} Menunggu Siklus #${currentActiveCycle}`
+            : `Pay ${formatWeiToBnb(contribution.amountWei)} via MetaMask (tBNB)`}
         </Button>
       )}
     </Card>

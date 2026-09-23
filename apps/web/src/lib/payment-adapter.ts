@@ -26,11 +26,10 @@ const DEMO_MODE_FORCED =
 /**
  * Encodes payContribution(uint256 groupId, uint256 cycleNumber) selector & arguments.
  * Function signature: "payContribution(uint256,uint256)"
- * Keccak256 hash first 4 bytes: 0xa962657e (or custom ABI encoding)
+ * Keccak256 hash first 4 bytes: 0x524bbdf9
  */
 function encodePayContributionCall(groupId: number | bigint, cycleNumber: number | bigint): string {
-  // 4-byte selector for payContribution(uint256,uint256)
-  const selector = "0xa962657e";
+  const selector = "0x524bbdf9";
   const arg1 = BigInt(groupId).toString(16).padStart(64, "0");
   const arg2 = BigInt(cycleNumber).toString(16).padStart(64, "0");
   return `${selector}${arg1}${arg2}`;
@@ -49,17 +48,20 @@ export class DefaultPaymentAdapter implements PaymentAdapter {
     txHash: string;
     mode: "contract" | "demo";
   }> {
-    const walletAddress = await getWalletAddress();
+    // Contract Mode: Active when contract address is available and not forced into demo mode
+    if (this.contractAddress && !DEMO_MODE_FORCED) {
+      const walletAddress = await getWalletAddress();
+      if (!walletAddress) {
+        throw new Error("Dompet Web3 belum terhubung. Silakan klik 'Connect Wallet' di kanan atas terlebih dahulu.");
+      }
 
-    // Use contract mode only if contract address is configured and not forced demo mode
-    if (this.contractAddress && !DEMO_MODE_FORCED && walletAddress) {
+      const targetGroupId = params.contractGroupId
+        ? BigInt(params.contractGroupId)
+        : BigInt(params.groupId.replace(/[^0-9]/g, "") || "1");
+
+      const data = encodePayContributionCall(targetGroupId, params.cycleNumber);
+
       try {
-        const targetGroupId = params.contractGroupId
-          ? BigInt(params.contractGroupId)
-          : BigInt(params.groupId.replace(/[^0-9]/g, "") || "1");
-
-        const data = encodePayContributionCall(targetGroupId, params.cycleNumber);
-
         const txHash = await sendContractTransaction({
           to: this.contractAddress,
           from: walletAddress,
@@ -71,13 +73,13 @@ export class DefaultPaymentAdapter implements PaymentAdapter {
           txHash,
           mode: "contract",
         };
-      } catch (err) {
-        console.warn("Contract transaction failed or rejected, falling back to demo simulation:", err);
-        const randomHex = Math.random().toString(36).substring(2, 10) + Date.now().toString(36);
-        return {
-          txHash: `fallback-tx-${randomHex}`,
-          mode: "demo",
-        };
+      } catch (err: any) {
+        console.error("Contract payment transaction failed:", err);
+        const errMsg = err?.message || String(err);
+        if (errMsg.includes("User rejected") || errMsg.includes("user rejected")) {
+          throw new Error("Transaksi dibatalkan oleh pengguna di MetaMask.");
+        }
+        throw new Error(`Transaksi Smart Contract gagal: ${errMsg}`);
       }
     }
 
