@@ -2,22 +2,35 @@
 
 import React, { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import { color, radius, spacing, Card, Badge, LoadingState } from "@merit-circle/ui";
+import { color, radius, spacing, Card, Badge, Button, LoadingState } from "@merit-circle/ui";
 import { AppProviders } from "../../../providers/AppProviders";
 import { Shell } from "../../../components/layout/Shell";
-import { getGroup, getGroupCycles, getRewardLedger } from "../../../lib/api";
+import { getGroup, getGroupCycles, getRewardLedger, getMyContributions } from "../../../lib/api";
 import { getErrorMessage } from "../../../lib/error";
 import { formatAddress, formatDate, formatWeiToBnb } from "../../../lib/format";
 import { CycleTimeline, CycleInfo } from "../../../components/group/CycleTimeline";
 import { ZapIcon, UserIcon } from "../../../components/layout/Icons";
+import { useAuth } from "../../../hooks/useAuth";
 
 function GroupHubContent({ initialGroupId }: { initialGroupId?: string }) {
   const routeParams = useParams();
   const [group, setGroup] = useState<any>(null);
   const [cycles, setCycles] = useState<CycleInfo[]>([]);
   const [ledger, setLedger] = useState<any[]>([]);
+  const { isAuthenticated } = useAuth();
+  const [userContributions, setUserContributions] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      getMyContributions()
+        .then((res) => {
+          setUserContributions(res.contributions || []);
+        })
+        .catch(() => {});
+    }
+  }, [isAuthenticated]);
 
   useEffect(() => {
     let id = initialGroupId || (routeParams?.groupId as string);
@@ -121,6 +134,64 @@ function GroupHubContent({ initialGroupId }: { initialGroupId?: string }) {
           </a>
         )}
       </div>
+
+      {/* Active Cycle Payment Action Banner */}
+      {(() => {
+        const pendingContrib = userContributions.find(
+          (c) =>
+            (c.groupId === group.id || c.contractGroupId === group.contractGroupId) &&
+            c.cycleNumber === group.currentCycleNumber &&
+            c.status === "PENDING"
+        );
+
+        if (!pendingContrib) return null;
+
+        return (
+          <Card
+            liquid
+            variant="gold"
+            style={{
+              borderRadius: radius.xl,
+              padding: spacing["5"],
+              marginBottom: spacing["6"],
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              background: "linear-gradient(135deg, rgba(234, 179, 8, 0.12) 0%, rgba(20, 24, 38, 0.9) 100%)",
+              border: "1px solid rgba(234, 179, 8, 0.35)",
+            }}
+          >
+            <div>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px" }}>
+                <span style={{ fontSize: "16px", fontWeight: 700, color: "#facc15" }}>
+                  Pembayaran Iuran Siklus #{group.currentCycleNumber} Telah Dibuka!
+                </span>
+                <Badge variant="warning">BELUM DIBAYAR</Badge>
+              </div>
+              <div style={{ fontSize: "13px", color: color.text.secondary }}>
+                Setor iuran tepat waktu untuk mempertahankan skor reputasi Anda (+50 pts). Jatuh tempo: {formatDate(pendingContrib.dueDate)}.
+              </div>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+              <div style={{ textAlign: "right" }}>
+                <div style={{ fontSize: "18px", fontWeight: 700, color: color.brand.accentElectric }}>
+                  {formatWeiToBnb(pendingContrib.amountWei)}
+                </div>
+                <div style={{ fontSize: "11px", color: color.text.muted }}>BNB Smart Chain Testnet</div>
+              </div>
+              <Button
+                variant="liquid-metal"
+                size="md"
+                onClick={() => {
+                  window.location.href = "/pay";
+                }}
+              >
+                Bayar Iuran Sekarang
+              </Button>
+            </div>
+          </Card>
+        );
+      })()}
 
       {/* Main Grid */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 360px", gap: spacing["8"] }}>

@@ -121,6 +121,7 @@ export async function getGroupDetail(
     poolName: group.pool.name,
     mode: group.pool.mode,
     groupNumber: group.groupNumber,
+    contractGroupId: group.contractGroupId || String(group.groupNumber),
     status: group.status,
     memberCount: group.memberCount,
     groupSize: group.pool.groupSize,
