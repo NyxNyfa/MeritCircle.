@@ -50,6 +50,10 @@ export const PaymentCard: React.FC<{
         (res as any)?.id ||
         (res as any)?.contributionId ||
         contribution.id;
+      const targetContractAddress =
+        res?.intent?.contractAddress ||
+        (res as any)?.contractAddress ||
+        "0x71a41e2993ecF330Ebb7D22C2F752a606d992A8C";
 
       // 2. Broadcast on-chain transaction with MetaMask
       setStep("Menunggu konfirmasi transaksi di dompet Web3 (MetaMask)...");
@@ -57,6 +61,7 @@ export const PaymentCard: React.FC<{
         cycleId: contribution.cycleId,
         groupId: contribution.groupId,
         contractGroupId: contribution.contractGroupId || String(contribution.groupNumber || 1),
+        contractAddress: targetContractAddress,
         cycleNumber: contribution.cycleNumber,
         amountWei: contribution.amountWei,
       });

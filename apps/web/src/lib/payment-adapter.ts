@@ -10,6 +10,7 @@ export interface PaymentAdapter {
     cycleId: string;
     groupId: string;
     contractGroupId?: string;
+    contractAddress?: string;
     cycleNumber: number;
     amountWei: string;
   }): Promise<{
@@ -18,8 +19,11 @@ export interface PaymentAdapter {
   }>;
 }
 
+export const DEFAULT_CONTRACT_ADDRESS = "0x71a41e2993ecF330Ebb7D22C2F752a606d992A8C";
+
 const CONTRACT_ADDRESS =
-  (typeof process !== "undefined" && process.env.NEXT_PUBLIC_CONTRACT_ADDRESS) || "";
+  (typeof process !== "undefined" && process.env.NEXT_PUBLIC_CONTRACT_ADDRESS) ||
+  DEFAULT_CONTRACT_ADDRESS;
 const DEMO_MODE_FORCED =
   (typeof process !== "undefined" && process.env.NEXT_PUBLIC_DEMO_PAYMENT_MODE === "true") || false;
 
@@ -42,17 +46,25 @@ export class DefaultPaymentAdapter implements PaymentAdapter {
     cycleId: string;
     groupId: string;
     contractGroupId?: string;
+    contractAddress?: string;
     cycleNumber: number;
     amountWei: string;
   }): Promise<{
     txHash: string;
     mode: "contract" | "demo";
   }> {
-    // Contract Mode: Active when contract address is available and not forced into demo mode
-    if (this.contractAddress && !DEMO_MODE_FORCED) {
+    const targetContract =
+      params.contractAddress ||
+      this.contractAddress ||
+      DEFAULT_CONTRACT_ADDRESS;
+
+    // Contract Mode: Default mode for live Web3 on-chain transactions on BNB Testnet
+    if (!DEMO_MODE_FORCED) {
       const walletAddress = await getWalletAddress();
       if (!walletAddress) {
-        throw new Error("Dompet Web3 belum terhubung. Silakan klik 'Connect Wallet' di kanan atas terlebih dahulu.");
+        throw new Error(
+          "Dompet Web3 belum terhubung. Silakan klik 'Connect Wallet' di kanan atas terlebih dahulu untuk membayar via MetaMask (tBNB)."
+        );
       }
 
       const targetGroupId = params.contractGroupId
@@ -63,7 +75,7 @@ export class DefaultPaymentAdapter implements PaymentAdapter {
 
       try {
         const txHash = await sendContractTransaction({
-          to: this.contractAddress,
+          to: targetContract,
           from: walletAddress,
           data,
           value: params.amountWei,
@@ -83,7 +95,7 @@ export class DefaultPaymentAdapter implements PaymentAdapter {
       }
     }
 
-    // Demo Mode: Generate demo transaction hash
+    // Demo Mode: Only if explicitly forced via NEXT_PUBLIC_DEMO_PAYMENT_MODE=true
     const randomHex = Math.random().toString(36).substring(2, 10) + Date.now().toString(36);
     const txHash = `demo-tx-${randomHex}`;
 
@@ -100,6 +112,7 @@ export async function payContribution(params: {
   cycleId: string;
   groupId: string;
   contractGroupId?: string;
+  contractAddress?: string;
   cycleNumber: number;
   amountWei: string;
 }): Promise<{

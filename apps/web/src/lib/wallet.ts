@@ -144,7 +144,13 @@ export async function sendContractTransaction(params: {
   value?: string;
 }): Promise<string> {
   if (!isEthereumAvailable()) {
-    throw new Error("No Web3 wallet detected.");
+    throw new Error("No Web3 wallet detected. Silakan pasang MetaMask atau Rabby.");
+  }
+
+  // Ensure wallet is on BNB Smart Chain Testnet (Chain ID 97)
+  const currentChain = await getCurrentChainId();
+  if (currentChain !== BNB_TESTNET_CHAIN_ID) {
+    await switchToBnbTestnet();
   }
 
   const txPromise = window.ethereum!.request({
