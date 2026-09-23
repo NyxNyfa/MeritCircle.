@@ -300,7 +300,7 @@ export async function confirmContribution(
 ): Promise<{ contribution: any; payment: any }> {
   return fetchApi<{ contribution: any; payment: any }>("/api/payments/confirm", {
     method: "POST",
-    body: JSON.stringify({ paymentIntentId, txHash }),
+    body: JSON.stringify({ contributionId: paymentIntentId, paymentIntentId, txHash }),
   });
 }
 

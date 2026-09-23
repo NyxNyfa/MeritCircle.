@@ -10,10 +10,45 @@ import { applyReputationEvent } from "../reputation/reputation.service";
 import { paymentVerifier } from "./payment-verifier";
 import { ConfirmPaymentInput } from "./payment.schema";
 
-export async function createPaymentIntent(userId: string, cycleId: string) {
+export async function createPaymentIntent(
+  userId: string,
+  target: string | { cycleId?: string; contributionId?: string }
+) {
+  let targetCycleId: string | undefined;
+  let targetContributionId: string | undefined;
+
+  if (typeof target === "string") {
+    const maybeContrib = await prisma.contribution.findUnique({
+      where: { id: target },
+    });
+    if (maybeContrib) {
+      targetContributionId = maybeContrib.id;
+      targetCycleId = maybeContrib.cycleId;
+    } else {
+      targetCycleId = target;
+    }
+  } else if (target) {
+    if (target.contributionId) {
+      const maybeContrib = await prisma.contribution.findUnique({
+        where: { id: target.contributionId },
+      });
+      if (maybeContrib) {
+        targetContributionId = maybeContrib.id;
+        targetCycleId = maybeContrib.cycleId;
+      }
+    }
+    if (!targetCycleId && target.cycleId) {
+      targetCycleId = target.cycleId;
+    }
+  }
+
+  if (!targetCycleId) {
+    throw new AppError("Invalid cycle or contribution identifier", 400, "BAD_REQUEST");
+  }
+
   // 1. Fetch cycle and group
   const cycle = await prisma.cycle.findUnique({
-    where: { id: cycleId },
+    where: { id: targetCycleId },
     include: {
       group: {
         include: {
@@ -43,18 +78,20 @@ export async function createPaymentIntent(userId: string, cycleId: string) {
   }
 
   // 4. Find contribution
-  const contribution = await prisma.contribution.findFirst({
-    where: {
-      cycleId,
-      userId,
-    },
-  });
+  const contribution = targetContributionId
+    ? await prisma.contribution.findUnique({ where: { id: targetContributionId } })
+    : await prisma.contribution.findFirst({
+        where: {
+          cycleId: targetCycleId,
+          userId,
+        },
+      });
 
   if (!contribution) {
     throw new AppError("Contribution not found for user", 404, "NOT_FOUND");
   }
 
-  if (contribution.status === "PAID_ON_TIME") {
+  if (contribution.status === "PAID_ON_TIME" || contribution.status === "PAID_LATE") {
     throw new AppError(
       "Contribution is already paid",
       400,
@@ -62,7 +99,8 @@ export async function createPaymentIntent(userId: string, cycleId: string) {
     );
   }
 
-  return {
+  const payload = {
+    id: contribution.id,
     cycleId: cycle.id,
     groupId: cycle.groupId,
     cycleNumber: cycle.cycleNumber,
@@ -70,8 +108,13 @@ export async function createPaymentIntent(userId: string, cycleId: string) {
     contributionAmountWei: contribution.amountWei,
     paymentMethod: "BNB_TESTNET",
     contractAddress:
-      process.env.CONTRACT_ADDRESS || "0xContractAddressOrMock",
+      process.env.CONTRACT_ADDRESS || "0x71a41e2993ecF330Ebb7D22C2F752a606d992A8C",
     instructions: "Call payContribution(groupId, cycleNumber) with exact value.",
+  };
+
+  return {
+    ...payload,
+    intent: payload,
   };
 }
 
@@ -81,9 +124,10 @@ export async function confirmPayment(
   paymentTimestamp?: Date
 ) {
   // 1. Find contribution
+  const targetContributionId = input.contributionId || input.paymentIntentId;
   const contribution = await prisma.contribution.findFirst({
-    where: input.contributionId
-      ? { id: input.contributionId }
+    where: targetContributionId
+      ? { id: targetContributionId }
       : { cycleId: input.cycleId, userId },
     include: {
       cycle: true,
@@ -113,17 +157,25 @@ export async function confirmPayment(
     contribution.txHash === input.txHash &&
     (contribution.status === "PAID_ON_TIME" || contribution.status === "PAID_LATE")
   ) {
-    return {
+    const existing = {
       contributionId: contribution.id,
       status: contribution.status,
       lateDays: contribution.lateDays,
       penaltyPoint: contribution.penaltyPoint,
       rewardPoint: contribution.status === "PAID_ON_TIME" ? 50 : 0,
     };
+    return {
+      ...existing,
+      contribution: existing,
+      payment: {
+        txHash: input.txHash,
+        status: contribution.status,
+      },
+    };
   }
 
   // Contribution already paid with different txHash
-  if (contribution.status === "PAID_ON_TIME") {
+  if (contribution.status === "PAID_ON_TIME" || contribution.status === "PAID_LATE") {
     throw new AppError(
       "Contribution is already paid",
       400,
@@ -277,11 +329,21 @@ export async function confirmPayment(
     });
   }
 
-  return {
+  const res = {
     contributionId: contribution.id,
     status: finalStatus,
     lateDays,
     penaltyPoint,
     rewardPoint,
   };
+
+  return {
+    ...res,
+    contribution: res,
+    payment: {
+      txHash: input.txHash,
+      status: finalStatus,
+    },
+  };
 }
+

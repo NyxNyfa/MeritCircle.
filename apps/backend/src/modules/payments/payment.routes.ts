@@ -22,17 +22,38 @@ paymentRouter.post(
   }
 );
 
-// POST /api/contributions/confirm
+// POST /api/payments/payment-intent (Frontend compatibility)
 paymentRouter.post(
-  "/api/contributions/confirm",
+  "/api/payments/payment-intent",
   authMiddleware,
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const input = confirmPaymentSchema.parse(req.body);
-      const result = await confirmPayment(req.user!.id, input);
+      const target = req.body?.contributionId
+        ? req.body.contributionId
+        : req.body?.cycleId || req.body;
+      const result = await createPaymentIntent(req.user!.id, target);
       res.json(result);
     } catch (error) {
       next(error);
     }
   }
 );
+
+// POST /api/contributions/confirm & POST /api/payments/confirm
+const handleConfirmPayment = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const input = confirmPaymentSchema.parse(req.body);
+    const result = await confirmPayment(req.user!.id, input);
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+};
+
+paymentRouter.post("/api/contributions/confirm", authMiddleware, handleConfirmPayment);
+paymentRouter.post("/api/payments/confirm", authMiddleware, handleConfirmPayment);
+

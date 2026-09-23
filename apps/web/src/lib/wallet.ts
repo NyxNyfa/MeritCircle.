@@ -147,7 +147,7 @@ export async function sendContractTransaction(params: {
     throw new Error("No Web3 wallet detected.");
   }
 
-  const txHash = (await window.ethereum!.request({
+  const txPromise = window.ethereum!.request({
     method: "eth_sendTransaction",
     params: [
       {
@@ -157,7 +157,12 @@ export async function sendContractTransaction(params: {
         value: params.value ? `0x${BigInt(params.value).toString(16)}` : "0x0",
       },
     ],
-  })) as string;
+  }) as Promise<string>;
 
+  const timeoutPromise = new Promise<never>((_, reject) =>
+    setTimeout(() => reject(new Error("Transaction request timed out after 25s")), 25000)
+  );
+
+  const txHash = await Promise.race([txPromise, timeoutPromise]);
   return txHash;
 }

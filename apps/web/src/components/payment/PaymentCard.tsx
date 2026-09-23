@@ -38,7 +38,13 @@ export const PaymentCard: React.FC<{
     try {
       // 1. Create payment intent
       setStep("Creating payment intent...");
-      const { intent } = await createPaymentIntent(contribution.id);
+      const res = await createPaymentIntent(contribution.id);
+      const intentId =
+        res?.intent?.id ||
+        res?.intent?.contributionId ||
+        (res as any)?.id ||
+        (res as any)?.contributionId ||
+        contribution.id;
 
       // 2. Broadcast on-chain or demo payment
       setStep("Processing transaction...");
@@ -51,7 +57,7 @@ export const PaymentCard: React.FC<{
 
       // 3. Confirm with backend
       setStep("Confirming payment with backend...");
-      await confirmContribution(intent.id, paymentResult.txHash);
+      await confirmContribution(intentId, paymentResult.txHash);
 
       setTxHash(paymentResult.txHash);
       setStep("Payment confirmed!");

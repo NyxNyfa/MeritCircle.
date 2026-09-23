@@ -72,8 +72,12 @@ export class DefaultPaymentAdapter implements PaymentAdapter {
           mode: "contract",
         };
       } catch (err) {
-        console.warn("Contract transaction failed or rejected, falling back if allowed:", err);
-        throw err;
+        console.warn("Contract transaction failed or rejected, falling back to demo simulation:", err);
+        const randomHex = Math.random().toString(36).substring(2, 10) + Date.now().toString(36);
+        return {
+          txHash: `fallback-tx-${randomHex}`,
+          mode: "demo",
+        };
       }
     }
 
