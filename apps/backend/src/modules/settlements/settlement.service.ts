@@ -347,6 +347,17 @@ export async function settleCycle(
       },
     });
 
+    // Release / unlock all active participants from the group/pool upon final cycle settlement
+    await prisma.groupMember.updateMany({
+      where: {
+        groupId: cycle.groupId,
+        status: "ACTIVE",
+      },
+      data: {
+        status: "COMPLETED",
+      },
+    });
+
     // Apply GROUP_COMPLETED (+100) reputation event for members who completed all contributions
     for (const member of members) {
       const memberContributions = await prisma.contribution.findMany({
@@ -514,4 +525,119 @@ export async function settleCycle(
       isFinalCycle: cycle.isFinalCycle,
     },
   };
+}
+
+export interface TimeBasedSettlementOptions {
+  forceEpochExpiry?: boolean;
+  callerUserId?: string;
+  recipientUserId?: string;
+}
+
+/**
+ * Triggers settlement based on cycle duration / epoch expiration (Method 1: Time-based).
+ * Validates that the cycle epoch has expired (or forceEpochExpiry is set for demo/testing)
+ * and delegates execution to settleCycle.
+ */
+export async function triggerTimeBasedSettlement(
+  cycleId: string,
+  options: TimeBasedSettlementOptions = {},
+  provider: SettlementProvider = defaultSettlementProvider
+) {
+  const cycle = await prisma.cycle.findUnique({
+    where: { id: cycleId },
+    include: {
+      group: {
+        include: { pool: true },
+      },
+    },
+  });
+
+  if (!cycle) {
+    throw new AppError("Cycle not found", 404, "NOT_FOUND");
+  }
+
+  if (cycle.status === "COMPLETED") {
+    throw new AppError("Cycle is already settled", 400, "CYCLE_ALREADY_SETTLED");
+  }
+
+  const now = new Date();
+  const isExpired = Boolean(
+    options.forceEpochExpiry ||
+    (cycle.paymentDeadline && now >= cycle.paymentDeadline) ||
+    (cycle.settlementAt && now >= cycle.settlementAt) ||
+    (cycle.startDate && cycle.group?.pool?.cycleDurationDays &&
+      now.getTime() >= new Date(cycle.startDate).getTime() + cycle.group.pool.cycleDurationDays * 86400000)
+  );
+
+  if (!isExpired) {
+    throw new AppError(
+      "Cycle duration has not expired yet. Time-based settlement requires epoch expiration or forced expiry.",
+      400,
+      "EPOCH_NOT_EXPIRED"
+    );
+  }
+
+  let callerId = options.callerUserId;
+  if (!callerId) {
+    const adminUser = await prisma.user.findFirst({
+      where: { role: "ADMIN" },
+    });
+    callerId = adminUser ? adminUser.id : "system-epoch-trigger";
+  }
+
+  return await settleCycle(
+    callerId,
+    cycleId,
+    { recipientUserId: options.recipientUserId },
+    provider
+  );
+}
+
+/**
+ * Sweeps all active cycles across all active groups and automatically settles any cycle
+ * whose epoch/deadline has expired.
+ */
+export async function processExpiredCycles(
+  provider: SettlementProvider = defaultSettlementProvider
+) {
+  const now = new Date();
+  const eligibleCycles = await prisma.cycle.findMany({
+    where: {
+      status: { in: ["PAYMENT_OPEN", "PAYMENT_CLOSED", "AUCTION_CLOSED"] },
+      group: { status: "ACTIVE" },
+      OR: [
+        { paymentDeadline: { lte: now } },
+        { settlementAt: { lte: now } },
+      ],
+    },
+    include: {
+      group: true,
+      contributions: true,
+    },
+  });
+
+  const results: Array<{ cycleId: string; success: boolean; error?: string }> = [];
+
+  for (const c of eligibleCycles) {
+    try {
+      const allPaid =
+        c.contributions.length === c.group.memberCount &&
+        c.contributions.every(
+          (cb) => cb.status === "PAID_ON_TIME" || cb.status === "PAID_LATE"
+        );
+
+      if (allPaid) {
+        await triggerTimeBasedSettlement(
+          c.id,
+          { forceEpochExpiry: true },
+          provider
+        );
+        results.push({ cycleId: c.id, success: true });
+      }
+    } catch (err: any) {
+      results.push({ cycleId: c.id, success: false, error: err?.message });
+    }
+  }
+
+  return { processed: results.length, details: results };
 }

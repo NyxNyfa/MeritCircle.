@@ -114,9 +114,12 @@ export async function joinPool(userId: string, poolId: string) {
     );
   }
 
-  // 3. Count user's active groups (FORMING or ACTIVE)
+  // 3. Count user's active groups (FORMING or ACTIVE with status ACTIVE)
   const userMemberships = await prisma.groupMember.findMany({
-    where: { userId },
+    where: {
+      userId,
+      status: "ACTIVE",
+    },
     include: { group: true },
   });
 

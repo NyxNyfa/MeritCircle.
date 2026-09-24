@@ -51,6 +51,7 @@ export async function getUsers() {
       reputation: true,
       groupMembers: {
         where: {
+          status: "ACTIVE",
           group: { status: { in: ["FORMING", "ACTIVE"] } },
         },
       },
@@ -100,6 +101,13 @@ export async function getUser(userId: string) {
     throw new AppError("User not found", 404, "NOT_FOUND");
   }
 
+  const activeMemberships = user.groupMembers.filter(
+    (m) => m.status === "ACTIVE" && (m.group.status === "FORMING" || m.group.status === "ACTIVE")
+  );
+  const completedMemberships = user.groupMembers.filter(
+    (m) => m.status === "COMPLETED" || m.group.status === "COMPLETED"
+  );
+
   return {
     user: {
       id: user.id,
@@ -113,11 +121,23 @@ export async function getUser(userId: string) {
       reputationPoints: user.reputation?.points ?? 0,
       tier: user.reputation?.tier ?? 1,
       profile: user.profile,
-      activeGroups: user.groupMembers.map((m) => ({
+      activeGroupsCount: activeMemberships.length,
+      activeGroups: activeMemberships.map((m) => ({
         groupId: m.groupId,
         groupNumber: m.group.groupNumber,
         poolName: m.group.pool.name,
         status: m.group.status,
+        memberStatus: m.status,
+        currentCycle: m.group.currentCycle,
+        slot: m.payoutSlot,
+        hasReceivedPayout: m.hasReceivedPayout,
+      })),
+      completedGroups: completedMemberships.map((m) => ({
+        groupId: m.groupId,
+        groupNumber: m.group.groupNumber,
+        poolName: m.group.pool.name,
+        status: m.group.status,
+        memberStatus: m.status,
         currentCycle: m.group.currentCycle,
         slot: m.payoutSlot,
         hasReceivedPayout: m.hasReceivedPayout,
