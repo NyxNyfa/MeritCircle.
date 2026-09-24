@@ -57,10 +57,33 @@ export class OnChainPaymentVerifier implements PaymentVerifier {
     }
 
     try {
-      // 1. Fetch transaction receipt directly from the BNB Smart Chain block scan / RPC
-      const receipt = await this.client.getTransactionReceipt({
-        hash: txHash as `0x${string}`,
-      });
+      // 0. Quick check: does transaction exist in mempool or block?
+      try {
+        await this.client.getTransaction({ hash: txHash as `0x${string}` });
+      } catch {
+        return {
+          success: false,
+          reason: "Transaksi tidak ditemukan di blockchain atau mempool BNB Smart Chain Testnet.",
+        };
+      }
+
+      // 1. Wait for transaction to be mined on BNB Smart Chain Testnet (handling async mining delay)
+      let receipt;
+      try {
+        receipt = await this.client.waitForTransactionReceipt({
+          hash: txHash as `0x${string}`,
+          timeout: 30_000,
+        });
+      } catch (waitErr: any) {
+        // Fallback to getTransactionReceipt in case already mined or RPC timeout
+        try {
+          receipt = await this.client.getTransactionReceipt({
+            hash: txHash as `0x${string}`,
+          });
+        } catch {
+          receipt = null;
+        }
+      }
 
       if (!receipt) {
         return {

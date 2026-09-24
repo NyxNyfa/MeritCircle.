@@ -15,6 +15,7 @@ import {
   getPools,
   createPool,
   patchPool,
+  deletePool,
   getGroups,
   getGroup,
   fillDemoGroup,
@@ -135,6 +136,19 @@ adminRouter.patch(
     try {
       const parsed = patchPoolSchema.parse(req.body);
       const data = await patchPool(req.user!.id, req.params.poolId, parsed);
+      res.json(data);
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
+adminRouter.delete(
+  "/api/admin/pools/:poolId",
+  adminGuard,
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const data = await deletePool(req.user!.id, req.params.poolId);
       res.json(data);
     } catch (err) {
       next(err);

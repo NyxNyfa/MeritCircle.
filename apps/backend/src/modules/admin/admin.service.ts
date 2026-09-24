@@ -295,17 +295,58 @@ export async function createPool(adminUserId: string, data: any) {
   return { pool };
 }
 
-export async function patchPool(adminUserId: string, poolId: string, data: { status?: any; description?: string }) {
-  const existing = await prisma.pool.findUnique({ where: { id: poolId } });
+export async function patchPool(
+  adminUserId: string,
+  poolId: string,
+  data: {
+    name?: string;
+    description?: string | null;
+    minimumTier?: number;
+    groupSize?: number;
+    cycleDurationDays?: number;
+    paymentWindowDays?: number;
+    auctionOpenDay?: number | null;
+    auctionCloseDay?: number | null;
+    settlementDay?: number;
+    contributionAmountWei?: string;
+    maxDiscountBps?: number | null;
+    status?: any;
+  }
+) {
+  const existing = await prisma.pool.findUnique({
+    where: { id: poolId },
+    include: { groups: true },
+  });
   if (!existing) {
     throw new AppError("Pool not found", 404, "NOT_FOUND");
+  }
+
+  // Prevent changing groupSize if active groups already exist
+  const activeGroups = (existing.groups || []).filter((g) => g.status === "ACTIVE");
+  if (activeGroups.length > 0 && data.groupSize && data.groupSize !== existing.groupSize) {
+    throw new AppError(
+      "Tidak dapat mengubah ukuran kelompok (group size) pada pool yang telah memiliki kelompok aktif.",
+      400,
+      "POOL_HAS_ACTIVE_GROUPS"
+    );
   }
 
   const updated = await prisma.pool.update({
     where: { id: poolId },
     data: {
+      name: data.name ?? existing.name,
+      description: data.description !== undefined ? data.description : existing.description,
+      minimumTier: data.minimumTier ?? existing.minimumTier,
+      groupSize: data.groupSize ?? existing.groupSize,
+      cycleCount: data.groupSize ?? existing.cycleCount,
+      cycleDurationDays: data.cycleDurationDays ?? existing.cycleDurationDays,
+      paymentWindowDays: data.paymentWindowDays ?? existing.paymentWindowDays,
+      auctionOpenDay: data.auctionOpenDay !== undefined ? data.auctionOpenDay : existing.auctionOpenDay,
+      auctionCloseDay: data.auctionCloseDay !== undefined ? data.auctionCloseDay : existing.auctionCloseDay,
+      settlementDay: data.settlementDay ?? existing.settlementDay,
+      contributionAmountWei: data.contributionAmountWei ?? existing.contributionAmountWei,
+      maxDiscountBps: data.maxDiscountBps !== undefined ? data.maxDiscountBps : existing.maxDiscountBps,
       status: data.status ?? existing.status,
-      description: data.description ?? existing.description,
     },
   });
 
@@ -316,11 +357,78 @@ export async function patchPool(adminUserId: string, poolId: string, data: { sta
       action: "PATCH_POOL",
       entityType: "POOL",
       entityId: poolId,
-      metadata: { previousStatus: existing.status, newStatus: updated.status },
+      metadata: { previous: existing, updated },
     },
   });
 
   return { pool: updated };
+}
+
+export async function deletePool(adminUserId: string, poolId: string) {
+  const existing = await prisma.pool.findUnique({
+    where: { id: poolId },
+    include: {
+      groups: {
+        include: {
+          contributions: true,
+          cycles: true,
+          members: true,
+        },
+      },
+    },
+  });
+
+  if (!existing) {
+    throw new AppError("Pool not found", 404, "NOT_FOUND");
+  }
+
+  const groups = existing.groups || [];
+
+  // Check if any group has paid contributions or completed cycles
+  const hasPaidOrCompleted = groups.some(
+    (g: any) =>
+      g.contributions?.some((c: any) => c.status === "PAID_ON_TIME" || c.status === "PAID_LATE") ||
+      g.cycles?.some((c: any) => c.status === "COMPLETED")
+  );
+
+  if (hasPaidOrCompleted) {
+    throw new AppError(
+      "Tidak dapat menghapus pool yang memiliki riwayat transaksi setoran lunas atau siklus selesai. Anda dapat mengubah status pool menjadi PAUSED atau CLOSED.",
+      400,
+      "POOL_HAS_TRANSACTION_HISTORY"
+    );
+  }
+
+  // If there are forming groups or groups with no paid contributions (like test cohorts), clean them up safely
+  if (groups.length > 0) {
+    const groupIds = groups.map((g) => g.id);
+    await prisma.$transaction([
+      prisma.contribution.deleteMany({ where: { groupId: { in: groupIds } } }),
+      prisma.cycleRewardLedger.deleteMany({ where: { groupId: { in: groupIds } } }),
+      prisma.bid.deleteMany({ where: { auction: { cycle: { groupId: { in: groupIds } } } } }),
+      prisma.auction.deleteMany({ where: { cycle: { groupId: { in: groupIds } } } }),
+      prisma.payout.deleteMany({ where: { cycle: { groupId: { in: groupIds } } } }),
+      prisma.cycle.deleteMany({ where: { groupId: { in: groupIds } } }),
+      prisma.groupMember.deleteMany({ where: { groupId: { in: groupIds } } }),
+      prisma.group.deleteMany({ where: { id: { in: groupIds } } }),
+      prisma.pool.delete({ where: { id: poolId } }),
+    ]);
+  } else {
+    await prisma.pool.delete({ where: { id: poolId } });
+  }
+
+  await prisma.auditLog.create({
+    data: {
+      actorUserId: adminUserId,
+      actorType: "ADMIN",
+      action: "DELETE_POOL",
+      entityType: "POOL",
+      entityId: poolId,
+      metadata: { deletedPool: { externalPoolId: existing.externalPoolId, name: existing.name } },
+    },
+  });
+
+  return { success: true, message: `Pool ${existing.name} (${existing.externalPoolId}) berhasil dihapus.` };
 }
 
 /* =========================================================================

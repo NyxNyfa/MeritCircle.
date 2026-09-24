@@ -65,19 +65,25 @@ export const PaymentCard: React.FC<{
         (res as any)?.contractAddress ||
         "0x71a41e2993ecF330Ebb7D22C2F752a606d992A8C";
 
+      if (!contribution.contractGroupId) {
+        throw new Error(
+          "Kelompok ini belum terdaftar pada smart contract on-chain. Pembayaran hanya dapat dilakukan untuk kelompok yang telah aktif di blockchain."
+        );
+      }
+
       // 2. Broadcast on-chain transaction with MetaMask
       setStep("Menunggu konfirmasi transaksi di dompet Web3 (MetaMask)...");
       const paymentResult = await payContribution({
         cycleId: contribution.cycleId,
         groupId: contribution.groupId,
-        contractGroupId: contribution.contractGroupId || String(contribution.groupNumber || 1),
+        contractGroupId: contribution.contractGroupId,
         contractAddress: targetContractAddress,
         cycleNumber: contribution.cycleNumber,
         amountWei: contribution.amountWei,
       });
 
-      // 3. Confirm with backend
-      setStep("Memverifikasi dan mencatat transaksi di sistem...");
+      // 3. Confirm with backend (waits for transaction to be mined into block)
+      setStep("Menunggu konfirmasi blok BNB Smart Chain Testnet & verifikasi on-chain...");
       await confirmContribution(intentId, paymentResult.txHash, contribution.cycleId);
 
       setTxHash(paymentResult.txHash);
@@ -117,7 +123,7 @@ export const PaymentCard: React.FC<{
             </Badge>
           </div>
           <div style={{ fontSize: "12px", color: color.text.muted }}>
-            Group #{contribution.groupNumber || 1} (Contract ID: #{contribution.contractGroupId || contribution.groupNumber || 1}) • Due: {formatDate(contribution.dueDate)}
+            Group #{contribution.groupNumber || 1} {contribution.contractGroupId ? `(Contract ID: #${contribution.contractGroupId})` : "• (Belum Terdaftar On-Chain)"} • Due: {formatDate(contribution.dueDate)}
           </div>
         </div>
 
@@ -222,12 +228,14 @@ export const PaymentCard: React.FC<{
           variant="liquid-metal"
           size="md"
           loading={isProcessing}
-          disabled={isUpcomingCycle}
+          disabled={isUpcomingCycle || !contribution.contractGroupId}
           onClick={handlePay}
           style={{ width: "100%" }}
         >
           {isUpcomingCycle
             ? `Siklus #${contribution.cycleNumber} Menunggu Siklus #${currentActiveCycle}`
+            : !contribution.contractGroupId
+            ? "Kelompok Belum Terdaftar On-Chain"
             : `Pay ${formatWeiToBnb(contribution.amountWei)} via MetaMask (tBNB)`}
         </Button>
       )}
