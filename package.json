@@ -11,6 +11,8 @@
     "lint": "pnpm -r run --if-present lint",
     "typecheck": "pnpm -r run --if-present typecheck",
     "test": "pnpm -r run --if-present test",
+    "postinstall": "pnpm prisma:generate",
+    "prebuild": "pnpm prisma:generate",
     "build": "pnpm -r run --if-present build",
     "sim": "pnpm --filter \"@merit-circle/contracts\" run sim",
     "test:sim": "pnpm --filter \"@merit-circle/contracts\" run test:sim",

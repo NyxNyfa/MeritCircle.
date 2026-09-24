@@ -61,12 +61,42 @@ function PaymentHubContent() {
     );
   }
 
+  // Group-level active cycle calculation: ensures lowest pending cycle is always payable
+  const activeCycleByGroup = React.useMemo(() => {
+    const map = new Map<string, number>();
+
+    // 1. Explicit signals from backend
+    contributions.forEach((c) => {
+      const gid = c.groupId || "default";
+      if (c.cycleStatus === "PAYMENT_OPEN" || c.isPayable) {
+        map.set(gid, Math.max(map.get(gid) || 1, c.cycleNumber));
+      } else if (c.groupCurrentCycle && c.groupCurrentCycle > 1) {
+        map.set(gid, Math.max(map.get(gid) || 1, c.groupCurrentCycle));
+      }
+    });
+
+    // 2. Fallback: for any group with pending dues, the lowest pending cycle is the active payable cycle
+    const groupIds = Array.from(new Set(contributions.map((c) => c.groupId || "default")));
+    groupIds.forEach((gid) => {
+      const pendingForGroup = contributions.filter(
+        (x) => (x.groupId || "default") === gid && x.status === "PENDING"
+      );
+      if (pendingForGroup.length > 0) {
+        const lowestPending = Math.min(...pendingForGroup.map((x) => x.cycleNumber));
+        map.set(gid, Math.max(map.get(gid) || 1, lowestPending));
+      }
+    });
+
+    return map;
+  }, [contributions]);
+
   const isPayableContribution = (c: ContributionItem) => {
     if (c.status !== "PENDING") return false;
     if (c.isPayable === true) return true;
     if (c.cycleStatus === "PAYMENT_OPEN") return true;
-    const currentCycle = c.groupCurrentCycle || 1;
-    return c.cycleNumber <= currentCycle;
+    const gid = c.groupId || "default";
+    const groupActiveCycle = activeCycleByGroup.get(gid) || c.groupCurrentCycle || 1;
+    return c.cycleNumber <= groupActiveCycle;
   };
 
   const activePayableContributions = contributions.filter(isPayableContribution);

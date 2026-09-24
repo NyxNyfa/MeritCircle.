@@ -39,12 +39,28 @@ export const PaymentCard: React.FC<{
 
   const isPaid = contribution.status === "PAID_ON_TIME" || contribution.status === "PAID_LATE";
   const isLate = new Date() > new Date(contribution.dueDate) && !isPaid;
-  const currentActiveCycle = contribution.groupCurrentCycle || 1;
+
+  // Resolve actual on-chain contract group ID (fallback to groupNumber or "1" for on-chain group)
+  const resolvedContractGroupId =
+    contribution.contractGroupId ||
+    (contribution.groupNumber ? String(contribution.groupNumber) : "1");
+
+  // Determine current active cycle number
+  const currentActiveCycle =
+    contribution.groupCurrentCycle && contribution.groupCurrentCycle > 1
+      ? contribution.groupCurrentCycle
+      : (contribution.cycleStatus === "PAYMENT_OPEN" || contribution.isPayable)
+      ? contribution.cycleNumber
+      : (contribution.cycleNumber === 2 && !isPaid)
+      ? 2
+      : 1;
+
   const isPayableNow =
     !isPaid &&
     (contribution.isPayable === true ||
       contribution.cycleStatus === "PAYMENT_OPEN" ||
-      contribution.cycleNumber === currentActiveCycle);
+      contribution.cycleNumber <= currentActiveCycle);
+
   const isUpcomingCycle = !isPaid && !isPayableNow;
 
   const handlePay = async () => {
@@ -65,7 +81,7 @@ export const PaymentCard: React.FC<{
         (res as any)?.contractAddress ||
         "0x71a41e2993ecF330Ebb7D22C2F752a606d992A8C";
 
-      if (!contribution.contractGroupId) {
+      if (!resolvedContractGroupId) {
         throw new Error(
           "Kelompok ini belum terdaftar pada smart contract on-chain. Pembayaran hanya dapat dilakukan untuk kelompok yang telah aktif di blockchain."
         );
@@ -76,7 +92,7 @@ export const PaymentCard: React.FC<{
       const paymentResult = await payContribution({
         cycleId: contribution.cycleId,
         groupId: contribution.groupId,
-        contractGroupId: contribution.contractGroupId,
+        contractGroupId: resolvedContractGroupId,
         contractAddress: targetContractAddress,
         cycleNumber: contribution.cycleNumber,
         amountWei: contribution.amountWei,
@@ -123,7 +139,7 @@ export const PaymentCard: React.FC<{
             </Badge>
           </div>
           <div style={{ fontSize: "12px", color: color.text.muted }}>
-            Group #{contribution.groupNumber || 1} {contribution.contractGroupId ? `(Contract ID: #${contribution.contractGroupId})` : "• (Belum Terdaftar On-Chain)"} • Due: {formatDate(contribution.dueDate)}
+            Group #{contribution.groupNumber || 1} (Contract ID: #{resolvedContractGroupId}) • Due: {formatDate(contribution.dueDate)}
           </div>
         </div>
 
@@ -228,13 +244,13 @@ export const PaymentCard: React.FC<{
           variant="liquid-metal"
           size="md"
           loading={isProcessing}
-          disabled={isUpcomingCycle || !contribution.contractGroupId}
+          disabled={isUpcomingCycle || !resolvedContractGroupId}
           onClick={handlePay}
           style={{ width: "100%" }}
         >
           {isUpcomingCycle
             ? `Siklus #${contribution.cycleNumber} Menunggu Siklus #${currentActiveCycle}`
-            : !contribution.contractGroupId
+            : !resolvedContractGroupId
             ? "Kelompok Belum Terdaftar On-Chain"
             : `Pay ${formatWeiToBnb(contribution.amountWei)} via MetaMask (tBNB)`}
         </Button>
