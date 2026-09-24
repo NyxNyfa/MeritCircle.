@@ -20,9 +20,7 @@ export async function getUserContributions(userId: string) {
   const mapped = contributions.map((c) => ({
     id: c.id,
     groupId: c.groupId,
-    contractGroupId:
-      c.group.contractGroupId ||
-      (c.group.pool.mode === "BASIC" ? String(c.group.groupNumber) : undefined),
+    contractGroupId: c.group.contractGroupId || undefined,
     groupNumber: c.group.groupNumber,
     groupCurrentCycle: c.group.currentCycle,
     poolName: c.group.pool.name,

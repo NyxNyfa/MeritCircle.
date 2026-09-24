@@ -14,7 +14,10 @@ export const confirmPaymentSchema = z
     cycleId: z.string().optional(),
     contributionId: z.string().optional(),
     paymentIntentId: z.string().optional(),
-    txHash: z.string().min(1, "txHash is required"),
+    txHash: z
+      .string()
+      .regex(/^0x[0-9a-fA-F]{64}$/, "txHash must be a 32-byte hex transaction hash")
+      .transform((value) => value.toLowerCase()),
   })
   .refine((data) => data.cycleId || data.contributionId || data.paymentIntentId, {
     message: "Either cycleId, contributionId, or paymentIntentId must be provided",

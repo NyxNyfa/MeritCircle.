@@ -1,35 +1,109 @@
-import { createPublicClient, http } from "viem";
+import {
+  createPublicClient,
+  decodeEventLog,
+  decodeFunctionData,
+  http,
+} from "viem";
 import { bscTestnet } from "viem/chains";
+
+export type PaymentVerificationErrorCode =
+  | "TX_HASH_INVALID"
+  | "CHAIN_MISMATCH"
+  | "TX_NOT_FOUND"
+  | "TX_PENDING"
+  | "TX_REVERTED"
+  | "TX_WRONG_CONTRACT"
+  | "TX_WRONG_PAYER"
+  | "TX_WRONG_VALUE"
+  | "TX_WRONG_FUNCTION"
+  | "TX_WRONG_GROUP"
+  | "TX_WRONG_CYCLE"
+  | "TX_EVENT_MISMATCH";
+
+export interface PaymentVerificationResult {
+  success: boolean;
+  txHash?: string;
+  from?: string;
+  to?: string;
+  value?: string;
+  blockNumber?: number;
+  paymentTimestamp?: Date;
+  reason?: string;
+  code?: PaymentVerificationErrorCode;
+}
 
 export interface PaymentVerifier {
   verifyContribution(params: {
     txHash: string;
     expectedPayerWallet: string;
     expectedAmountWei: string;
-  }): Promise<{
-    success: boolean;
-    from?: string;
-    value?: string;
-    blockNumber?: number;
-    reason?: string;
-  }>;
+    expectedGroupId: string;
+    expectedCycleNumber: number;
+  }): Promise<PaymentVerificationResult>;
 }
 
-const RPC_URL =
-  process.env.BNB_TESTNET_RPC_URL ||
-  process.env.NEXT_PUBLIC_BNB_TESTNET_RPC_URL ||
-  "https://bsc-testnet.bnbchain.org";
-
-const EXPECTED_CONTRACT_ADDRESS = (
+const configuredRpcUrl =
+  process.env.BNB_TESTNET_RPC_URL || process.env.NEXT_PUBLIC_BNB_TESTNET_RPC_URL;
+const configuredContractAddress =
   process.env.CONTRACT_ADDRESS ||
-  process.env.NEXT_PUBLIC_CONTRACT_ADDRESS ||
-  "0x71a41e2993ecF330Ebb7D22C2F752a606d992A8C"
+  (process.env.NODE_ENV !== "production"
+    ? process.env.NEXT_PUBLIC_CONTRACT_ADDRESS
+    : undefined);
+
+if (
+  process.env.NODE_ENV === "production" &&
+  (!configuredRpcUrl || !configuredContractAddress)
+) {
+  throw new Error(
+    "BNB_TESTNET_RPC_URL and CONTRACT_ADDRESS are required in production"
+  );
+}
+
+const RPC_URL = configuredRpcUrl || "https://bsc-testnet.bnbchain.org";
+const EXPECTED_CONTRACT_ADDRESS = (
+  configuredContractAddress || "0x71a41e2993ecF330Ebb7D22C2F752a606d992A8C"
 ).toLowerCase();
 
-/**
- * Production On-Chain Payment Verifier.
- * Verifies live transaction receipts and block confirmations via BNB Smart Chain Testnet RPC / block scan.
- */
+const PAY_CONTRIBUTION_ABI = [
+  {
+    type: "function",
+    name: "payContribution",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "groupId", type: "uint256" },
+      { name: "cycle", type: "uint256" },
+    ],
+    outputs: [],
+  },
+] as const;
+
+const CONTRIBUTION_PAID_EVENT_ABI = [
+  {
+    type: "event",
+    name: "ContributionPaid",
+    anonymous: false,
+    inputs: [
+      { name: "groupId", type: "uint256", indexed: true },
+      { name: "cycle", type: "uint256", indexed: true },
+      { name: "payer", type: "address", indexed: true },
+      { name: "amount", type: "uint256", indexed: false },
+      { name: "timestamp", type: "uint256", indexed: false },
+    ],
+  },
+] as const;
+
+function failure(
+  code: PaymentVerificationErrorCode,
+  reason: string
+): PaymentVerificationResult {
+  return { success: false, code, reason };
+}
+
+function normalizeTxHash(txHash: string): string | null {
+  if (!/^0x[0-9a-fA-F]{64}$/.test(txHash)) return null;
+  return txHash.toLowerCase();
+}
+
 export class OnChainPaymentVerifier implements PaymentVerifier {
   private client = createPublicClient({
     chain: bscTestnet,
@@ -40,134 +114,169 @@ export class OnChainPaymentVerifier implements PaymentVerifier {
     txHash: string;
     expectedPayerWallet: string;
     expectedAmountWei: string;
-  }): Promise<{
-    success: boolean;
-    from?: string;
-    value?: string;
-    blockNumber?: number;
-    reason?: string;
-  }> {
-    const { txHash, expectedPayerWallet, expectedAmountWei } = params;
-
-    if (!txHash || !txHash.startsWith("0x") || txHash.length !== 66) {
-      return {
-        success: false,
-        reason: "Format txHash tidak valid. Harus diawali 0x dengan panjang 66 karakter.",
-      };
+    expectedGroupId: string;
+    expectedCycleNumber: number;
+  }): Promise<PaymentVerificationResult> {
+    const txHash = normalizeTxHash(params.txHash);
+    if (!txHash) {
+      return failure(
+        "TX_HASH_INVALID",
+        "Format transaction hash tidak valid. Harus berupa 0x diikuti 64 karakter heksadesimal."
+      );
     }
 
     try {
-      // 0. Quick check: does transaction exist in mempool or block?
-      try {
-        await this.client.getTransaction({ hash: txHash as `0x${string}` });
-      } catch {
-        return {
-          success: false,
-          reason: "Transaksi tidak ditemukan di blockchain atau mempool BNB Smart Chain Testnet.",
-        };
+      const chainId = await this.client.getChainId();
+      if (chainId !== bscTestnet.id) {
+        return failure(
+          "CHAIN_MISMATCH",
+          `RPC terhubung ke chain ${chainId}, bukan BNB Smart Chain Testnet (97).`
+        );
       }
 
-      // 1. Wait for transaction to be mined on BNB Smart Chain Testnet (handling async mining delay)
+      const tx = await this.client.getTransaction({
+        hash: txHash as `0x${string}`,
+      });
+
       let receipt;
       try {
         receipt = await this.client.waitForTransactionReceipt({
           hash: txHash as `0x${string}`,
-          timeout: 30_000,
+          confirmations: 1,
+          timeout: 60_000,
         });
-      } catch (waitErr: any) {
-        // Fallback to getTransactionReceipt in case already mined or RPC timeout
+      } catch {
         try {
           receipt = await this.client.getTransactionReceipt({
             hash: txHash as `0x${string}`,
           });
         } catch {
-          receipt = null;
+          return failure(
+            "TX_PENDING",
+            "Transaksi belum memiliki receipt. Status belum dapat diverifikasi."
+          );
         }
       }
 
       if (!receipt) {
-        return {
-          success: false,
-          reason: "Transaksi belum ditambang atau tidak ditemukan di block scan BNB Smart Chain Testnet.",
-        };
+        return failure(
+          "TX_PENDING",
+          "Transaksi belum memiliki receipt. Status belum dapat diverifikasi."
+        );
       }
-
       if (receipt.status !== "success") {
-        return {
-          success: false,
-          reason: "Transaksi mengalami revert (gagal) pada smart contract.",
-        };
+        return failure(
+          "TX_REVERTED",
+          "Transaksi mengalami revert (gagal) pada smart contract. Tidak ada pembayaran yang dicatat."
+        );
       }
 
-      // 1.1 Optional: If BSCSCAN_API_KEY or BNB_SCAN_API_KEY is configured, cross-verify with BscScan API
-      const bscScanApiKey = process.env.BSCSCAN_API_KEY || process.env.BNB_SCAN_API_KEY;
-      if (bscScanApiKey && bscScanApiKey.trim().length > 0) {
+      const targetAddress = (receipt.to || tx.to || "").toLowerCase();
+      if (targetAddress !== EXPECTED_CONTRACT_ADDRESS) {
+        return failure(
+          "TX_WRONG_CONTRACT",
+          `Tujuan transaksi tidak cocok dengan smart contract Merit Circle yang dikonfigurasi.`
+        );
+      }
+      if (tx.from.toLowerCase() !== params.expectedPayerWallet.toLowerCase()) {
+        return failure(
+          "TX_WRONG_PAYER",
+          "Pengirim transaksi tidak cocok dengan dompet anggota yang terdaftar."
+        );
+      }
+      if (tx.value.toString() !== BigInt(params.expectedAmountWei).toString()) {
+        return failure(
+          "TX_WRONG_VALUE",
+          "Nominal transaksi tidak cocok dengan jumlah iuran yang diwajibkan."
+        );
+      }
+
+      let decodedCall;
+      try {
+        decodedCall = decodeFunctionData({
+          abi: PAY_CONTRIBUTION_ABI,
+          data: tx.input,
+        });
+      } catch {
+        return failure(
+          "TX_WRONG_FUNCTION",
+          "Calldata transaksi bukan payContribution(uint256,uint256)."
+        );
+      }
+      if (decodedCall.functionName !== "payContribution") {
+        return failure(
+          "TX_WRONG_FUNCTION",
+          "Fungsi smart contract yang dipanggil bukan payContribution."
+        );
+      }
+
+      const [callGroupId, callCycle] = decodedCall.args;
+      const expectedGroupId = BigInt(params.expectedGroupId);
+      const expectedCycle = BigInt(params.expectedCycleNumber);
+      if (callGroupId !== expectedGroupId) {
+        return failure(
+          "TX_WRONG_GROUP",
+          "Group ID pada calldata tidak cocok dengan iuran yang dikonfirmasi."
+        );
+      }
+      if (callCycle !== expectedCycle) {
+        return failure(
+          "TX_WRONG_CYCLE",
+          "Cycle pada calldata tidak cocok dengan iuran yang dikonfirmasi."
+        );
+      }
+
+      const matchingEvents: Array<{
+        timestamp: bigint;
+        payer: string;
+        amount: bigint;
+      }> = [];
+
+      for (const log of receipt.logs) {
+        if (log.address.toLowerCase() !== targetAddress) continue;
         try {
-          const bscUrl = `https://api-testnet.bscscan.com/api?module=transaction&action=gettxreceiptstatus&txhash=${txHash}&apikey=${bscScanApiKey.trim()}`;
-          const bscRes = await fetch(bscUrl);
-          if (bscRes.ok) {
-            const bscData: any = await bscRes.json();
-            if (bscData?.status === "1" && bscData?.result?.status === "0") {
-              return {
-                success: false,
-                reason: "BscScan API mengonfirmasi transaksi ini mengalami revert di blockchain.",
-              };
-            }
+          const decodedEvent = decodeEventLog({
+            abi: CONTRIBUTION_PAID_EVENT_ABI,
+            data: log.data,
+            topics: log.topics,
+          });
+          if (decodedEvent.eventName !== "ContributionPaid") continue;
+          const { groupId: eventGroupId, cycle: eventCycle, payer, amount, timestamp } =
+            decodedEvent.args;
+          if (
+            eventGroupId === expectedGroupId &&
+            eventCycle === expectedCycle &&
+            String(payer).toLowerCase() === params.expectedPayerWallet.toLowerCase() &&
+            amount === BigInt(params.expectedAmountWei)
+          ) {
+            matchingEvents.push({ payer: String(payer), amount, timestamp });
           }
-        } catch (bscErr) {
-          console.warn("[OnChainPaymentVerifier] BscScan API call warning:", bscErr);
+        } catch {
+          continue;
         }
       }
 
-      // 2. Fetch transaction details for payer and value verification
-      const tx = await this.client.getTransaction({
-        hash: txHash as `0x${string}`,
-      });
-
-      if (!tx) {
-        return {
-          success: false,
-          reason: "Detail transaksi tidak dapat diambil dari block scan.",
-        };
-      }
-
-      // 3. Verify destination contract address
-      const targetAddress = (receipt.to || tx.to || "").toLowerCase();
-      if (targetAddress !== EXPECTED_CONTRACT_ADDRESS) {
-        return {
-          success: false,
-          reason: `Tujuan transaksi (${targetAddress}) tidak cocok dengan smart contract Merit Circle (${EXPECTED_CONTRACT_ADDRESS}).`,
-        };
-      }
-
-      // 4. Verify sender wallet matches expected payer
-      if (tx.from.toLowerCase() !== expectedPayerWallet.toLowerCase()) {
-        return {
-          success: false,
-          reason: `Pengirim transaksi (${tx.from}) tidak cocok dengan dompet anggota yang terdaftar (${expectedPayerWallet}).`,
-        };
-      }
-
-      // 5. Verify transferred value matches expected contribution
-      if (tx.value.toString() !== expectedAmountWei) {
-        return {
-          success: false,
-          reason: `Nominal transaksi (${tx.value.toString()} wei) tidak cocok dengan jumlah iuran yang diwajibkan (${expectedAmountWei} wei).`,
-        };
+      if (matchingEvents.length !== 1) {
+        return failure(
+          "TX_EVENT_MISMATCH",
+          "Receipt tidak memuat tepat satu event ContributionPaid yang cocok dengan group, cycle, pengirim, dan nominal."
+        );
       }
 
       return {
         success: true,
+        txHash,
         from: tx.from,
+        to: targetAddress,
         value: tx.value.toString(),
         blockNumber: Number(receipt.blockNumber),
+        paymentTimestamp: new Date(Number(matchingEvents[0].timestamp) * 1000),
       };
-    } catch (err: any) {
-      console.error("[OnChainPaymentVerifier] Block scan verification error:", err);
-      return {
-        success: false,
-        reason: `Verifikasi on-chain block scan gagal: ${err?.message || "Kesalahan jaringan RPC"}`,
-      };
+    } catch (error: any) {
+      return failure(
+        "TX_NOT_FOUND",
+        `Verifikasi on-chain gagal: ${error?.message || "Kesalahan jaringan RPC"}`
+      );
     }
   }
 }
@@ -177,27 +286,20 @@ export class TestPaymentVerifier implements PaymentVerifier {
     txHash: string;
     expectedPayerWallet: string;
     expectedAmountWei: string;
-  }): Promise<{
-    success: boolean;
-    from?: string;
-    value?: string;
-    blockNumber?: number;
-    reason?: string;
-  }> {
-    if (
-      !params.txHash ||
-      params.txHash.trim() === "" ||
-      params.txHash === "invalid-tx-hash" ||
-      params.txHash.startsWith("fail")
-    ) {
-      return {
-        success: false,
-        reason: "Transaction verification failed on chain",
-      };
+    expectedGroupId: string;
+    expectedCycleNumber: number;
+  }): Promise<PaymentVerificationResult> {
+    const txHash = normalizeTxHash(params.txHash);
+    if (!txHash || txHash.startsWith("0xfail")) {
+      return failure(
+        "TX_REVERTED",
+        "Transaksi mengalami revert (gagal) pada smart contract. Tidak ada pembayaran yang dicatat."
+      );
     }
 
     return {
       success: true,
+      txHash,
       from: params.expectedPayerWallet,
       value: params.expectedAmountWei,
       blockNumber: 1234567,
@@ -205,11 +307,7 @@ export class TestPaymentVerifier implements PaymentVerifier {
   }
 }
 
-// In production, default strictly to real OnChainPaymentVerifier
-export let paymentVerifier: PaymentVerifier =
-  process.env.NODE_ENV === "test"
-    ? new TestPaymentVerifier()
-    : new OnChainPaymentVerifier();
+export let paymentVerifier: PaymentVerifier = new OnChainPaymentVerifier();
 
 export function setPaymentVerifier(verifier: PaymentVerifier): void {
   paymentVerifier = verifier;

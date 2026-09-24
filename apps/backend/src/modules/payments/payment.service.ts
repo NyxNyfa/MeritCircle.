@@ -12,6 +12,47 @@ import { settleCycle } from "../settlements/settlement.service";
 import { paymentVerifier } from "./payment-verifier";
 import { ConfirmPaymentInput } from "./payment.schema";
 
+async function applyContributionReputation(params: {
+  userId: string;
+  contributionId: string;
+  status: "PAID_ON_TIME" | "PAID_LATE";
+  lateDays: number;
+  penaltyPoint: number;
+  isEarlyBonus: boolean;
+}) {
+  if (params.status === "PAID_ON_TIME") {
+    await applyReputationEvent({
+      userId: params.userId,
+      type: ReputationEventType.CONTRIBUTION_ON_TIME,
+      points: 50,
+      reason: "On-time contribution payment",
+      referenceType: "CONTRIBUTION",
+      referenceId: params.contributionId,
+    });
+
+    if (params.isEarlyBonus) {
+      await applyReputationEvent({
+        userId: params.userId,
+        type: ReputationEventType.CONTRIBUTION_EARLY_BONUS,
+        points: 10,
+        reason: "Early contribution payment bonus (before day 3)",
+        referenceType: "CONTRIBUTION",
+        referenceId: params.contributionId,
+      });
+    }
+    return;
+  }
+
+  await applyReputationEvent({
+    userId: params.userId,
+    type: ReputationEventType.CONTRIBUTION_LATE,
+    points: -params.penaltyPoint,
+    reason: `Late contribution payment (${params.lateDays} days late)`,
+    referenceType: "CONTRIBUTION",
+    referenceId: params.contributionId,
+  });
+}
+
 export async function createPaymentIntent(
   userId: string,
   target: string | { cycleId?: string; contributionId?: string }
@@ -74,9 +115,16 @@ export async function createPaymentIntent(
     );
   }
 
-  // 3. Cycle must not be COMPLETED or FAILED
-  if (cycle.status === "COMPLETED" || cycle.status === "FAILED") {
-    throw new AppError("Cycle is not payable", 400, "CYCLE_NOT_PAYABLE");
+  if (
+    cycle.status !== "PAYMENT_OPEN" ||
+    cycle.group.status !== "ACTIVE" ||
+    cycle.cycleNumber !== cycle.group.currentCycle
+  ) {
+    throw new AppError(
+      "Cycle is not currently payable on-chain",
+      400,
+      "CYCLE_NOT_PAYABLE"
+    );
   }
 
   // 4. Find contribution
@@ -92,12 +140,36 @@ export async function createPaymentIntent(
   if (!contribution) {
     throw new AppError("Contribution not found for user", 404, "NOT_FOUND");
   }
-
-  if (contribution.status === "PAID_ON_TIME" || contribution.status === "PAID_LATE") {
+  if (
+    contribution.cycleId !== cycle.id ||
+    contribution.groupId !== cycle.groupId ||
+    contribution.userId !== userId
+  ) {
     throw new AppError(
-      "Contribution is already paid",
+      "Contribution does not match the requested cycle",
       400,
-      "CONTRIBUTION_ALREADY_PAID"
+      "CONTRIBUTION_CYCLE_MISMATCH"
+    );
+  }
+
+  if (contribution.status !== "PENDING") {
+    throw new AppError(
+      contribution.status === "PAID_ON_TIME" || contribution.status === "PAID_LATE"
+        ? "Contribution is already paid"
+        : "Contribution is not pending payment",
+      400,
+      contribution.status === "PAID_ON_TIME" || contribution.status === "PAID_LATE"
+        ? "CONTRIBUTION_ALREADY_PAID"
+        : "CONTRIBUTION_NOT_PAYABLE"
+    );
+  }
+
+  const contractGroupId = cycle.group.contractGroupId;
+  if (!contractGroupId || !/^[1-9]\d*$/.test(contractGroupId)) {
+    throw new AppError(
+      "Group does not have a valid on-chain identifier",
+      400,
+      "CONTRACT_GROUP_ID_MISSING"
     );
   }
 
@@ -105,6 +177,7 @@ export async function createPaymentIntent(
     id: contribution.id,
     cycleId: cycle.id,
     groupId: cycle.groupId,
+    contractGroupId,
     cycleNumber: cycle.cycleNumber,
     contributionId: contribution.id,
     contributionAmountWei: contribution.amountWei,
@@ -153,31 +226,23 @@ export async function confirmPayment(
     );
   }
 
-  // 2. Idempotency checks
-  // Same txHash already confirmed on this contribution -> return existing result
-  if (
-    contribution.txHash === input.txHash &&
-    (contribution.status === "PAID_ON_TIME" || contribution.status === "PAID_LATE")
-  ) {
-    const existing = {
-      contributionId: contribution.id,
-      status: contribution.status,
-      lateDays: contribution.lateDays,
-      penaltyPoint: contribution.penaltyPoint,
-      rewardPoint: contribution.status === "PAID_ON_TIME" ? 50 : 0,
-    };
-    return {
-      ...existing,
-      contribution: existing,
-      payment: {
-        txHash: input.txHash,
-        status: contribution.status,
-      },
-    };
+  if (input.cycleId && input.cycleId !== contribution.cycleId) {
+    throw new AppError(
+      "Cycle does not match the contribution",
+      400,
+      "CONTRIBUTION_CYCLE_MISMATCH"
+    );
   }
 
-  // Contribution already paid with different txHash
-  if (contribution.status === "PAID_ON_TIME" || contribution.status === "PAID_LATE") {
+  const txHash = input.txHash.toLowerCase();
+
+  const contributionIsPaid =
+    contribution.status === "PAID_ON_TIME" ||
+    contribution.status === "PAID_LATE";
+  const isIdempotentReplay =
+    contributionIsPaid && contribution.txHash?.toLowerCase() === txHash;
+
+  if (contributionIsPaid && !isIdempotentReplay) {
     throw new AppError(
       "Contribution is already paid",
       400,
@@ -185,10 +250,18 @@ export async function confirmPayment(
     );
   }
 
+  if (contribution.cycle.groupId !== contribution.groupId) {
+    throw new AppError(
+      "Contribution cycle and group do not match",
+      400,
+      "CONTRIBUTION_CYCLE_MISMATCH"
+    );
+  }
+
   // Check if txHash has already been used by another contribution
   const existingContributionWithTx = await prisma.contribution.findFirst({
     where: {
-      txHash: input.txHash,
+      txHash,
       NOT: { id: contribution.id },
     },
   });
@@ -203,7 +276,7 @@ export async function confirmPayment(
 
   // Also check ContractTransaction table for duplicate txHash
   const existingContractTx = await prisma.contractTransaction.findUnique({
-    where: { txHash: input.txHash },
+    where: { txHash },
   });
 
   if (existingContractTx && existingContractTx.cycleId !== contribution.cycleId) {
@@ -223,27 +296,75 @@ export async function confirmPayment(
     throw new AppError("User not found", 404, "NOT_FOUND");
   }
 
+  const expectedGroupId = contribution.group.contractGroupId;
+  if (!expectedGroupId || !/^[1-9]\d*$/.test(expectedGroupId)) {
+    throw new AppError(
+      "Group does not have a valid on-chain identifier",
+      400,
+      "CONTRACT_GROUP_ID_MISSING"
+    );
+  }
+
   // 4. Verify payment with PaymentVerifier
   const verification = await paymentVerifier.verifyContribution({
-    txHash: input.txHash,
+    txHash,
     expectedPayerWallet: user.walletAddress,
     expectedAmountWei: contribution.amountWei,
+    expectedGroupId,
+    expectedCycleNumber: contribution.cycle.cycleNumber,
   });
 
   if (!verification.success) {
     throw new AppError(
       verification.reason || "Payment verification failed",
       400,
-      "PAYMENT_VERIFICATION_FAILED"
+      verification.code || "PAYMENT_VERIFICATION_FAILED"
     );
   }
 
+  if (isIdempotentReplay) {
+    const replayPaidAt = contribution.paidAt || new Date();
+    const replayCycleStart =
+      contribution.cycle.startDate || contribution.dueDate || replayPaidAt;
+    await applyContributionReputation({
+      userId,
+      contributionId: contribution.id,
+      status: contribution.status as "PAID_ON_TIME" | "PAID_LATE",
+      lateDays: contribution.lateDays,
+      penaltyPoint: contribution.penaltyPoint,
+      isEarlyBonus:
+        replayPaidAt.getTime() <
+        replayCycleStart.getTime() + 3 * 24 * 60 * 60 * 1000,
+    });
+    const existing = {
+      contributionId: contribution.id,
+      status: contribution.status,
+      lateDays: contribution.lateDays,
+      penaltyPoint: contribution.penaltyPoint,
+      rewardPoint: contribution.status === "PAID_ON_TIME" ? 50 : 0,
+    };
+    return {
+      ...existing,
+      contribution: existing,
+      payment: {
+        txHash,
+        status: contribution.status,
+      },
+    };
+  }
+
   // 5. Payment timing & penalty calculation
-  const paymentTime = paymentTimestamp || new Date();
+  const paymentTime =
+    paymentTimestamp || verification.paymentTimestamp || new Date();
   const dueDate =
-    contribution.dueDate ||
-    contribution.cycle.paymentDeadline ||
-    paymentTime;
+    contribution.dueDate || contribution.cycle.paymentDeadline;
+  if (!dueDate) {
+    throw new AppError(
+      "Contribution has no payment deadline",
+      400,
+      "CONTRIBUTION_DEADLINE_MISSING"
+    );
+  }
 
   const isLate = paymentTime.getTime() > dueDate.getTime();
 
@@ -275,61 +396,52 @@ export async function confirmPayment(
   }
 
   // 6. Transactional database updates
-  await prisma.$transaction([
-    prisma.contribution.update({
-      where: { id: contribution.id },
+  await prisma.$transaction(async (transaction) => {
+    const claimed = await transaction.contribution.updateMany({
+      where: {
+        id: contribution.id,
+        status: "PENDING",
+        txHash: null,
+      },
       data: {
         status: finalStatus,
         paidAt: paymentTime,
-        txHash: input.txHash,
+        txHash,
         lateDays,
         penaltyPoint,
       },
-    }),
-    prisma.contractTransaction.create({
+    });
+    if (claimed.count !== 1) {
+      throw new AppError(
+        "Contribution was already updated by another payment attempt",
+        409,
+        "CONTRIBUTION_STATE_CONFLICT"
+      );
+    }
+
+    await transaction.contractTransaction.create({
       data: {
         type: ContractTransactionType.CONTRIBUTION_PAYMENT,
         status: ContractTransactionStatus.CONFIRMED,
-        txHash: input.txHash,
+        txHash,
         groupId: contribution.groupId,
         cycleId: contribution.cycleId,
         amountWei: contribution.amountWei,
-        fromAddress: user.walletAddress,
+        fromAddress: verification.from || user.walletAddress,
+        toAddress: verification.to,
+        blockNumber: verification.blockNumber,
       },
-    }),
-  ]);
-
-  // 7. Reputation awards
-  if (finalStatus === "PAID_ON_TIME") {
-    await applyReputationEvent({
-      userId,
-      type: ReputationEventType.CONTRIBUTION_ON_TIME,
-      points: 50,
-      reason: "On-time contribution payment",
-      referenceType: "CONTRIBUTION",
-      referenceId: contribution.id,
     });
+  });
 
-    if (isEarlyBonus) {
-      await applyReputationEvent({
-        userId,
-        type: ReputationEventType.CONTRIBUTION_EARLY_BONUS,
-        points: 10,
-        reason: "Early contribution payment bonus (before day 3)",
-        referenceType: "CONTRIBUTION",
-        referenceId: contribution.id,
-      });
-    }
-  } else {
-    await applyReputationEvent({
-      userId,
-      type: ReputationEventType.CONTRIBUTION_LATE,
-      points: -penaltyPoint,
-      reason: `Late contribution payment (${lateDays} days late)`,
-      referenceType: "CONTRIBUTION",
-      referenceId: contribution.id,
-    });
-  }
+  await applyContributionReputation({
+    userId,
+    contributionId: contribution.id,
+    status: finalStatus,
+    lateDays,
+    penaltyPoint,
+    isEarlyBonus,
+  });
 
   const res = {
     contributionId: contribution.id,
@@ -372,7 +484,7 @@ export async function confirmPayment(
     ...res,
     contribution: res,
     payment: {
-      txHash: input.txHash,
+      txHash,
       status: finalStatus,
     },
   };

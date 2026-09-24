@@ -3,6 +3,8 @@
  * Implements EIP-1193 provider handling for BNB Smart Chain Testnet.
  */
 
+import { getErrorMessage } from "./error";
+
 export const BNB_TESTNET_CHAIN_ID = 97;
 export const BNB_TESTNET_CHAIN_ID_HEX = "0x61";
 
@@ -20,6 +22,31 @@ export const BNB_TESTNET_PARAMS = {
   ],
   blockExplorerUrls: ["https://testnet.bscscan.com"],
 };
+
+export type WalletTransactionErrorCode =
+  | "USER_REJECTED"
+  | "ONCHAIN_REVERTED"
+  | "RECEIPT_PENDING"
+  | "WALLET_REQUEST_PENDING"
+  | "RECEIPT_MISMATCH"
+  | "WALLET_TRANSACTION_FAILED";
+
+export class WalletTransactionError extends Error {
+  constructor(
+    public readonly code: WalletTransactionErrorCode,
+    message: string,
+    public readonly txHash?: string
+  ) {
+    super(message);
+    this.name = "WalletTransactionError";
+  }
+}
+
+export interface WalletTransactionReceipt {
+  transactionHash: string;
+  status: "success";
+  blockNumber?: string;
+}
 
 export interface WalletState {
   address: string | null;
@@ -137,6 +164,111 @@ export async function signMessage(message: string, address: string): Promise<str
   return signature;
 }
 
+function isUserRejection(error: any): boolean {
+  const code = error?.code;
+  const message = String(error?.message || error || "").toLowerCase();
+  return (
+    code === 4001 ||
+    code === "ACTION_REJECTED" ||
+    message.includes("user rejected") ||
+    message.includes("user denied") ||
+    message.includes("rejected by user") ||
+    message.includes("denied transaction")
+  );
+}
+
+function normalizeWalletError(error: unknown): WalletTransactionError {
+  if (error instanceof WalletTransactionError) return error;
+  if (isUserRejection(error)) {
+    return new WalletTransactionError(
+      "USER_REJECTED",
+      "Transaksi dibatalkan oleh pengguna. Tidak ada pembayaran yang dicatat."
+    );
+  }
+  const message = getErrorMessage(error);
+  return new WalletTransactionError(
+    "WALLET_TRANSACTION_FAILED",
+    `Transaksi tidak dapat dikirim dari dompet Web3: ${message}`
+  );
+}
+
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeout = setTimeout(
+      () =>
+        reject(
+          new WalletTransactionError(
+            "WALLET_REQUEST_PENDING",
+            "Permintaan transaksi tidak selesai. Periksa kembali dompet Web3 sebelum mencoba ulang."
+          )
+        ),
+      timeoutMs
+    );
+  });
+  return Promise.race([promise, timeoutPromise]).finally(() => {
+    if (timeout) clearTimeout(timeout);
+  });
+}
+
+export async function waitForTransactionReceipt(
+  txHash: string,
+  options: { timeoutMs?: number; pollIntervalMs?: number } = {}
+): Promise<WalletTransactionReceipt> {
+  if (!isEthereumAvailable()) {
+    throw new Error("No Web3 wallet detected.");
+  }
+
+  const timeoutMs = options.timeoutMs ?? 180_000;
+  const pollIntervalMs = options.pollIntervalMs ?? 2_000;
+  const normalizedHash = txHash.toLowerCase();
+  const deadline = Date.now() + timeoutMs;
+
+  while (Date.now() < deadline) {
+    const receipt = await window.ethereum!.request({
+      method: "eth_getTransactionReceipt",
+      params: [normalizedHash],
+    });
+
+    if (receipt) {
+      if (
+        receipt.transactionHash &&
+        String(receipt.transactionHash).toLowerCase() !== normalizedHash
+      ) {
+        throw new WalletTransactionError(
+          "RECEIPT_MISMATCH",
+          "Receipt yang diterima tidak cocok dengan hash transaksi yang dikirim.",
+          normalizedHash
+        );
+      }
+
+      const status = String(receipt.status || "").toLowerCase();
+      if (status === "0x1" || status === "1") {
+        return {
+          transactionHash: normalizedHash,
+          status: "success",
+          blockNumber: receipt.blockNumber,
+        };
+      }
+      if (status === "0x0" || status === "0") {
+        throw new WalletTransactionError(
+          "ONCHAIN_REVERTED",
+          "Transaksi on-chain gagal/revert. Tidak ada pembayaran yang dicatat.",
+          normalizedHash
+        );
+      }
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
+  }
+
+  throw new WalletTransactionError(
+    "RECEIPT_PENDING",
+    "Transaksi sudah disiarkan tetapi receipt belum tersedia. Status belum dapat diverifikasi; jangan mengulang pembayaran sebelum memeriksa hash.",
+    normalizedHash
+  );
+}
+
 export async function sendContractTransaction(params: {
   to: string;
   from: string;
@@ -147,34 +279,35 @@ export async function sendContractTransaction(params: {
     throw new Error("No Web3 wallet detected. Silakan pasang MetaMask atau Rabby.");
   }
 
-  // Ensure wallet is on BNB Smart Chain Testnet (Chain ID 97)
-  const currentChain = await getCurrentChainId();
-  if (currentChain !== BNB_TESTNET_CHAIN_ID) {
-    await switchToBnbTestnet();
+  try {
+    const currentChain = await getCurrentChainId();
+    if (currentChain !== BNB_TESTNET_CHAIN_ID) {
+      await switchToBnbTestnet();
+    }
+
+    const txHash = await withTimeout(
+      window.ethereum!.request({
+        method: "eth_sendTransaction",
+        params: [
+          {
+            to: params.to,
+            from: params.from,
+            data: params.data,
+            value: params.value ? `0x${BigInt(params.value).toString(16)}` : "0x0",
+          },
+        ],
+      }) as Promise<string>,
+      180_000
+    );
+
+    if (!/^0x[0-9a-fA-F]{64}$/.test(txHash)) {
+      throw new WalletTransactionError(
+        "WALLET_TRANSACTION_FAILED",
+        "Dompet mengembalikan hash transaksi yang tidak valid."
+      );
+    }
+    return txHash.toLowerCase();
+  } catch (error) {
+    throw normalizeWalletError(error);
   }
-
-  const txPromise = window.ethereum!.request({
-    method: "eth_sendTransaction",
-    params: [
-      {
-        to: params.to,
-        from: params.from,
-        data: params.data,
-        value: params.value ? `0x${BigInt(params.value).toString(16)}` : "0x0",
-      },
-    ],
-  }) as Promise<string>;
-
-  const timeoutPromise = new Promise<never>((_, reject) =>
-    setTimeout(
-      () =>
-        reject(
-          new Error("Permintaan transaksi kedaluwarsa (timeout 3 menit). Silakan periksa notifikasi ekstensi dompet Web3 Anda.")
-        ),
-      180000
-    )
-  );
-
-  const txHash = await Promise.race([txPromise, timeoutPromise]);
-  return txHash;
 }

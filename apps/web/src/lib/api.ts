@@ -325,39 +325,41 @@ export async function createPaymentIntent(
   contributionId: string,
   cycleId?: string
 ): Promise<{ intent: any }> {
-  try {
-    const res = await fetchApi<any>("/api/payments/payment-intent", {
-      method: "POST",
-      body: JSON.stringify({ contributionId, cycleId }),
-    });
-    return res?.intent ? res : { intent: res };
-  } catch (err: any) {
-    if (cycleId) {
-      const fallbackRes = await fetchApi<any>(`/api/cycles/${cycleId}/payment-intent`, {
-        method: "POST",
-      });
-      return fallbackRes?.intent ? fallbackRes : { intent: fallbackRes };
-    }
-    throw err;
-  }
+  const res = await fetchApi<any>("/api/payments/payment-intent", {
+    method: "POST",
+    body: JSON.stringify({ contributionId, cycleId }),
+  });
+  return res?.intent ? res : { intent: res };
+}
+
+export interface PaymentConfirmation {
+  contributionId?: string;
+  status?: string;
+  contribution?: {
+    id?: string;
+    contributionId?: string;
+    status?: string;
+  };
+  payment: {
+    txHash: string;
+    status: string;
+  };
 }
 
 export async function confirmContribution(
   paymentIntentId: string,
   txHash: string,
   cycleId?: string
-): Promise<{ contribution: any; payment: any }> {
-  try {
-    return await fetchApi<{ contribution: any; payment: any }>("/api/payments/confirm", {
-      method: "POST",
-      body: JSON.stringify({ contributionId: paymentIntentId, paymentIntentId, cycleId, txHash }),
-    });
-  } catch (err: any) {
-    return await fetchApi<{ contribution: any; payment: any }>("/api/contributions/confirm", {
-      method: "POST",
-      body: JSON.stringify({ contributionId: paymentIntentId, cycleId, txHash }),
-    });
-  }
+): Promise<PaymentConfirmation> {
+  return fetchApi<PaymentConfirmation>("/api/payments/confirm", {
+    method: "POST",
+    body: JSON.stringify({
+      contributionId: paymentIntentId,
+      paymentIntentId,
+      cycleId,
+      txHash,
+    }),
+  });
 }
 
 /* =========================================================================

@@ -1,3 +1,4 @@
+import path from "node:path";
 import { expect, test, type Page } from "@playwright/test";
 import type { GroupData, UserGroupsResponse } from "../src/lib/api";
 
@@ -118,6 +119,16 @@ async function mockApi(
   });
 }
 
+async function captureScreenshot(page: Page, name: string) {
+  const screenshotDir = process.env.PLAYWRIGHT_SCREENSHOT_DIR;
+  if (screenshotDir) {
+    await page.screenshot({
+      path: path.join(screenshotDir, `${name}.png`),
+      fullPage: true,
+    });
+  }
+}
+
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(
     ({ token, storedUser }) => {
@@ -145,10 +156,16 @@ test("moves a fully settled pool from Active Pools to Completed History", async 
 
   await expect(activeTab).toHaveAttribute("aria-selected", "true");
   await expect(activeTab).toHaveText("Active Pools (1)");
+  await expect(page.getByRole("heading", { name: "My Active Pools" })).toBeVisible();
+  await expect(page.getByTestId("group-capacity")).toContainText(
+    "Group Capacity: 1/3"
+  );
+  await expect(page.getByTestId("active-roscas-count")).toHaveText("1 / 3");
   await expect(groupCard).toBeVisible();
   await expect(groupCard).toHaveAttribute("data-group-status", "ACTIVE");
   await expect(groupCard).toContainText("Current Cycle: 2 of 3");
   await expect(groupCard).toContainText("0.002 tBNB");
+  await captureScreenshot(page, "dashboard-active");
 
   groupsResponse = {
     groups: [completedGroup],
@@ -161,14 +178,24 @@ test("moves a fully settled pool from Active Pools to Completed History", async 
 
   await expect(historyTab).toHaveAttribute("aria-selected", "true");
   await expect(historyTab).toHaveText("History / Completed (1)");
+  await expect(
+    page.getByRole("heading", { name: "Completed Pool History" })
+  ).toBeVisible();
+  await expect(page.getByTestId("group-capacity")).toContainText(
+    "Group Capacity: 0/3"
+  );
+  await expect(page.getByTestId("active-roscas-count")).toHaveText("0 / 3");
   await expect(groupCard).toBeVisible();
   await expect(groupCard).toHaveAttribute("data-group-status", "COMPLETED");
   await expect(groupCard).toContainText("All 3 cycles completed");
   await expect(groupCard).toContainText("All cycles settled");
   await expect(groupCard).not.toContainText("Current Cycle: 4 of 3");
+  await captureScreenshot(page, "dashboard-completed-history");
 
   await activeTab.click();
   await expect(activeTab).toHaveAttribute("aria-selected", "true");
   await expect(page.getByTestId("active-groups-empty")).toBeVisible();
+  await expect(page.getByTestId("active-roscas-count")).toHaveText("0 / 3");
   await expect(groupCard).toHaveCount(0);
+  await captureScreenshot(page, "dashboard-active-empty");
 });

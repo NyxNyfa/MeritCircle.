@@ -223,7 +223,7 @@ function DashboardContent() {
                 {formatTier(tier)}
               </span>
             </div>
-            <div style={{ fontSize: "12px", color: color.text.muted, marginTop: "6px", fontFamily: "'JetBrains Mono', monospace" }}>
+            <div data-testid="group-capacity" style={{ fontSize: "12px", color: color.text.muted, marginTop: "6px", fontFamily: "'JetBrains Mono', monospace" }}>
               {user?.walletAddress} • Group Capacity: {activeGroups.length}/{maxActiveGroups}
             </div>
           </div>
@@ -338,6 +338,7 @@ function DashboardContent() {
             <RefreshIcon size={16} />
           </div>
           <div
+            data-testid="active-roscas-count"
             style={{
               fontSize: "30px",
               fontWeight: 800,

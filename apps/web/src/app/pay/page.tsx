@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { color, radius, spacing, Card, Button, LoadingState, EmptyState } from "@merit-circle/ui";
 import { AppProviders } from "../../providers/AppProviders";
 import { Shell } from "../../components/layout/Shell";
@@ -11,62 +11,39 @@ import { PaymentCard, ContributionItem } from "../../components/payment/PaymentC
 import { PartyPopperIcon } from "../../components/layout/Icons";
 
 function PaymentHubContent() {
-  const { isAuthenticated, isLoading: authLoading } = useAuth();
+  const { isAuthenticated, isLoading: authLoading, user } = useAuth();
   const [contributions, setContributions] = useState<ContributionItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const requestSequence = useRef(0);
 
   const fetchContributions = () => {
+    const requestId = ++requestSequence.current;
     if (!isAuthenticated) {
+      setContributions([]);
       setIsLoading(false);
       return;
     }
 
     setIsLoading(true);
+    setError(null);
     getMyContributions()
       .then((res) => {
+        if (requestId !== requestSequence.current) return;
         setContributions(res.contributions || []);
       })
       .catch((err) => {
+        if (requestId !== requestSequence.current) return;
         setError(getErrorMessage(err));
       })
       .finally(() => {
-        setIsLoading(false);
+        if (requestId === requestSequence.current) setIsLoading(false);
       });
   };
 
   useEffect(() => {
     fetchContributions();
-  }, [isAuthenticated]);
-
-  // Group-level active cycle calculation: ensures lowest pending cycle is always payable
-  const activeCycleByGroup = React.useMemo(() => {
-    const map = new Map<string, number>();
-
-    // 1. Explicit signals from backend
-    contributions.forEach((c) => {
-      const gid = c.groupId || "default";
-      if (c.cycleStatus === "PAYMENT_OPEN" || c.isPayable) {
-        map.set(gid, Math.max(map.get(gid) || 1, c.cycleNumber));
-      } else if (c.groupCurrentCycle && c.groupCurrentCycle > 1) {
-        map.set(gid, Math.max(map.get(gid) || 1, c.groupCurrentCycle));
-      }
-    });
-
-    // 2. Fallback: for any group with pending dues, the lowest pending cycle is the active payable cycle
-    const groupIds = Array.from(new Set(contributions.map((c) => c.groupId || "default")));
-    groupIds.forEach((gid) => {
-      const pendingForGroup = contributions.filter(
-        (x) => (x.groupId || "default") === gid && x.status === "PENDING"
-      );
-      if (pendingForGroup.length > 0) {
-        const lowestPending = Math.min(...pendingForGroup.map((x) => x.cycleNumber));
-        map.set(gid, Math.max(map.get(gid) || 1, lowestPending));
-      }
-    });
-
-    return map;
-  }, [contributions]);
+  }, [isAuthenticated, user?.id, user?.walletAddress]);
 
   if (!isAuthenticated && !authLoading) {
     return (
@@ -91,12 +68,14 @@ function PaymentHubContent() {
   }
 
   const isPayableContribution = (c: ContributionItem) => {
-    if (c.status !== "PENDING") return false;
-    if (c.isPayable === true) return true;
-    if (c.cycleStatus === "PAYMENT_OPEN") return true;
-    const gid = c.groupId || "default";
-    const groupActiveCycle = activeCycleByGroup.get(gid) || c.groupCurrentCycle || 1;
-    return c.cycleNumber <= groupActiveCycle;
+    if (c.status !== "PENDING" || c.isPayable !== true) return false;
+    if (
+      c.groupCurrentCycle &&
+      c.cycleNumber !== c.groupCurrentCycle
+    ) {
+      return false;
+    }
+    return true;
   };
 
   const activePayableContributions = contributions.filter(isPayableContribution);

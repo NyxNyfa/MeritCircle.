@@ -1,10 +1,11 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { color, radius, spacing, Card, Badge, Button } from "@merit-circle/ui";
 import { formatWeiToBnb, formatDate } from "../../lib/format";
 import { createPaymentIntent, confirmContribution } from "../../lib/api";
 import { payContribution } from "../../lib/payment-adapter";
+import { waitForTransactionReceipt } from "../../lib/wallet";
 import { getErrorMessage } from "../../lib/error";
 import { CheckIcon, AlertTriangleIcon } from "../layout/Icons";
 
@@ -23,9 +24,53 @@ export interface ContributionItem {
   externalPoolId?: string;
   amountWei: string;
   dueDate: string;
-  status: "PENDING" | "PAID_ON_TIME" | "PAID_LATE" | "DEFAULTED";
+  status: "PENDING" | "PAID_ON_TIME" | "PAID_LATE" | "UNPAID";
   groupName?: string;
   latePenaltyPoints?: number;
+}
+
+function paymentAttemptKey(contributionId: string): string {
+  return `merit_circle_payment_attempt_${contributionId}`;
+}
+
+function readPaymentAttempt(contributionId: string): {
+  intentId: string;
+  txHash: string;
+} | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(paymentAttemptKey(contributionId));
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (
+      parsed?.intentId &&
+      parsed?.txHash &&
+      /^0x[0-9a-fA-F]{64}$/.test(parsed.txHash)
+    ) {
+      return { intentId: parsed.intentId, txHash: parsed.txHash.toLowerCase() };
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+
+function writePaymentAttempt(
+  contributionId: string,
+  attempt: { intentId: string; txHash: string }
+) {
+  try {
+    window.localStorage.setItem(
+      paymentAttemptKey(contributionId),
+      JSON.stringify(attempt)
+    );
+  } catch {}
+}
+
+function clearPaymentAttempt(contributionId: string) {
+  try {
+    window.localStorage.removeItem(paymentAttemptKey(contributionId));
+  } catch {}
 }
 
 export const PaymentCard: React.FC<{
@@ -34,79 +79,220 @@ export const PaymentCard: React.FC<{
 }> = ({ contribution, onPaymentSuccess }) => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [step, setStep] = useState<string>("");
+  const [submittedTxHash, setSubmittedTxHash] = useState<string | null>(null);
   const [txHash, setTxHash] = useState<string | null>(null);
+  const [failedTxHash, setFailedTxHash] = useState<string | null>(null);
+  const [walletRequestPending, setWalletRequestPending] = useState(false);
+  const [confirmationAttempt, setConfirmationAttempt] = useState<{
+    intentId: string;
+    txHash: string;
+  } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const isPaid = contribution.status === "PAID_ON_TIME" || contribution.status === "PAID_LATE";
+  useEffect(() => {
+    const attempt = readPaymentAttempt(contribution.id);
+    if (attempt) {
+      setConfirmationAttempt(attempt);
+      setFailedTxHash(attempt.txHash);
+    }
+  }, [contribution.id]);
+
+  const isPaid =
+    contribution.status === "PAID_ON_TIME" ||
+    contribution.status === "PAID_LATE";
   const isLate = new Date() > new Date(contribution.dueDate) && !isPaid;
-
-  // Resolve actual on-chain contract group ID (fallback to groupNumber or "1" for on-chain group)
-  const resolvedContractGroupId =
-    contribution.contractGroupId ||
-    (contribution.groupNumber ? String(contribution.groupNumber) : "1");
-
-  // Determine current active cycle number
+  const resolvedContractGroupId = contribution.contractGroupId;
   const currentActiveCycle =
-    contribution.groupCurrentCycle && contribution.groupCurrentCycle > 1
-      ? contribution.groupCurrentCycle
-      : (contribution.cycleStatus === "PAYMENT_OPEN" || contribution.isPayable)
-      ? contribution.cycleNumber
-      : !isPaid
-      ? contribution.cycleNumber
-      : 1;
-
+    contribution.groupCurrentCycle || contribution.cycleNumber;
   const isPayableNow =
     !isPaid &&
-    (contribution.isPayable === true ||
-      contribution.cycleStatus === "PAYMENT_OPEN" ||
-      contribution.cycleNumber <= currentActiveCycle);
-
+    contribution.isPayable === true &&
+    (!contribution.groupCurrentCycle ||
+      contribution.cycleNumber === contribution.groupCurrentCycle);
   const isUpcomingCycle = !isPaid && !isPayableNow;
 
-  const handlePay = async () => {
+  const confirmOnBackend = async (intentId: string, txHash: string) => {
+    setStep("Menerima konfirmasi backend dan memverifikasi event on-chain...");
+    const confirmation = await confirmContribution(
+      intentId,
+      txHash,
+      contribution.cycleId
+    );
+    const confirmedContributionId =
+      confirmation.contributionId ||
+      confirmation.contribution?.contributionId ||
+      confirmation.contribution?.id;
+    const confirmedStatus =
+      confirmation.status ||
+      confirmation.contribution?.status ||
+      confirmation.payment?.status;
+    const confirmedHash = confirmation.payment?.txHash?.toLowerCase();
+
+    if (
+      confirmedContributionId !== contribution.id ||
+      confirmedHash !== txHash.toLowerCase() ||
+      (confirmedStatus !== "PAID_ON_TIME" && confirmedStatus !== "PAID_LATE")
+    ) {
+      throw new Error(
+        "Konfirmasi backend tidak cocok dengan transaksi yang baru dikirim. Status iuran belum diubah menjadi lunas."
+      );
+    }
+
+    clearPaymentAttempt(contribution.id);
+    setConfirmationAttempt(null);
+    setSubmittedTxHash(null);
+    setFailedTxHash(null);
+    setTxHash(txHash);
+    setStep("Pembayaran berhasil diverifikasi on-chain.");
+    onPaymentSuccess?.();
+  };
+
+  const resumePaymentConfirmation = async (
+    attempt: { intentId: string; txHash: string }
+  ) => {
     setIsProcessing(true);
     setError(null);
+    setStep("Memeriksa ulang receipt transaksi sebelumnya...");
     try {
-      // 1. Create payment intent
-      setStep("Creating payment intent...");
-      const res = await createPaymentIntent(contribution.id, contribution.cycleId);
-      const intentId =
-        res?.intent?.id ||
-        res?.intent?.contributionId ||
-        (res as any)?.id ||
-        (res as any)?.contributionId ||
-        contribution.id;
-      const targetContractAddress =
-        res?.intent?.contractAddress ||
-        (res as any)?.contractAddress ||
-        "0x71a41e2993ecF330Ebb7D22C2F752a606d992A8C";
+      await waitForTransactionReceipt(attempt.txHash);
+      await confirmOnBackend(attempt.intentId, attempt.txHash);
+    } catch (err: any) {
+      setFailedTxHash(err?.txHash || attempt.txHash);
+      setStep("");
+      if (err?.code === "ONCHAIN_REVERTED") {
+        setConfirmationAttempt(null);
+        setError(
+          "Receipt transaksi sebelumnya menunjukkan revert. Tidak ada pembayaran yang dicatat; Anda dapat mencoba pembayaran baru."
+        );
+      } else if (err?.code === "RECEIPT_PENDING") {
+        setError(
+          "Receipt transaksi sebelumnya belum tersedia. Tombol hanya akan memeriksa hash yang sama, tidak mengirim transaksi baru."
+        );
+      } else {
+        setError(getErrorMessage(err));
+      }
+    } finally {
+      setIsProcessing(false);
+    }
+  };
 
-      if (!resolvedContractGroupId) {
+  const handlePay = async () => {
+    if (confirmationAttempt) {
+      await resumePaymentConfirmation(confirmationAttempt);
+      return;
+    }
+
+    setIsProcessing(true);
+    setStep("Menyiapkan pembayaran on-chain...");
+    setError(null);
+    setTxHash(null);
+    setSubmittedTxHash(null);
+    setFailedTxHash(null);
+    setConfirmationAttempt(null);
+    clearPaymentAttempt(contribution.id);
+    setWalletRequestPending(false);
+    let currentTxHash: string | null = null;
+    let currentIntentId = contribution.id;
+
+    try {
+      const res = await createPaymentIntent(contribution.id, contribution.cycleId);
+      const intent = res.intent || res;
+      const intentId =
+        intent.id || intent.contributionId || contribution.id;
+      currentIntentId = intentId;
+      const contractGroupId = intent.contractGroupId;
+      const contractAddress = intent.contractAddress;
+
+      if (!contractGroupId) {
         throw new Error(
-          "Kelompok ini belum terdaftar pada smart contract on-chain. Pembayaran hanya dapat dilakukan untuk kelompok yang telah aktif di blockchain."
+          "Kelompok ini belum memiliki ID on-chain yang terverifikasi. Pembayaran tidak dapat dikirim."
         );
       }
+      if (
+        resolvedContractGroupId &&
+        String(resolvedContractGroupId) !== String(contractGroupId)
+      ) {
+        throw new Error(
+          "ID kelompok dari server tidak konsisten. Pembayaran dibatalkan."
+        );
+      }
+      if (!contractAddress) {
+        throw new Error("Alamat smart contract pembayaran tidak tersedia.");
+      }
 
-      // 2. Broadcast on-chain transaction with MetaMask
-      setStep("Menunggu konfirmasi transaksi di dompet Web3 (MetaMask)...");
+      setStep("Menunggu persetujuan transaksi di Rabby Wallet...");
       const paymentResult = await payContribution({
         cycleId: contribution.cycleId,
         groupId: contribution.groupId,
-        contractGroupId: resolvedContractGroupId,
-        contractAddress: targetContractAddress,
+        contractGroupId: String(contractGroupId),
+        contractAddress,
         cycleNumber: contribution.cycleNumber,
         amountWei: contribution.amountWei,
+        onSubmitted: (hash) => {
+          currentTxHash = hash;
+          const attempt = { intentId: currentIntentId, txHash: hash };
+          writePaymentAttempt(contribution.id, attempt);
+          setConfirmationAttempt(attempt);
+          setSubmittedTxHash(hash);
+          setStep(
+            "Transaksi disiarkan. Menunggu receipt sukses pada BNB Smart Chain Testnet..."
+          );
+        },
       });
 
-      // 3. Confirm with backend (waits for transaction to be mined into block)
-      setStep("Menunggu konfirmasi blok BNB Smart Chain Testnet & verifikasi on-chain...");
-      await confirmContribution(intentId, paymentResult.txHash, contribution.cycleId);
-
-      setTxHash(paymentResult.txHash);
-      setStep("Pembayaran berhasil diverifikasi!");
-      onPaymentSuccess?.();
+      const attempt = { intentId, txHash: paymentResult.txHash };
+      writePaymentAttempt(contribution.id, attempt);
+      setConfirmationAttempt(attempt);
+      await confirmOnBackend(intentId, paymentResult.txHash);
     } catch (err: any) {
-      setError(getErrorMessage(err));
+      setSubmittedTxHash(null);
+      setFailedTxHash(err?.txHash || currentTxHash);
+      setStep("");
+
+      if (
+        (err?.code === "RECEIPT_PENDING" ||
+          err?.code === "WALLET_REQUEST_PENDING") &&
+        !currentTxHash
+      ) {
+        setWalletRequestPending(true);
+      }
+
+      const canResumeConfirmation =
+        Boolean(currentTxHash) &&
+        err?.code !== "USER_REJECTED" &&
+        err?.code !== "ONCHAIN_REVERTED" &&
+        err?.code !== "WALLET_TRANSACTION_FAILED";
+      if (canResumeConfirmation) {
+        const attempt = {
+          intentId: currentIntentId,
+          txHash: currentTxHash!,
+        };
+        writePaymentAttempt(contribution.id, attempt);
+        setConfirmationAttempt(attempt);
+      } else {
+        clearPaymentAttempt(contribution.id);
+        setConfirmationAttempt(null);
+      }
+
+      if (err?.code === "USER_REJECTED") {
+        setError(
+          "Transaksi dibatalkan oleh pengguna. Tidak ada pembayaran yang dicatat; Anda dapat mencoba kembali."
+        );
+      } else if (err?.code === "ONCHAIN_REVERTED") {
+        setError(
+          "Transaksi on-chain gagal/revert. Tidak ada pembayaran yang dicatat; periksa transaction hash lalu coba kembali."
+        );
+      } else if (err?.code === "RECEIPT_PENDING") {
+        setError(
+          "Status transaksi belum dapat dipastikan karena receipt belum tersedia. Jangan kirim pembayaran ulang sebelum memeriksa hash."
+        );
+      } else if (err?.code === "WALLET_REQUEST_PENDING") {
+        setError(
+          "Permintaan dompet belum menghasilkan hash. Transaksi mungkin masih diproses; periksa Rabby Wallet dan muat ulang halaman sebelum mencoba lagi."
+        );
+      } else {
+        setError(getErrorMessage(err));
+      }
     } finally {
       setIsProcessing(false);
     }
@@ -116,6 +302,8 @@ export const PaymentCard: React.FC<{
     <Card
       liquid
       variant={isLate ? "liquid" : "gold"}
+      data-testid={`payment-card-${contribution.id}`}
+      data-payment-status={isPaid ? "paid" : "pending"}
       style={{
         borderRadius: radius.xl,
         padding: spacing["6"],
@@ -134,12 +322,12 @@ export const PaymentCard: React.FC<{
                 {contribution.poolMode === "AUCTION" ? "Auction" : "Basic"}
               </Badge>
             )}
-            <Badge variant={isPaid ? "success" : isLate ? "danger" : isUpcomingCycle ? "neutral" : "warning"}>
+            <Badge data-testid="payment-status" variant={isPaid ? "success" : isLate ? "danger" : isUpcomingCycle ? "neutral" : "warning"}>
               {isPaid ? "PAID" : isUpcomingCycle ? "UPCOMING" : "PAYMENT OPEN"}
             </Badge>
           </div>
           <div style={{ fontSize: "12px", color: color.text.muted }}>
-            Group #{contribution.groupNumber || 1} (Contract ID: #{resolvedContractGroupId}) • Due: {formatDate(contribution.dueDate)}
+            Group #{contribution.groupNumber || 1} (Contract ID: {resolvedContractGroupId ? `#${resolvedContractGroupId}` : "belum terdaftar"}) • Due: {formatDate(contribution.dueDate)}
           </div>
         </div>
 
@@ -153,7 +341,6 @@ export const PaymentCard: React.FC<{
         </div>
       </div>
 
-      {/* Live Web3 Smart Contract Banner */}
       <div
         style={{
           display: "flex",
@@ -189,18 +376,37 @@ export const PaymentCard: React.FC<{
             lineHeight: 1.5,
           }}
         >
-          ⏱ <strong>Siklus #{contribution.cycleNumber} Terjadwal (1 Bulan):</strong> Tagihan ini dibuka setelah Siklus #{currentActiveCycle} selesai dan diselesaikan oleh kontrak arisan.
+          <strong>Siklus #{contribution.cycleNumber} Terjadwal:</strong> Tagihan ini dibuka setelah Siklus #{currentActiveCycle} selesai dan diselesaikan oleh kontrak arisan.
         </div>
       )}
 
       {step && (
-        <div style={{ fontSize: "12px", color: color.brand.accentCyan, marginBottom: spacing["3"] }}>
+        <div data-testid="payment-step" aria-live="polite" style={{ fontSize: "12px", color: color.brand.accentCyan, marginBottom: spacing["3"] }}>
           {step}
+        </div>
+      )}
+
+      {submittedTxHash && (
+        <div
+          data-testid="payment-pending"
+          style={{
+            padding: spacing["3"],
+            marginBottom: spacing["3"],
+            borderRadius: radius.md,
+            backgroundColor: "rgba(0, 197, 248, 0.08)",
+            border: `1px solid ${color.brand.primary}`,
+            color: color.text.secondary,
+            fontSize: "12px",
+            wordBreak: "break-all",
+          }}
+        >
+          Menunggu receipt: <code>{submittedTxHash}</code>
         </div>
       )}
 
       {txHash && (
         <div
+          data-testid="payment-success"
           style={{
             padding: spacing["3"],
             marginBottom: spacing["3"],
@@ -221,6 +427,9 @@ export const PaymentCard: React.FC<{
 
       {error && (
         <div
+          data-testid="payment-error"
+          role="alert"
+          aria-live="assertive"
           style={{
             padding: spacing["3"],
             marginBottom: spacing["3"],
@@ -230,29 +439,49 @@ export const PaymentCard: React.FC<{
             fontSize: "12px",
             color: color.status.error,
             display: "flex",
-            alignItems: "center",
+            alignItems: "flex-start",
             gap: "8px",
           }}
         >
           <AlertTriangleIcon size={14} />
-          <span>{error}</span>
+          <div>
+            <div>{error}</div>
+            {failedTxHash && (
+              <div style={{ marginTop: "6px", wordBreak: "break-all" }}>
+                Hash: <code>{failedTxHash}</code>{" "}
+                <a
+                  href={`https://testnet.bscscan.com/tx/${failedTxHash}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{ color: color.text.white }}
+                >
+                  Lihat di BscScan
+                </a>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
       {!isPaid && (
         <Button
+          data-testid="payment-button"
           variant="liquid-metal"
           size="md"
           loading={isProcessing}
-          disabled={isUpcomingCycle || !resolvedContractGroupId}
+          disabled={isUpcomingCycle || !resolvedContractGroupId || walletRequestPending}
           onClick={handlePay}
           style={{ width: "100%" }}
         >
-          {isUpcomingCycle
+          {walletRequestPending
+            ? "Permintaan Dompet Masih Dipantau"
+            : confirmationAttempt
+            ? "Periksa Status / Konfirmasi Ulang"
+            : isUpcomingCycle
             ? `Siklus #${contribution.cycleNumber} Menunggu Siklus #${currentActiveCycle}`
             : !resolvedContractGroupId
             ? "Kelompok Belum Terdaftar On-Chain"
-            : `Pay ${formatWeiToBnb(contribution.amountWei)} via MetaMask (tBNB)`}
+            : `Pay ${formatWeiToBnb(contribution.amountWei)} via Rabby/MetaMask`}
         </Button>
       )}
     </Card>
