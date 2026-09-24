@@ -121,7 +121,7 @@ function AdminGroupDetailContent({ initialGroupId }: { initialGroupId?: string }
               <div>
                 <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "6px" }}>
                   <h1 style={{ fontSize: "24px", fontWeight: 800, margin: 0 }}>
-                    {group.pool.name} #{group.groupNumber}
+                    {group.pool?.name || group.poolName || "ROSCA Group"} #{group.groupNumber}
                   </h1>
                   <Badge
                     variant={
@@ -134,10 +134,10 @@ function AdminGroupDetailContent({ initialGroupId }: { initialGroupId?: string }
                   >
                     {group.status}
                   </Badge>
-                  <Badge variant="info">{group.pool.mode} POOL</Badge>
+                  <Badge variant="info">{group.pool?.mode || group.poolMode || "BASIC"} POOL</Badge>
                 </div>
                 <div style={{ color: color.text.secondary, fontSize: "13px" }}>
-                  Pool ID: {group.pool.externalPoolId} • Group Size: {group.pool.groupSize} • Current Cycle: {group.currentCycle} / {group.pool.groupSize}
+                  Pool ID: {group.pool?.externalPoolId || group.poolId || "POOL-01"} • Group Size: {group.pool?.groupSize || group.groupSize || 5} • Current Cycle: {group.currentCycle} / {group.pool?.groupSize || group.groupSize || 5}
                 </div>
               </div>
 
@@ -229,7 +229,7 @@ function AdminGroupDetailContent({ initialGroupId }: { initialGroupId?: string }
           {/* Members Roster */}
           <Card>
             <h2 style={{ fontSize: "18px", fontWeight: 700, margin: 0, marginBottom: spacing["3"] }}>
-              Members ({group.members.length} / {group.pool.groupSize})
+              Members ({group.members?.length || 0} / {group.pool?.groupSize || group.groupSize || 5})
             </h2>
             <div style={{ overflowX: "auto" }}>
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>

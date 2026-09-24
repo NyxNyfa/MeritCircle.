@@ -60,8 +60,8 @@ function AdminAuctionsContent() {
             auctionCycles.push({
               groupId: grp.id,
               groupNumber: grp.groupNumber,
-              poolName: grp.pool.name,
-              poolMode: grp.pool.mode,
+              poolName: grp.pool?.name || grp.poolName || "ROSCA Pool",
+              poolMode: grp.pool?.mode || grp.poolMode || "BASIC",
               cycleId: c.id,
               cycleNumber: c.cycleNumber,
               isFinalCycle: c.isFinalCycle,

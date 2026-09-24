@@ -39,28 +39,6 @@ function PaymentHubContent() {
     fetchContributions();
   }, [isAuthenticated]);
 
-  if (!isAuthenticated && !authLoading) {
-    return (
-      <Shell activeHref="/pay">
-        <EmptyState
-          title="Wallet Not Connected"
-          description="Silakan hubungkan dompet Web3 Anda untuk melihat tagihan iuran siklus berjalan."
-          action={
-            <Button
-              variant="liquid-metal"
-              size="md"
-              onClick={() => {
-                window.location.href = "/connect";
-              }}
-            >
-              Connect Wallet
-            </Button>
-          }
-        />
-      </Shell>
-    );
-  }
-
   // Group-level active cycle calculation: ensures lowest pending cycle is always payable
   const activeCycleByGroup = React.useMemo(() => {
     const map = new Map<string, number>();
@@ -89,6 +67,28 @@ function PaymentHubContent() {
 
     return map;
   }, [contributions]);
+
+  if (!isAuthenticated && !authLoading) {
+    return (
+      <Shell activeHref="/pay">
+        <EmptyState
+          title="Wallet Not Connected"
+          description="Silakan hubungkan dompet Web3 Anda untuk melihat tagihan iuran siklus berjalan."
+          action={
+            <Button
+              variant="liquid-metal"
+              size="md"
+              onClick={() => {
+                window.location.href = "/connect";
+              }}
+            >
+              Connect Wallet
+            </Button>
+          }
+        />
+      </Shell>
+    );
+  }
 
   const isPayableContribution = (c: ContributionItem) => {
     if (c.status !== "PENDING") return false;

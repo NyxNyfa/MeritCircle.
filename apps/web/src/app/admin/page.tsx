@@ -75,7 +75,7 @@ function AdminDashboardContent() {
             <span>Refresh</span>
           </Button>
           <a href="/admin/pools" style={{ textDecoration: "none" }}>
-            <Button variant="primary">+ Create Pool</Button>
+            <Button variant="primary">Manage Pools</Button>
           </a>
         </div>
       </div>
