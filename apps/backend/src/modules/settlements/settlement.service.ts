@@ -87,8 +87,13 @@ export async function settleCycle(
     );
 
   if (!allContributionsPaid) {
+    const unpaidMembers = members.filter((m) => {
+      const c = contributions.find((cb) => cb.userId === m.userId);
+      return !c || (c.status !== "PAID_ON_TIME" && c.status !== "PAID_LATE");
+    });
+    const unpaidAddresses = unpaidMembers.map((m) => m.user.walletAddress).join(", ");
     throw new AppError(
-      "Not all members have paid their contributions for this cycle",
+      `Not all members have paid their contributions for this cycle. Penyelesaian siklus tidak dapat dilakukan karena belum semua anggota menyetor iuran on-chain. Anggota yang belum menyetor: ${unpaidAddresses}. Smart contract MeritCircleCore mewajibkan seluruh dana terkumpul penuh sebelum payout dapat didistribusikan.`,
       400,
       "CONTRIBUTIONS_NOT_PAID"
     );

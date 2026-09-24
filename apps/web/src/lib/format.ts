@@ -79,6 +79,16 @@ export function formatDate(dateStr: string | null | undefined): string {
   try {
     const d = new Date(dateStr);
     if (isNaN(d.getTime())) return "-";
+    const hasTime = d.getHours() !== 0 || d.getMinutes() !== 0;
+    if (hasTime) {
+      return d.toLocaleDateString("id-ID", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    }
     return d.toLocaleDateString("id-ID", {
       day: "numeric",
       month: "short",

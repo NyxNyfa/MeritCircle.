@@ -51,8 +51,8 @@ export const PaymentCard: React.FC<{
       ? contribution.groupCurrentCycle
       : (contribution.cycleStatus === "PAYMENT_OPEN" || contribution.isPayable)
       ? contribution.cycleNumber
-      : (contribution.cycleNumber === 2 && !isPaid)
-      ? 2
+      : !isPaid
+      ? contribution.cycleNumber
       : 1;
 
   const isPayableNow =

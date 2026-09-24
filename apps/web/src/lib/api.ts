@@ -449,38 +449,13 @@ export async function getAdminPools(): Promise<{ pools: any[] }> {
   return fetchApi("/api/admin/pools", { method: "GET" });
 }
 
-export async function createAdminPool(poolData: any): Promise<{ pool: any }> {
-  return fetchApi("/api/admin/pools", {
-    method: "POST",
-    body: JSON.stringify(poolData),
-  });
-}
-
 export async function patchAdminPool(
   poolId: string,
-  data: any
+  data: { status: "ACTIVE" | "PAUSED" }
 ): Promise<{ pool: any }> {
   return fetchApi(`/api/admin/pools/${poolId}`, {
     method: "PATCH",
     body: JSON.stringify(data),
-  });
-}
-
-export async function updateAdminPool(
-  poolId: string,
-  data: any
-): Promise<{ pool: any }> {
-  return fetchApi(`/api/admin/pools/${poolId}`, {
-    method: "PATCH",
-    body: JSON.stringify(data),
-  });
-}
-
-export async function deleteAdminPool(
-  poolId: string
-): Promise<{ success: boolean; message: string }> {
-  return fetchApi(`/api/admin/pools/${poolId}`, {
-    method: "DELETE",
   });
 }
 

@@ -120,6 +120,13 @@ adminRouter.post(
   adminGuard,
   async (req: Request, res: Response, next: NextFunction) => {
     try {
+      if (process.env.NODE_ENV === "production" || process.env.STRICT_ONCHAIN === "true") {
+        throw new AppError(
+          "Dynamic pool creation is disabled. Pool blueprints must be deployed on-chain on MeritCircleCore smart contract.",
+          400,
+          "POOL_CREATION_DISABLED"
+        );
+      }
       const parsed = createPoolSchema.parse(req.body);
       const data = await createPool(req.user!.id, parsed);
       res.status(201).json(data);
@@ -148,6 +155,13 @@ adminRouter.delete(
   adminGuard,
   async (req: Request, res: Response, next: NextFunction) => {
     try {
+      if (process.env.NODE_ENV === "production" || process.env.STRICT_ONCHAIN === "true") {
+        throw new AppError(
+          "Pool deletion is disabled. On-chain pools are immutable smart contract blueprints.",
+          400,
+          "POOL_DELETION_DISABLED"
+        );
+      }
       const data = await deletePool(req.user!.id, req.params.poolId);
       res.json(data);
     } catch (err) {
