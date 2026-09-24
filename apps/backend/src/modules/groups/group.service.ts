@@ -8,36 +8,75 @@ export async function getUserGroups(userId: string) {
       group: {
         include: {
           pool: true,
-          members: true,
+          cycles: {
+            orderBy: { cycleNumber: "asc" },
+          },
+          rewardLedgers: {
+            orderBy: { cycleNumber: "desc" },
+            take: 1,
+          },
         },
       },
     },
     orderBy: { joinedAt: "desc" },
   });
 
+  const groups = memberships.map((m) => ({
+    id: m.group.id,
+    poolId: m.group.poolId,
+    poolName: m.group.pool.name,
+    poolMode: m.group.pool.mode,
+    mode: m.group.pool.mode,
+    groupNumber: m.group.groupNumber,
+    status: m.group.status,
+    memberStatus: m.status,
+    isMemberReleased: m.status === "COMPLETED",
+    isGroupCompleted: m.group.status === "COMPLETED",
+    memberCount: m.group.memberCount,
+    membersCount: m.group.memberCount,
+    groupSize: m.group.pool.groupSize,
+    maxMembers: m.group.pool.groupSize,
+    currentCycle: m.group.currentCycle,
+    currentCycleNumber: m.group.currentCycle,
+    totalCycles: m.group.pool.cycleCount,
+    startDate: m.group.startDate,
+    completedAt: m.group.completedAt,
+    nextPaymentDueDate:
+      m.group.status === "COMPLETED"
+        ? null
+        : m.group.cycles?.find(
+            (cycle) => cycle.cycleNumber === m.group.currentCycle
+          )?.paymentDeadline,
+    mySlot: m.payoutSlot,
+    carriedRewardWei:
+      m.group.rewardLedgers?.[0]?.remainingCarryRewardWei ?? "0",
+  }));
+
+  const activeGroups = groups.filter(
+    (group) =>
+      group.memberStatus === "ACTIVE" &&
+      (group.status === "FORMING" || group.status === "ACTIVE")
+  );
+
+  const completedGroups = groups
+    .filter(
+      (group) =>
+        group.memberStatus === "COMPLETED" || group.status === "COMPLETED"
+    )
+    .sort((left, right) => {
+      const leftCompletedAt = left.completedAt
+        ? new Date(left.completedAt).getTime()
+        : 0;
+      const rightCompletedAt = right.completedAt
+        ? new Date(right.completedAt).getTime()
+        : 0;
+      return rightCompletedAt - leftCompletedAt;
+    });
+
   return {
-    groups: memberships.map((m) => ({
-      id: m.group.id,
-      poolId: m.group.poolId,
-      poolName: m.group.pool.name,
-      poolMode: m.group.pool.mode,
-      mode: m.group.pool.mode,
-      groupNumber: m.group.groupNumber,
-      status: m.group.status,
-      memberStatus: m.status,
-      isMemberReleased: m.status === "COMPLETED",
-      isGroupCompleted: m.group.status === "COMPLETED",
-      memberCount: m.group.memberCount,
-      membersCount: m.group.memberCount,
-      groupSize: m.group.pool.groupSize,
-      maxMembers: m.group.pool.groupSize,
-      currentCycle: m.group.currentCycle,
-      currentCycleNumber: m.group.currentCycle,
-      totalCycles: m.group.pool.cycleCount,
-      startDate: m.group.startDate,
-      mySlot: m.payoutSlot,
-      carriedRewardWei: "0",
-    })),
+    groups,
+    activeGroups,
+    completedGroups,
   };
 }
 

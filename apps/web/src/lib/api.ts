@@ -253,8 +253,42 @@ export async function joinPool(poolId: string): Promise<{ membership: any; group
   });
 }
 
-export async function getMyGroups(): Promise<{ groups: any[] }> {
-  return fetchApi<{ groups: any[] }>("/api/groups/me", {
+export type GroupStatus = "FORMING" | "ACTIVE" | "COMPLETED";
+export type GroupMemberStatus =
+  | "ACTIVE"
+  | "COMPLETED"
+  | "DEFAULTED"
+  | "REMOVED";
+
+export interface GroupData {
+  id: string;
+  groupNumber: number;
+  poolId: string;
+  poolName: string;
+  poolMode?: "BASIC" | "AUCTION";
+  mode: "BASIC" | "AUCTION";
+  status: GroupStatus;
+  memberStatus?: GroupMemberStatus;
+  isMemberReleased?: boolean;
+  isGroupCompleted?: boolean;
+  currentCycle: number;
+  currentCycleNumber: number;
+  totalCycles: number;
+  membersCount: number;
+  maxMembers: number;
+  carriedRewardWei: string;
+  completedAt?: string | null;
+  nextPaymentDueDate?: string;
+}
+
+export interface UserGroupsResponse {
+  groups: GroupData[];
+  activeGroups?: GroupData[];
+  completedGroups?: GroupData[];
+}
+
+export async function getMyGroups(): Promise<UserGroupsResponse> {
+  return fetchApi<UserGroupsResponse>("/api/groups/me", {
     method: "GET",
   });
 }

@@ -26,7 +26,7 @@ function AuctionHubContent() {
     try {
       // 1. Get user groups
       const groupsRes = await getMyGroups();
-      const groups = groupsRes.groups || [];
+      const groups = groupsRes.activeGroups ?? groupsRes.groups;
 
       const auctionList: AuctionData[] = [];
 

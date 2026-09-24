@@ -11,6 +11,7 @@
     "lint": "pnpm -r run --if-present lint",
     "typecheck": "pnpm -r run --if-present typecheck",
     "test": "pnpm -r run --if-present test",
+    "test:e2e": "pnpm --filter \"@merit-circle/web\" run test:e2e",
     "postinstall": "pnpm prisma:generate",
     "prebuild": "pnpm prisma:generate",
     "build": "pnpm -r run --if-present build",

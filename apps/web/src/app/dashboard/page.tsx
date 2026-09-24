@@ -1,14 +1,15 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { color, radius, spacing, Card, Badge, Button, EmptyState } from "@merit-circle/ui";
+import { color, radius, spacing, Card, EmptyState } from "@merit-circle/ui";
 import { AppProviders } from "../../providers/AppProviders";
 import { Shell } from "../../components/layout/Shell";
 import { useAuth } from "../../hooks/useAuth";
 import { useReputation } from "../../hooks/useReputation";
 import { getMyGroups, getMyContributions } from "../../lib/api";
+import type { GroupData } from "../../lib/api";
 import { formatAddress, formatDate, formatPoint, formatTier, formatWeiToBnb } from "../../lib/format";
-import { GroupCard, GroupData } from "../../components/group/GroupCard";
+import { GroupCard } from "../../components/group/GroupCard";
 import { LiquidMetalButton } from "../../components/ui/liquid-metal-button";
 import {
   ZapIcon,
@@ -38,36 +39,94 @@ const EVENT_LABELS: Record<string, string> = {
   ADMIN_ADJUSTMENT: "Administrative Adjustment",
 };
 
+type GroupTab = "active" | "history";
+
+function isActiveGroup(group: GroupData): boolean {
+  return (
+    (group.memberStatus ?? "ACTIVE") === "ACTIVE" &&
+    (group.status === "FORMING" || group.status === "ACTIVE") &&
+    group.isGroupCompleted !== true
+  );
+}
+
+function isCompletedGroup(group: GroupData): boolean {
+  return (
+    group.status === "COMPLETED" ||
+    group.memberStatus === "COMPLETED" ||
+    group.isGroupCompleted === true
+  );
+}
+
 function DashboardContent() {
   const { user, isAuthenticated, isLoading: authLoading, loginWithWallet } = useAuth();
   const { points, tier, maxActiveGroups, history } = useReputation();
 
   const [activeGroups, setActiveGroups] = useState<GroupData[]>([]);
+  const [completedGroups, setCompletedGroups] = useState<GroupData[]>([]);
+  const [selectedGroupTab, setSelectedGroupTab] = useState<GroupTab>("active");
   const [upcomingContributions, setUpcomingContributions] = useState<any[]>([]);
   const [loadingData, setLoadingData] = useState(true);
 
   useEffect(() => {
+    let cancelled = false;
+
     if (!isAuthenticated || !user) {
       setActiveGroups([]);
+      setCompletedGroups([]);
+      setSelectedGroupTab("active");
       setUpcomingContributions([]);
       setLoadingData(false);
       return;
     }
 
     setLoadingData(true);
-    Promise.all([getMyGroups(), getMyContributions()])
-      .then(([groupsRes, contribsRes]) => {
-        setActiveGroups(groupsRes.groups || []);
+    Promise.allSettled([getMyGroups(), getMyContributions()])
+      .then(([groupsResult, contributionsResult]) => {
+        if (cancelled) return;
+
+        if (groupsResult.status === "rejected") {
+          setActiveGroups([]);
+          setCompletedGroups([]);
+          setSelectedGroupTab("active");
+          setUpcomingContributions([]);
+          return;
+        }
+
+        const groupsRes = groupsResult.value;
+        const activeSource = groupsRes.activeGroups ?? groupsRes.groups;
+        const completedSource = groupsRes.completedGroups ?? groupsRes.groups;
+        const nextActiveGroups = activeSource.filter(isActiveGroup);
+        const nextCompletedGroups = completedSource.filter(isCompletedGroup);
+        const activeGroupIds = new Set(nextActiveGroups.map((group) => group.id));
+        const contributions =
+          contributionsResult.status === "fulfilled"
+            ? contributionsResult.value.contributions
+            : [];
+
+        setActiveGroups(nextActiveGroups);
+        setCompletedGroups(nextCompletedGroups);
+        setSelectedGroupTab((currentTab) =>
+          currentTab === "active" &&
+          nextActiveGroups.length === 0 &&
+          nextCompletedGroups.length > 0
+            ? "history"
+            : currentTab
+        );
         setUpcomingContributions(
-          (contribsRes.contributions || []).filter(
-            (c: any) => c.status === "PENDING"
+          (contributions || []).filter(
+            (contribution: any) =>
+              contribution.status === "PENDING" &&
+              activeGroupIds.has(contribution.groupId)
           )
         );
       })
-      .catch(() => {})
       .finally(() => {
-        setLoadingData(false);
+        if (!cancelled) setLoadingData(false);
       });
+
+    return () => {
+      cancelled = true;
+    };
   }, [isAuthenticated, user?.id, user?.walletAddress]);
 
   if (!isAuthenticated && !authLoading) {
@@ -101,6 +160,8 @@ function DashboardContent() {
 
   const activeDueContribution = upcomingContributions.find(isPayableContribution);
   const nearestContribution = activeDueContribution || upcomingContributions[0];
+  const displayedGroups =
+    selectedGroupTab === "active" ? activeGroups : completedGroups;
 
   return (
     <Shell activeHref="/dashboard">
@@ -339,9 +400,7 @@ function DashboardContent() {
         </div>
       </div>
 
-      {/* Main Content Split */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 340px", gap: spacing["8"] }}>
-        {/* Active Groups List */}
         <div>
           <div
             style={{
@@ -351,39 +410,129 @@ function DashboardContent() {
               marginBottom: spacing["4"],
             }}
           >
-            <h2 style={{ fontSize: "18px", fontWeight: 700, margin: 0 }}>My Active Circles</h2>
-            <a href="/pools" style={{ fontSize: "13px", color: color.brand.primary, textDecoration: "none" }}>
-              Join More Pools →
-            </a>
+            <div>
+              <h2 style={{ fontSize: "18px", fontWeight: 700, margin: 0 }}>
+                {selectedGroupTab === "active" ? "My Active Pools" : "Completed Pool History"}
+              </h2>
+              <p style={{ fontSize: "12px", color: color.text.muted, margin: "4px 0 0" }}>
+                {selectedGroupTab === "active"
+                  ? "Pools that are still forming or running."
+                  : "Pools moved here automatically after the final cycle is settled."}
+              </p>
+            </div>
+            {selectedGroupTab === "active" && (
+              <a href="/pools" style={{ fontSize: "13px", color: color.brand.primary, textDecoration: "none" }}>
+                Join More Pools →
+              </a>
+            )}
           </div>
 
-          {activeGroups.length === 0 ? (
-            <Card
-              style={{
-                backgroundColor: color.background.card,
-                border: `1px solid ${color.border.subtle}`,
-                padding: spacing["8"],
-                textAlign: "center",
-              }}
-            >
-              <div style={{ marginBottom: "8px", display: "flex", justifyContent: "center", color: color.brand.primary }}>
-                <CoinsIcon size={36} />
-              </div>
-              <div style={{ fontWeight: 600, marginBottom: "4px" }}>No Active Circles Yet</div>
-              <p style={{ fontSize: "13px", color: color.text.secondary, marginBottom: spacing["4"] }}>
-                Browse the marketplace and join a rotating circle that matches your financial tier.
-              </p>
-              <LiquidMetalButton
-                href="/pools"
-                size="sm"
-                variant="primary"
+          <div
+            role="tablist"
+            aria-label="Pool status"
+            data-testid="dashboard-pool-tabs"
+            style={{
+              display: "grid",
+              gridTemplateColumns: "1fr 1fr",
+              gap: "4px",
+              padding: "4px",
+              marginBottom: spacing["4"],
+              borderRadius: radius.full,
+              backgroundColor: "rgba(12, 16, 28, 0.72)",
+              border: `1px solid ${color.border.subtle}`,
+            }}
+          >
+            {(
+              [
+                { id: "active" as const, label: "Active Pools", count: activeGroups.length },
+                { id: "history" as const, label: "History / Completed", count: completedGroups.length },
+              ] satisfies Array<{ id: GroupTab; label: string; count: number }>
+            ).map((tab) => {
+              const isSelected = selectedGroupTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  id={`dashboard-group-tab-${tab.id}`}
+                  type="button"
+                  role="tab"
+                  aria-selected={isSelected}
+                  aria-controls={`dashboard-group-panel-${tab.id}`}
+                  tabIndex={isSelected ? 0 : -1}
+                  disabled={loadingData}
+                  onClick={() => setSelectedGroupTab(tab.id)}
+                  style={{
+                    border: isSelected
+                      ? "1px solid rgba(77, 142, 255, 0.45)"
+                      : "1px solid transparent",
+                    borderRadius: radius.full,
+                    padding: "10px 16px",
+                    background: isSelected
+                      ? "linear-gradient(135deg, rgba(77, 142, 255, 0.32), rgba(0, 229, 255, 0.22))"
+                      : "transparent",
+                    color: isSelected ? color.text.white : color.text.muted,
+                    fontSize: "13px",
+                    fontWeight: isSelected ? 700 : 500,
+                    cursor: loadingData ? "wait" : "pointer",
+                  }}
+                >
+                  {tab.label} ({tab.count})
+                </button>
+              );
+            })}
+          </div>
+
+          <div
+            role="tabpanel"
+            id={`dashboard-group-panel-${selectedGroupTab}`}
+            aria-labelledby={`dashboard-group-tab-${selectedGroupTab}`}
+            aria-busy={loadingData}
+            data-testid={`${selectedGroupTab}-groups-panel`}
+          >
+            {displayedGroups.length === 0 ? (
+              <Card
+                data-testid={
+                  selectedGroupTab === "active"
+                    ? "active-groups-empty"
+                    : "completed-groups-empty"
+                }
+                style={{
+                  backgroundColor: color.background.card,
+                  border: `1px solid ${color.border.subtle}`,
+                  padding: spacing["8"],
+                  textAlign: "center",
+                }}
               >
-                Browse Pools
-              </LiquidMetalButton>
-            </Card>
-          ) : (
-            activeGroups.map((grp) => <GroupCard key={grp.id} group={grp} />)
-          )}
+                <div style={{ marginBottom: "8px", display: "flex", justifyContent: "center", color: selectedGroupTab === "history" ? color.status.success : color.brand.primary }}>
+                  <CoinsIcon size={36} />
+                </div>
+                <div style={{ fontWeight: 600, marginBottom: "4px" }}>
+                  {selectedGroupTab === "active" ? "No Active Pools Yet" : "No Completed Pools Yet"}
+                </div>
+                <p style={{ fontSize: "13px", color: color.text.secondary, marginBottom: selectedGroupTab === "active" ? spacing["4"] : 0 }}>
+                  {selectedGroupTab === "active"
+                    ? "Browse the marketplace and join a rotating pool that matches your financial tier."
+                    : "A pool will appear here after its final cycle has been fully settled."}
+                </p>
+                {selectedGroupTab === "active" && (
+                  <LiquidMetalButton
+                    href="/pools"
+                    size="sm"
+                    variant="primary"
+                  >
+                    Browse Pools
+                  </LiquidMetalButton>
+                )}
+              </Card>
+            ) : (
+              <div role="list">
+                {displayedGroups.map((group) => (
+                  <div role="listitem" key={group.id}>
+                    <GroupCard group={group} />
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Reputation Activity Sidebar */}
