@@ -208,6 +208,8 @@ Railway adalah platform hosting PaaS yang sangat mudah untuk monorepo Node.js da
    - `NEXT_PUBLIC_BNB_TESTNET_CHAIN_ID` = `97`
    - `NEXT_PUBLIC_BNB_TESTNET_RPC_URL` = `https://bsc-testnet.bnbchain.org`
    - `CONTRACT_ADDRESS` = (Alamat smart contract hasil deploy)
+   - `DEPLOYER_PRIVATE_KEY` = (Private key dompet deployer/admin yang memegang SETTLER_ROLE untuk eksekusi reward settlement on-chain)
+   - `NEXT_PUBLIC_DEMO_PAYMENT_MODE` = `false`
 5. Masuk ke tab **Networking** ➔ Klik **Generate Domain** (contoh hasil: `meritcircle-backend.up.railway.app`).
 6. **Verifikasi Backend:** Buka di browser `https://meritcircle-backend.up.railway.app/health`.
    Respon yang sukses:
