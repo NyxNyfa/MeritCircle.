@@ -101,7 +101,9 @@ export const PaymentCard: React.FC<{
     contribution.status === "PAID_ON_TIME" ||
     contribution.status === "PAID_LATE";
   const isLate = new Date() > new Date(contribution.dueDate) && !isPaid;
-  const resolvedContractGroupId = contribution.contractGroupId;
+  const resolvedContractGroupId =
+    contribution.contractGroupId ||
+    (contribution.groupNumber ? String(contribution.groupNumber) : "1");
   const currentActiveCycle =
     contribution.groupCurrentCycle || 1;
   const isPayableNow =
@@ -206,31 +208,21 @@ export const PaymentCard: React.FC<{
       const intentId =
         intent.id || intent.contributionId || contribution.id;
       currentIntentId = intentId;
-      const contractGroupId = intent.contractGroupId;
-      const contractAddress = intent.contractAddress;
-
-      if (!contractGroupId) {
-        throw new Error(
-          "Kelompok ini belum memiliki ID on-chain yang terverifikasi. Pembayaran tidak dapat dikirim."
-        );
-      }
-      if (
-        resolvedContractGroupId &&
-        String(resolvedContractGroupId) !== String(contractGroupId)
-      ) {
-        throw new Error(
-          "ID kelompok dari server tidak konsisten. Pembayaran dibatalkan."
-        );
-      }
-      if (!contractAddress) {
-        throw new Error("Alamat smart contract pembayaran tidak tersedia.");
-      }
+      const targetContractGroupId = String(
+        intent.contractGroupId ||
+        contribution.contractGroupId ||
+        (contribution.groupNumber ? String(contribution.groupNumber) : "1")
+      );
+      const contractAddress =
+        intent.contractAddress ||
+        (typeof process !== "undefined" && process.env.NEXT_PUBLIC_CONTRACT_ADDRESS) ||
+        "0x71a41e2993ecF330Ebb7D22C2F752a606d992A8C";
 
       setStep("Menunggu persetujuan transaksi di Rabby Wallet...");
       const paymentResult = await payContribution({
         cycleId: contribution.cycleId,
         groupId: contribution.groupId,
-        contractGroupId: String(contractGroupId),
+        contractGroupId: targetContractGroupId,
         contractAddress,
         cycleNumber: contribution.cycleNumber,
         amountWei: contribution.amountWei,
@@ -255,14 +247,6 @@ export const PaymentCard: React.FC<{
       setFailedTxHash(err?.txHash || currentTxHash);
       setStep("");
 
-      if (
-        (err?.code === "RECEIPT_PENDING" ||
-          err?.code === "WALLET_REQUEST_PENDING") &&
-        !currentTxHash
-      ) {
-        setWalletRequestPending(true);
-      }
-
       const canResumeConfirmation =
         Boolean(currentTxHash) &&
         err?.code !== "USER_REJECTED" &&
@@ -280,23 +264,37 @@ export const PaymentCard: React.FC<{
         setConfirmationAttempt(null);
       }
 
-      if (err?.code === "USER_REJECTED") {
+      const errMsg = String(err?.message || "").toLowerCase();
+      if (
+        err?.code === "USER_REJECTED" ||
+        errMsg.includes("user rejected") ||
+        errMsg.includes("user denied") ||
+        errMsg.includes("rejected by user")
+      ) {
+        setWalletRequestPending(false);
         setError(
-          "Transaksi dibatalkan oleh pengguna. Tidak ada pembayaran yang dicatat; Anda dapat mencoba kembali."
+          "Transaksi dibatalkan oleh pengguna di dompet (Rabby/MetaMask). Tidak ada pembayaran yang dicatat; Anda dapat mencoba kembali kapan saja."
         );
-      } else if (err?.code === "ONCHAIN_REVERTED") {
+      } else if (err?.code === "ONCHAIN_REVERTED" || errMsg.includes("revert")) {
+        setWalletRequestPending(false);
         setError(
-          "Transaksi on-chain gagal/revert. Tidak ada pembayaran yang dicatat; periksa transaction hash lalu coba kembali."
+          "Transaksi on-chain gagal/revert di smart contract. Tidak ada pembayaran yang dicatat; periksa transaction hash lalu coba kembali. Pastikan saldo tBNB mencukupi."
+        );
+      } else if (errMsg.includes("insufficient funds") || errMsg.includes("exceeds balance")) {
+        setWalletRequestPending(false);
+        setError(
+          "Saldo tBNB di dompet Anda tidak mencukupi untuk membayar iuran dan biaya gas jaringan BNB Smart Chain Testnet."
         );
       } else if (err?.code === "RECEIPT_PENDING") {
         setError(
-          "Status transaksi belum dapat dipastikan karena receipt belum tersedia. Jangan kirim pembayaran ulang sebelum memeriksa hash."
+          "Status transaksi belum dapat dipastikan karena receipt belum tersedia di blockchain. Jangan kirim transaksi baru sebelum memeriksa hash."
         );
       } else if (err?.code === "WALLET_REQUEST_PENDING") {
         setError(
-          "Permintaan dompet belum menghasilkan hash. Transaksi mungkin masih diproses; periksa Rabby Wallet dan muat ulang halaman sebelum mencoba lagi."
+          "Permintaan ke dompet Web3 belum selesai atau tertutup. Silakan periksa notifikasi Rabby/MetaMask atau klik 'Coba Bayar Lagi'."
         );
       } else {
+        setWalletRequestPending(false);
         setError(getErrorMessage(err));
       }
     } finally {
@@ -450,7 +448,8 @@ export const PaymentCard: React.FC<{
           }}
         >
           <AlertTriangleIcon size={14} />
-          <div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight: 600, marginBottom: "2px" }}>Pembayaran Belum Berhasil</div>
             <div>{error}</div>
             {failedTxHash && (
               <div style={{ marginTop: "6px", wordBreak: "break-all" }}>
@@ -459,12 +458,53 @@ export const PaymentCard: React.FC<{
                   href={`https://testnet.bscscan.com/tx/${failedTxHash}`}
                   target="_blank"
                   rel="noreferrer"
-                  style={{ color: color.text.white }}
+                  style={{ color: "#fff", textDecoration: "underline", marginLeft: "4px" }}
                 >
                   Lihat di BscScan
                 </a>
               </div>
             )}
+            <div style={{ display: "flex", gap: "8px", marginTop: "8px" }}>
+              <button
+                type="button"
+                data-testid="payment-retry-button"
+                onClick={() => {
+                  setError(null);
+                  setWalletRequestPending(false);
+                  handlePay();
+                }}
+                style={{
+                  background: "rgba(239, 68, 68, 0.25)",
+                  border: "1px solid rgba(239, 68, 68, 0.5)",
+                  color: "#fff",
+                  borderRadius: radius.sm,
+                  padding: "4px 10px",
+                  fontSize: "11px",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                }}
+              >
+                Coba Bayar Lagi
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setError(null);
+                  setWalletRequestPending(false);
+                }}
+                style={{
+                  background: "transparent",
+                  border: "1px solid rgba(255, 255, 255, 0.2)",
+                  color: color.text.muted,
+                  borderRadius: radius.sm,
+                  padding: "4px 10px",
+                  fontSize: "11px",
+                  cursor: "pointer",
+                }}
+              >
+                Tutup
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -475,7 +515,7 @@ export const PaymentCard: React.FC<{
           variant="liquid-metal"
           size="md"
           loading={isProcessing}
-          disabled={isUpcomingCycle || !resolvedContractGroupId || walletRequestPending || !isPayableNow}
+          disabled={isUpcomingCycle || walletRequestPending || !isPayableNow}
           onClick={handlePay}
           style={{ width: "100%" }}
         >
@@ -485,8 +525,6 @@ export const PaymentCard: React.FC<{
             ? "Periksa Status / Konfirmasi Ulang"
             : isUpcomingCycle
             ? `Siklus #${contribution.cycleNumber} Menunggu Siklus #${currentActiveCycle}`
-            : !resolvedContractGroupId
-            ? "Kelompok Belum Terdaftar On-Chain"
             : contribution.cycleStatus !== "PAYMENT_OPEN"
             ? `Menunggu Jadwal Pembayaran Siklus #${contribution.cycleNumber}`
             : `Pay ${formatWeiToBnb(contribution.amountWei)} via Rabby/MetaMask`}

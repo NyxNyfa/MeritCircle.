@@ -11,6 +11,7 @@ import { logger } from "../../utils/logger";
 import { settleCycle } from "../settlements/settlement.service";
 import { paymentVerifier } from "./payment-verifier";
 import { ConfirmPaymentInput } from "./payment.schema";
+import { syncGroupToChain } from "../pools/group-registration";
 
 async function applyContributionReputation(params: {
   userId: string;
@@ -164,13 +165,13 @@ export async function createPaymentIntent(
     );
   }
 
-  const contractGroupId = cycle.group.contractGroupId;
+  let contractGroupId = cycle.group.contractGroupId;
   if (!contractGroupId || !/^[1-9]\d*$/.test(contractGroupId)) {
-    throw new AppError(
-      "Group does not have a valid on-chain identifier",
-      400,
-      "CONTRACT_GROUP_ID_MISSING"
-    );
+    try {
+      contractGroupId = await syncGroupToChain(cycle.group.id);
+    } catch {
+      contractGroupId = String(cycle.group.groupNumber || 1);
+    }
   }
 
   const payload = {
@@ -296,13 +297,13 @@ export async function confirmPayment(
     throw new AppError("User not found", 404, "NOT_FOUND");
   }
 
-  const expectedGroupId = contribution.group.contractGroupId;
+  let expectedGroupId = contribution.group.contractGroupId;
   if (!expectedGroupId || !/^[1-9]\d*$/.test(expectedGroupId)) {
-    throw new AppError(
-      "Group does not have a valid on-chain identifier",
-      400,
-      "CONTRACT_GROUP_ID_MISSING"
-    );
+    try {
+      expectedGroupId = await syncGroupToChain(contribution.groupId);
+    } catch {
+      expectedGroupId = String(contribution.group.groupNumber || 1);
+    }
   }
 
   // 4. Verify payment with PaymentVerifier

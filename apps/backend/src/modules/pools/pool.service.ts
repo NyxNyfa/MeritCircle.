@@ -2,6 +2,8 @@ import { canJoinPool, getTierFromPoints } from "@merit-circle/domain";
 import { prisma } from "../../db/client";
 import { AppError } from "../../middleware/error";
 import { applyReputationEvent } from "../reputation/reputation.service";
+import { registerGroupOnChain } from "./group-registration";
+import { logger } from "../../utils/logger";
 
 export async function getPools() {
   const pools = await prisma.pool.findMany({
@@ -243,6 +245,34 @@ export async function joinPool(userId: string, poolId: string) {
       ];
       const now = new Date();
 
+      // Retrieve member wallet addresses for on-chain registration
+      const members = await prisma.user.findMany({
+        where: { id: { in: allMemberUserIds } },
+        select: { id: true, walletAddress: true },
+      });
+      const walletMap = new Map(members.map((m) => [m.id, m.walletAddress]));
+      const memberWallets = allMemberUserIds
+        .map((uid) => walletMap.get(uid))
+        .filter((w): w is string => Boolean(w && /^0x[0-9a-fA-F]{40}$/.test(w)));
+
+      let assignedContractGroupId = availableGroup.contractGroupId || String(availableGroup.groupNumber);
+      if (memberWallets.length === pool.groupSize) {
+        try {
+          const regRes = await registerGroupOnChain({
+            poolExternalId: pool.externalPoolId,
+            groupNumber: availableGroup.groupNumber,
+            memberWalletAddresses: memberWallets,
+          });
+          if (regRes.contractGroupId) {
+            assignedContractGroupId = regRes.contractGroupId;
+          }
+        } catch (regErr: any) {
+          logger.warn(
+            `[joinPool] On-chain registration warning: ${regErr.message}. Fallback to ${assignedContractGroupId}`
+          );
+        }
+      }
+
       await prisma.$transaction([
         prisma.groupMember.create({
           data: {
@@ -258,7 +288,7 @@ export async function joinPool(userId: string, poolId: string) {
             memberCount: newMemberCount,
             startDate: now,
             currentCycle: 1,
-            contractGroupId: availableGroup.contractGroupId || String(availableGroup.groupNumber),
+            contractGroupId: assignedContractGroupId,
           },
         }),
       ]);
