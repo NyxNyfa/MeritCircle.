@@ -325,6 +325,21 @@ export async function createPaymentIntent(
   contributionId: string,
   cycleId?: string
 ): Promise<{ intent: any }> {
+  if (cycleId) {
+    try {
+      const res = await fetchApi<any>(`/api/cycles/${cycleId}/payment-intent`, {
+        method: "POST",
+        body: JSON.stringify({ contributionId }),
+      });
+      return res?.intent ? res : { intent: res };
+    } catch (err: any) {
+      // If 404 on cycle route, fallback to /api/payments/payment-intent
+      if (err?.statusCode !== 404 && !String(err?.message || "").includes("404")) {
+        throw err;
+      }
+    }
+  }
+
   const res = await fetchApi<any>("/api/payments/payment-intent", {
     method: "POST",
     body: JSON.stringify({ contributionId, cycleId }),
