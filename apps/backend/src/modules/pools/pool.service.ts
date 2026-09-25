@@ -181,7 +181,12 @@ export async function joinPool(userId: string, poolId: string) {
       where: { poolId: pool.id },
       orderBy: { groupNumber: "desc" },
     });
-    const nextGroupNumber = lastGroup ? lastGroup.groupNumber + 1 : 1;
+    // On-chain group numbers 1 and 2 are already used on BSC Testnet for START-1
+    const minGroupNumber = pool.externalPoolId === "START-1" ? 2 : 0;
+    const baseGroupNumber = lastGroup
+      ? Math.max(lastGroup.groupNumber, minGroupNumber)
+      : minGroupNumber;
+    const nextGroupNumber = baseGroupNumber + 1;
 
     const willBecomeActive = pool.groupSize <= 1;
 
