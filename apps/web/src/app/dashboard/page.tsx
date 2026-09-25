@@ -67,67 +67,88 @@ function DashboardContent() {
   const [upcomingContributions, setUpcomingContributions] = useState<any[]>([]);
   const [loadingData, setLoadingData] = useState(true);
 
+  const fetchDashboardData = React.useCallback(
+    (signal?: { cancelled: boolean }) => {
+      if (!isAuthenticated || !user) {
+        setActiveGroups([]);
+        setCompletedGroups([]);
+        setSelectedGroupTab("active");
+        setUpcomingContributions([]);
+        setLoadingData(false);
+        return;
+      }
+
+      setLoadingData(true);
+      Promise.allSettled([getMyGroups(), getMyContributions()])
+        .then(([groupsResult, contributionsResult]) => {
+          if (signal?.cancelled) return;
+
+          if (groupsResult.status === "rejected") {
+            setActiveGroups([]);
+            setCompletedGroups([]);
+            setSelectedGroupTab("active");
+            setUpcomingContributions([]);
+            return;
+          }
+
+          const groupsRes = groupsResult.value;
+          const activeSource = groupsRes.activeGroups ?? groupsRes.groups;
+          const completedSource = groupsRes.completedGroups ?? groupsRes.groups;
+          const nextActiveGroups = activeSource.filter(isActiveGroup);
+          const nextCompletedGroups = completedSource.filter(isCompletedGroup);
+          const activeGroupIds = new Set(nextActiveGroups.map((group) => group.id));
+          const contributions =
+            contributionsResult.status === "fulfilled"
+              ? contributionsResult.value.contributions
+              : [];
+
+          setActiveGroups(nextActiveGroups);
+          setCompletedGroups(nextCompletedGroups);
+          setSelectedGroupTab((currentTab) =>
+            currentTab === "active" &&
+            nextActiveGroups.length === 0 &&
+            nextCompletedGroups.length > 0
+              ? "history"
+              : currentTab
+          );
+          setUpcomingContributions(
+            (contributions || []).filter(
+              (contribution: any) =>
+                contribution.status === "PENDING" &&
+                activeGroupIds.has(contribution.groupId)
+            )
+          );
+        })
+        .finally(() => {
+          if (!signal?.cancelled) setLoadingData(false);
+        });
+    },
+    [isAuthenticated, user?.id, user?.walletAddress]
+  );
+
+  // Initial fetch on auth/user change
   useEffect(() => {
-    let cancelled = false;
-
-    if (!isAuthenticated || !user) {
-      setActiveGroups([]);
-      setCompletedGroups([]);
-      setSelectedGroupTab("active");
-      setUpcomingContributions([]);
-      setLoadingData(false);
-      return;
-    }
-
-    setLoadingData(true);
-    Promise.allSettled([getMyGroups(), getMyContributions()])
-      .then(([groupsResult, contributionsResult]) => {
-        if (cancelled) return;
-
-        if (groupsResult.status === "rejected") {
-          setActiveGroups([]);
-          setCompletedGroups([]);
-          setSelectedGroupTab("active");
-          setUpcomingContributions([]);
-          return;
-        }
-
-        const groupsRes = groupsResult.value;
-        const activeSource = groupsRes.activeGroups ?? groupsRes.groups;
-        const completedSource = groupsRes.completedGroups ?? groupsRes.groups;
-        const nextActiveGroups = activeSource.filter(isActiveGroup);
-        const nextCompletedGroups = completedSource.filter(isCompletedGroup);
-        const activeGroupIds = new Set(nextActiveGroups.map((group) => group.id));
-        const contributions =
-          contributionsResult.status === "fulfilled"
-            ? contributionsResult.value.contributions
-            : [];
-
-        setActiveGroups(nextActiveGroups);
-        setCompletedGroups(nextCompletedGroups);
-        setSelectedGroupTab((currentTab) =>
-          currentTab === "active" &&
-          nextActiveGroups.length === 0 &&
-          nextCompletedGroups.length > 0
-            ? "history"
-            : currentTab
-        );
-        setUpcomingContributions(
-          (contributions || []).filter(
-            (contribution: any) =>
-              contribution.status === "PENDING" &&
-              activeGroupIds.has(contribution.groupId)
-          )
-        );
-      })
-      .finally(() => {
-        if (!cancelled) setLoadingData(false);
-      });
-
+    const signal = { cancelled: false };
+    fetchDashboardData(signal);
     return () => {
-      cancelled = true;
+      signal.cancelled = true;
     };
-  }, [isAuthenticated, user?.id, user?.walletAddress]);
+  }, [fetchDashboardData]);
+
+  // Cache invalidation: re-fetch when user returns to this tab (e.g. after paying on /pay page)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible" && isAuthenticated && user) {
+        fetchDashboardData();
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [fetchDashboardData, isAuthenticated, user?.id]);
+
+
 
   if (!isAuthenticated && !authLoading) {
     return (
