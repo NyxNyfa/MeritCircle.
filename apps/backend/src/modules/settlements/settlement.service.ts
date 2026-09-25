@@ -251,138 +251,157 @@ export async function settleCycle(
 
   const txHash = providerResult.txHash;
 
-  // 8. DB Updates
-  // Create Payout record
-  const payout = await prisma.payout.create({
-    data: {
-      cycleId: cycle.id,
-      groupId: cycle.groupId,
-      recipientUserId,
-      type: payoutType,
-      amountWei: payoutWei.toString(),
-      status: "SUCCESS",
-      txHash,
-      paidAt: new Date(),
-    },
-  });
+  // 8. DB Updates — wrapped in a single atomic transaction to prevent partial state on crash
+  const now = new Date();
+  let payout: { id: string };
+  let rewardLedger: { id: string };
 
-  // Mark recipient hasReceivedPayout
-  await prisma.groupMember.update({
-    where: {
-      groupId_userId: {
+  await prisma.$transaction(async (tx) => {
+    // Double-check: prevent duplicate settlement if two requests race
+    const latestCycle = await tx.cycle.findUnique({
+      where: { id: cycle.id },
+      select: { status: true },
+    });
+    if (latestCycle?.status === "COMPLETED") {
+      throw new AppError("Cycle is already settled", 400, "CYCLE_ALREADY_SETTLED");
+    }
+
+    // Create Payout record
+    payout = await tx.payout.create({
+      data: {
+        cycleId: cycle.id,
         groupId: cycle.groupId,
-        userId: recipientUserId,
+        recipientUserId,
+        type: payoutType,
+        amountWei: payoutWei.toString(),
+        status: "SUCCESS",
+        txHash,
+        paidAt: now,
       },
-    },
-    data: {
-      hasReceivedPayout: true,
-      payoutSlot: cycle.cycleNumber,
-    },
-  });
+    });
 
-  // Create CycleRewardLedger
-  const rewardLedger = await prisma.cycleRewardLedger.create({
-    data: {
-      groupId: cycle.groupId,
-      cycleId: cycle.id,
-      cycleNumber: cycle.cycleNumber,
-      baseRewardWei: baseReward.toString(),
-      carriedRewardWei: carriedReward.toString(),
-      rewardPoolWei: rewardPool.toString(),
-      payoutWei: payoutWei.toString(),
-      remainingCarryRewardWei: remainingCarryRewardWei.toString(),
-      isFinalCycle: cycle.isFinalCycle,
-    },
-  });
-
-  // Update Cycle status
-  await prisma.cycle.update({
-    where: { id: cycle.id },
-    data: {
-      status: "COMPLETED",
-      settlementAt: new Date(),
-    },
-  });
-
-  // Update Auction and bids if AUCTION mode non-final
-  if (cycle.auction) {
-    if (hasWinner && winningBidId) {
-      await prisma.auction.update({
-        where: { id: cycle.auction.id },
-        data: {
-          status: "SETTLED",
-          settlementAt: new Date(),
-          bestBidId: winningBidId,
+    // Mark recipient hasReceivedPayout
+    await tx.groupMember.update({
+      where: {
+        groupId_userId: {
+          groupId: cycle.groupId,
+          userId: recipientUserId,
         },
-      });
+      },
+      data: {
+        hasReceivedPayout: true,
+        payoutSlot: cycle.cycleNumber,
+      },
+    });
 
-      // Update bids status
-      for (const bid of cycle.auction.bids) {
-        await prisma.bid.update({
-          where: { id: bid.id },
+    // Create CycleRewardLedger
+    rewardLedger = await tx.cycleRewardLedger.create({
+      data: {
+        groupId: cycle.groupId,
+        cycleId: cycle.id,
+        cycleNumber: cycle.cycleNumber,
+        baseRewardWei: baseReward.toString(),
+        carriedRewardWei: carriedReward.toString(),
+        rewardPoolWei: rewardPool.toString(),
+        payoutWei: payoutWei.toString(),
+        remainingCarryRewardWei: remainingCarryRewardWei.toString(),
+        isFinalCycle: cycle.isFinalCycle,
+      },
+    });
+
+    // Update Cycle status to COMPLETED (atomic, prevents duplicate settlement)
+    await tx.cycle.update({
+      where: { id: cycle.id },
+      data: {
+        status: "COMPLETED",
+        settlementAt: now,
+      },
+    });
+
+    // Update Auction and bids if AUCTION mode non-final
+    if (cycle.auction) {
+      if (hasWinner && winningBidId) {
+        await tx.auction.update({
+          where: { id: cycle.auction.id },
           data: {
-            status: bid.id === winningBidId ? "WINNING" : "LOSE",
+            status: "SETTLED",
+            settlementAt: now,
+            bestBidId: winningBidId,
           },
         });
+        for (const bid of cycle.auction.bids) {
+          await tx.bid.update({
+            where: { id: bid.id },
+            data: { status: bid.id === winningBidId ? "WINNING" : "LOSE" },
+          });
+        }
+      } else {
+        await tx.auction.update({
+          where: { id: cycle.auction.id },
+          data: { status: "NO_VALID_BID", settlementAt: now },
+        });
       }
-    } else {
-      await prisma.auction.update({
-        where: { id: cycle.auction.id },
+    }
+
+    // Update Group
+    if (cycle.isFinalCycle) {
+      await tx.group.update({
+        where: { id: cycle.groupId },
         data: {
-          status: "NO_VALID_BID",
-          settlementAt: new Date(),
+          currentCycle: cycle.cycleNumber + 1,
+          status: "COMPLETED",
+          completedAt: now,
         },
       });
+
+      // Release all active participants after final cycle settlement
+      await tx.groupMember.updateMany({
+        where: { groupId: cycle.groupId, status: "ACTIVE" },
+        data: { status: "COMPLETED" },
+      });
+    } else {
+      const nextCycleNumber = cycle.cycleNumber + 1;
+      await tx.group.update({
+        where: { id: cycle.groupId },
+        data: { currentCycle: nextCycleNumber },
+      });
+
+      // Open next cycle
+      const nextCycle = await tx.cycle.findFirst({
+        where: { groupId: cycle.groupId, cycleNumber: nextCycleNumber },
+      });
+
+      if (nextCycle) {
+        const paymentDeadline = new Date(
+          now.getTime() + pool.paymentWindowDays * 24 * 60 * 60 * 1000
+        );
+        await tx.cycle.update({
+          where: { id: nextCycle.id },
+          data: { status: "PAYMENT_OPEN", startDate: now, paymentDeadline },
+        });
+        await tx.contribution.updateMany({
+          where: { cycleId: nextCycle.id, status: "PENDING" },
+          data: { dueDate: paymentDeadline },
+        });
+      }
     }
-  }
+  });
 
-  // Update Group
+  // Post-transaction: Apply GROUP_COMPLETED reputation (outside tx to avoid long lock)
   if (cycle.isFinalCycle) {
-    await prisma.group.update({
-      where: { id: cycle.groupId },
-      data: {
-        currentCycle: cycle.cycleNumber + 1,
-        status: "COMPLETED",
-        completedAt: new Date(),
-      },
-    });
-
-    // Release / unlock all active participants from the group/pool upon final cycle settlement
-    await prisma.groupMember.updateMany({
-      where: {
-        groupId: cycle.groupId,
-        status: "ACTIVE",
-      },
-      data: {
-        status: "COMPLETED",
-      },
-    });
-
-    // Apply GROUP_COMPLETED (+100) reputation event for members who completed all contributions
     for (const member of members) {
       const memberContributions = await prisma.contribution.findMany({
-        where: {
-          groupId: cycle.groupId,
-          userId: member.userId,
-        },
+        where: { groupId: cycle.groupId, userId: member.userId },
       });
-
       const allMemberPaid =
         memberContributions.length === pool.cycleCount &&
         memberContributions.every(
           (c) => c.status === "PAID_ON_TIME" || c.status === "PAID_LATE"
         );
-
       if (allMemberPaid) {
-        // Prevent duplicate GROUP_COMPLETED
         const existingEvent = await prisma.reputationEvent.findFirst({
-          where: {
-            userId: member.userId,
-            type: "GROUP_COMPLETED",
-            referenceId: cycle.groupId,
-          },
+          where: { userId: member.userId, type: "GROUP_COMPLETED", referenceId: cycle.groupId },
         });
-
         if (!existingEvent) {
           await prisma.reputationEvent.create({
             data: {
@@ -394,67 +413,16 @@ export async function settleCycle(
               referenceId: cycle.groupId,
             },
           });
-
-          const rep = await prisma.reputation.findUnique({
-            where: { userId: member.userId },
-          });
+          const rep = await prisma.reputation.findUnique({ where: { userId: member.userId } });
           if (rep) {
             const newPoints = clampReputationPoints(rep.points + 100);
             const newTier = getTierFromPoints(newPoints).tier;
             await prisma.reputation.update({
               where: { userId: member.userId },
-              data: {
-                points: newPoints,
-                tier: newTier,
-              },
+              data: { points: newPoints, tier: newTier },
             });
           }
         }
-      }
-    }
-  } else {
-    const nextCycleNumber = cycle.cycleNumber + 1;
-    await prisma.group.update({
-      where: { id: cycle.groupId },
-      data: {
-        currentCycle: nextCycleNumber,
-      },
-    });
-
-    // Start next cycle immediately
-    const nextCycle = await prisma.cycle.findFirst({
-      where: {
-        groupId: cycle.groupId,
-        cycleNumber: nextCycleNumber,
-      },
-    });
-
-    if (nextCycle) {
-      const now = new Date();
-      const paymentDeadline = new Date(
-        now.getTime() + pool.paymentWindowDays * 24 * 60 * 60 * 1000
-      );
-
-      await prisma.cycle.update({
-        where: { id: nextCycle.id },
-        data: {
-          status: "PAYMENT_OPEN",
-          startDate: now,
-          paymentDeadline,
-        },
-      });
-
-      // Update contributions for next cycle with due date
-      if (typeof prisma.contribution.updateMany === "function") {
-        await prisma.contribution.updateMany({
-          where: {
-            cycleId: nextCycle.id,
-            status: "PENDING",
-          },
-          data: {
-            dueDate: paymentDeadline,
-          },
-        });
       }
     }
   }

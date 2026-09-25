@@ -452,6 +452,7 @@ export async function confirmPayment(
   };
 
   // 8. Auto-settlement: If all members in this cycle have now paid, automatically settle the cycle!
+  // Uses an atomic DB claim (status transition PAYMENT_OPEN -> SETTLING) to prevent double-settlement race.
   try {
     const pendingContributionsCount = await prisma.contribution.count({
       where: {
@@ -461,24 +462,40 @@ export async function confirmPayment(
     });
 
     if (pendingContributionsCount === 0) {
-      logger.info(
-        `[AutoSettlement] All contributions paid for cycle ${contribution.cycleId}. Triggering auto-settlement...`
-      );
-      const adminUser = await prisma.user.findFirst({
-        where: { role: "ADMIN" },
+      // Atomic claim: only the first concurrent request will succeed this update
+      const claimResult = await prisma.cycle.updateMany({
+        where: {
+          id: contribution.cycleId,
+          status: "PAYMENT_OPEN", // guard: only claim once
+        },
+        data: { status: "SETTLING" },
       });
-      settleCycle(adminUser ? adminUser.id : userId, contribution.cycleId).catch(
-        (settleErr: any) => {
-          logger.error(
-            `[AutoSettlement] Error executing automatic settlement for cycle ${contribution.cycleId}:`,
-            settleErr
-          );
-        }
-      );
+
+      if (claimResult.count === 1) {
+        logger.info(
+          `[AutoSettlement] All contributions paid for cycle ${contribution.cycleId}. Triggering auto-settlement...`
+        );
+        const adminUser = await prisma.user.findFirst({
+          where: { role: "ADMIN" },
+        });
+        settleCycle(adminUser ? adminUser.id : userId, contribution.cycleId).catch(
+          (settleErr: any) => {
+            logger.error(
+              `[AutoSettlement] Error executing automatic settlement for cycle ${contribution.cycleId}:`,
+              settleErr
+            );
+          }
+        );
+      } else {
+        logger.info(
+          `[AutoSettlement] Cycle ${contribution.cycleId} already claimed for settlement by another request. Skipping.`
+        );
+      }
     }
   } catch (err) {
     logger.error("[AutoSettlement] Check failed:", err);
   }
+
 
   return {
     ...res,

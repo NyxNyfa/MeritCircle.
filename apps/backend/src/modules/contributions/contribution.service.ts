@@ -31,8 +31,8 @@ export async function getUserContributions(userId: string) {
     cycleStatus: c.cycle.status,
     isPayable:
       c.status === "PENDING" &&
-      (c.cycle.status === "PAYMENT_OPEN" ||
-        c.cycle.cycleNumber === c.group.currentCycle),
+      c.cycle.status === "PAYMENT_OPEN" &&
+      c.cycle.cycleNumber === c.group.currentCycle,
     amountWei: c.amountWei,
     status: c.status,
     dueDate: c.dueDate,

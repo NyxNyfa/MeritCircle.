@@ -152,11 +152,15 @@ function DashboardContent() {
 
   const isPayableContribution = (c: any) => {
     if (c.status !== "PENDING") return false;
+    // Prioritize server-side isPayable flag (most reliable)
     if (c.isPayable === true) return true;
+    // Strict cycle status check
     if (c.cycleStatus === "PAYMENT_OPEN") return true;
-    const currentCycle = c.groupCurrentCycle || 1;
-    return c.cycleNumber <= currentCycle;
+    // Only use cycleNumber comparison if groupCurrentCycle is explicitly available (no fallback to 1)
+    if (c.groupCurrentCycle && c.cycleNumber === c.groupCurrentCycle) return true;
+    return false;
   };
+
 
   const activeDueContribution = upcomingContributions.find(isPayableContribution);
   const nearestContribution = activeDueContribution || upcomingContributions[0];
