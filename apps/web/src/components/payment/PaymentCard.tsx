@@ -106,18 +106,16 @@ export const PaymentCard: React.FC<{
     (contribution.groupNumber ? String(contribution.groupNumber) : "1");
   const currentActiveCycle =
     contribution.groupCurrentCycle || 1;
-  const isPayableNow =
-    !isPaid &&
-    (contribution.isPayable === true ||
-      (contribution.cycleStatus === "PAYMENT_OPEN" &&
-        (!contribution.groupCurrentCycle ||
-          contribution.cycleNumber === contribution.groupCurrentCycle)));
   const isUpcomingCycle =
     !isPaid &&
-    Boolean(
-      contribution.groupCurrentCycle &&
-      contribution.cycleNumber > contribution.groupCurrentCycle
-    );
+    (contribution.cycleNumber > currentActiveCycle ||
+      (contribution.cycleStatus === "UPCOMING" && contribution.cycleNumber > 1));
+  const isPayableNow =
+    !isPaid &&
+    !isUpcomingCycle &&
+    (contribution.isPayable === true ||
+      contribution.cycleStatus === "PAYMENT_OPEN" ||
+      contribution.cycleNumber <= currentActiveCycle);
 
   const confirmOnBackend = async (intentId: string, txHash: string) => {
     setStep("Menerima konfirmasi backend dan memverifikasi event on-chain...");
@@ -510,25 +508,39 @@ export const PaymentCard: React.FC<{
       )}
 
       {!isPaid && (
-        <Button
-          data-testid="payment-button"
-          variant="liquid-metal"
-          size="md"
-          loading={isProcessing}
-          disabled={isUpcomingCycle || walletRequestPending || !isPayableNow}
-          onClick={handlePay}
-          style={{ width: "100%" }}
-        >
-          {walletRequestPending
-            ? "Permintaan Dompet Masih Dipantau"
-            : confirmationAttempt
-            ? "Periksa Status / Konfirmasi Ulang"
-            : isUpcomingCycle
-            ? `Siklus #${contribution.cycleNumber} Menunggu Siklus #${currentActiveCycle}`
-            : contribution.cycleStatus !== "PAYMENT_OPEN"
-            ? `Menunggu Jadwal Pembayaran Siklus #${contribution.cycleNumber}`
-            : `Pay ${formatWeiToBnb(contribution.amountWei)} via Rabby/MetaMask`}
-        </Button>
+        isUpcomingCycle ? (
+          <div
+            data-testid="payment-upcoming-badge"
+            style={{
+              padding: spacing["3"],
+              textAlign: "center",
+              borderRadius: radius.md,
+              backgroundColor: "rgba(255, 255, 255, 0.03)",
+              border: "1px dashed rgba(255, 255, 255, 0.15)",
+              color: color.text.muted,
+              fontSize: "12px",
+              fontWeight: 500,
+            }}
+          >
+            🔒 Tagihan Terkunci • Menunggu Siklus #{currentActiveCycle} Selesai Diselesaikan Admin
+          </div>
+        ) : (
+          <Button
+            data-testid="payment-button"
+            variant="liquid-metal"
+            size="md"
+            loading={isProcessing}
+            disabled={walletRequestPending || !isPayableNow}
+            onClick={handlePay}
+            style={{ width: "100%" }}
+          >
+            {walletRequestPending
+              ? "Permintaan Dompet Masih Dipantau"
+              : confirmationAttempt
+              ? "Periksa Status / Konfirmasi Ulang"
+              : `Pay ${formatWeiToBnb(contribution.amountWei)} via Rabby/MetaMask`}
+          </Button>
+        )
       )}
     </Card>
   );

@@ -70,12 +70,9 @@ function PaymentHubContent() {
   const isPayableContribution = (c: ContributionItem) => {
     if (c.status !== "PENDING") return false;
     if (c.isPayable === true) return true;
-    if (
-      c.cycleStatus === "PAYMENT_OPEN" &&
-      (!c.groupCurrentCycle || c.cycleNumber === c.groupCurrentCycle)
-    ) {
-      return true;
-    }
+    if (c.cycleStatus === "PAYMENT_OPEN") return true;
+    if (!c.groupCurrentCycle && c.cycleNumber === 1) return true;
+    if (c.groupCurrentCycle && c.cycleNumber <= c.groupCurrentCycle) return true;
     return false;
   };
 
