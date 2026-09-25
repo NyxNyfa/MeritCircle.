@@ -149,6 +149,9 @@ export async function settleCycle(
         "NO_ELIGIBLE_RECIPIENT"
       );
     }
+    const slotMember = eligibleMembers.find((m) => m.payoutSlot === cycle.cycleNumber);
+    if (slotMember) return slotMember.userId;
+
     eligibleMembers.sort((a, b) => {
       const repA = a.user.reputation?.points ?? 0;
       const repB = b.user.reputation?.points ?? 0;
@@ -253,8 +256,8 @@ export async function settleCycle(
 
   // 8. DB Updates — wrapped in a single atomic transaction to prevent partial state on crash
   const now = new Date();
-  let payout: { id: string };
-  let rewardLedger: { id: string };
+  let payout: { id: string } = { id: "" };
+  let rewardLedger: { id: string } = { id: "" };
 
   await prisma.$transaction(async (tx) => {
     // Double-check: prevent duplicate settlement if two requests race
