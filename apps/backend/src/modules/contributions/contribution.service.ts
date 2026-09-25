@@ -31,6 +31,7 @@ export async function getUserContributions(userId: string) {
     cycleStatus: c.cycle.status,
     isPayable:
       c.status === "PENDING" &&
+      c.group.status === "ACTIVE" &&
       c.cycle.status === "PAYMENT_OPEN" &&
       c.cycle.cycleNumber === c.group.currentCycle,
     amountWei: c.amountWei,

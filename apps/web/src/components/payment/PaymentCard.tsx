@@ -103,13 +103,19 @@ export const PaymentCard: React.FC<{
   const isLate = new Date() > new Date(contribution.dueDate) && !isPaid;
   const resolvedContractGroupId = contribution.contractGroupId;
   const currentActiveCycle =
-    contribution.groupCurrentCycle || contribution.cycleNumber;
+    contribution.groupCurrentCycle || 1;
   const isPayableNow =
     !isPaid &&
-    contribution.isPayable === true &&
-    (!contribution.groupCurrentCycle ||
-      contribution.cycleNumber === contribution.groupCurrentCycle);
-  const isUpcomingCycle = !isPaid && !isPayableNow;
+    (contribution.isPayable === true ||
+      (contribution.cycleStatus === "PAYMENT_OPEN" &&
+        (!contribution.groupCurrentCycle ||
+          contribution.cycleNumber === contribution.groupCurrentCycle)));
+  const isUpcomingCycle =
+    !isPaid &&
+    Boolean(
+      contribution.groupCurrentCycle &&
+      contribution.cycleNumber > contribution.groupCurrentCycle
+    );
 
   const confirmOnBackend = async (intentId: string, txHash: string) => {
     setStep("Menerima konfirmasi backend dan memverifikasi event on-chain...");
@@ -469,7 +475,7 @@ export const PaymentCard: React.FC<{
           variant="liquid-metal"
           size="md"
           loading={isProcessing}
-          disabled={isUpcomingCycle || !resolvedContractGroupId || walletRequestPending}
+          disabled={isUpcomingCycle || !resolvedContractGroupId || walletRequestPending || !isPayableNow}
           onClick={handlePay}
           style={{ width: "100%" }}
         >
@@ -481,6 +487,8 @@ export const PaymentCard: React.FC<{
             ? `Siklus #${contribution.cycleNumber} Menunggu Siklus #${currentActiveCycle}`
             : !resolvedContractGroupId
             ? "Kelompok Belum Terdaftar On-Chain"
+            : contribution.cycleStatus !== "PAYMENT_OPEN"
+            ? `Menunggu Jadwal Pembayaran Siklus #${contribution.cycleNumber}`
             : `Pay ${formatWeiToBnb(contribution.amountWei)} via Rabby/MetaMask`}
         </Button>
       )}

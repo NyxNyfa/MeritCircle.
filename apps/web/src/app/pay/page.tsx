@@ -68,14 +68,15 @@ function PaymentHubContent() {
   }
 
   const isPayableContribution = (c: ContributionItem) => {
-    if (c.status !== "PENDING" || c.isPayable !== true) return false;
+    if (c.status !== "PENDING") return false;
+    if (c.isPayable === true) return true;
     if (
-      c.groupCurrentCycle &&
-      c.cycleNumber !== c.groupCurrentCycle
+      c.cycleStatus === "PAYMENT_OPEN" &&
+      (!c.groupCurrentCycle || c.cycleNumber === c.groupCurrentCycle)
     ) {
-      return false;
+      return true;
     }
-    return true;
+    return false;
   };
 
   const activePayableContributions = contributions.filter(isPayableContribution);

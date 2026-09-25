@@ -370,3 +370,14 @@ test("successful receipt is confirmed by backend before the UI shows paid", asyn
   await expect(page.getByTestId("payment-button")).toHaveCount(0);
   await captureScreenshot(page, "payment-success");
 });
+
+test("cycle 1 active contribution never shows waiting for cycle 1", async ({ page }) => {
+  await installPaymentScenario(page, "success");
+  await page.goto("/pay");
+
+  const card = page.getByTestId(`payment-card-${contribution.id}`);
+  const button = card.getByTestId("payment-button");
+  await expect(button).not.toContainText("Menunggu Siklus #1");
+  await expect(button).toContainText("Pay");
+});
+

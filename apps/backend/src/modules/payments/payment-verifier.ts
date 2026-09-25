@@ -310,5 +310,8 @@ export class TestPaymentVerifier implements PaymentVerifier {
 export let paymentVerifier: PaymentVerifier = new OnChainPaymentVerifier();
 
 export function setPaymentVerifier(verifier: PaymentVerifier): void {
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("Cannot override payment verifier in production");
+  }
   paymentVerifier = verifier;
 }

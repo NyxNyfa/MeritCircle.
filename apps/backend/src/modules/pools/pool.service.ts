@@ -194,6 +194,7 @@ export async function joinPool(userId: string, poolId: string) {
         memberCount: 1,
         startDate: willBecomeActive ? new Date() : null,
         currentCycle: willBecomeActive ? 1 : 0,
+        contractGroupId: willBecomeActive ? String(nextGroupNumber) : null,
         members: {
           create: {
             userId,
@@ -252,6 +253,7 @@ export async function joinPool(userId: string, poolId: string) {
             memberCount: newMemberCount,
             startDate: now,
             currentCycle: 1,
+            contractGroupId: availableGroup.contractGroupId || String(availableGroup.groupNumber),
           },
         }),
       ]);

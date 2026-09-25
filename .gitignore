@@ -26,3 +26,4 @@ scripts/*
 packages/contracts/scripts/
 packages/contracts/test/
 apps/backend/test/
+apps/backend/scratch/
