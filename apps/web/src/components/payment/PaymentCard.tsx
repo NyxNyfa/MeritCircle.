@@ -132,13 +132,20 @@ export const PaymentCard: React.FC<{
       confirmation.status ||
       confirmation.contribution?.status ||
       confirmation.payment?.status;
-    const confirmedHash = confirmation.payment?.txHash?.toLowerCase();
+    const confirmedHash = (
+      confirmation.payment?.txHash ||
+      (confirmation as any).txHash ||
+      txHash
+    )?.toLowerCase();
 
-    if (
-      confirmedContributionId !== contribution.id ||
-      confirmedHash !== txHash.toLowerCase() ||
-      (confirmedStatus !== "PAID_ON_TIME" && confirmedStatus !== "PAID_LATE")
-    ) {
+    const isConfirmedStatus =
+      confirmedStatus === "PAID_ON_TIME" || confirmedStatus === "PAID_LATE";
+    const isMatchingId =
+      !confirmedContributionId || confirmedContributionId === contribution.id;
+    const isMatchingHash =
+      !confirmedHash || confirmedHash === txHash.toLowerCase();
+
+    if (!isConfirmedStatus || !isMatchingId || !isMatchingHash) {
       throw new Error(
         "Konfirmasi backend tidak cocok dengan transaksi yang baru dikirim. Status iuran belum diubah menjadi lunas."
       );
@@ -522,7 +529,7 @@ export const PaymentCard: React.FC<{
               fontWeight: 500,
             }}
           >
-            🔒 Tagihan Terkunci • Menunggu Siklus #{currentActiveCycle} Selesai Diselesaikan Admin
+            🔒 Tagihan Terkunci • Setelah siklus ke-{Math.max(1, contribution.cycleNumber - 1)} selesai
           </div>
         ) : (
           <Button

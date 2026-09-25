@@ -373,8 +373,9 @@ export async function confirmContribution(
     txHash,
   };
 
+  let res: any;
   try {
-    return await fetchApi<PaymentConfirmation>("/api/contributions/confirm", {
+    res = await fetchApi<any>("/api/contributions/confirm", {
       method: "POST",
       body: JSON.stringify(payload),
     });
@@ -382,12 +383,28 @@ export async function confirmContribution(
     if (err?.statusCode !== 404 && !String(err?.message || "").includes("404")) {
       throw err;
     }
+    res = await fetchApi<any>("/api/payments/confirm", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
   }
 
-  return fetchApi<PaymentConfirmation>("/api/payments/confirm", {
-    method: "POST",
-    body: JSON.stringify(payload),
-  });
+  const confirmedStatus =
+    res?.status || res?.contribution?.status || "PAID_ON_TIME";
+
+  return {
+    contributionId:
+      res?.contributionId ||
+      res?.contribution?.contributionId ||
+      res?.contribution?.id ||
+      paymentIntentId,
+    status: confirmedStatus,
+    contribution: res?.contribution || res,
+    payment: res?.payment || {
+      txHash: res?.txHash || txHash,
+      status: confirmedStatus,
+    },
+  };
 }
 
 /* =========================================================================

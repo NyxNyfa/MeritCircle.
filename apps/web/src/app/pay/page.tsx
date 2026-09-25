@@ -159,7 +159,7 @@ function PaymentHubContent() {
                   Jadwal Siklus Mendatang ({upcomingContributions.length})
                 </h2>
                 <div style={{ fontSize: "13px", color: color.text.secondary }}>
-                  Iuran siklus berikutnya. Tombol pembayaran akan otomatis terbuka setelah siklus berjalan saat ini selesai dan diselesaikan (settle).
+                  Iuran siklus berikutnya. Tombol pembayaran akan otomatis terbuka setelah siklus sebelumnya selesai.
                 </div>
               </div>
 
