@@ -366,14 +366,27 @@ export async function confirmContribution(
   txHash: string,
   cycleId?: string
 ): Promise<PaymentConfirmation> {
+  const payload = {
+    contributionId: paymentIntentId,
+    paymentIntentId,
+    cycleId,
+    txHash,
+  };
+
+  try {
+    return await fetchApi<PaymentConfirmation>("/api/contributions/confirm", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  } catch (err: any) {
+    if (err?.statusCode !== 404 && !String(err?.message || "").includes("404")) {
+      throw err;
+    }
+  }
+
   return fetchApi<PaymentConfirmation>("/api/payments/confirm", {
     method: "POST",
-    body: JSON.stringify({
-      contributionId: paymentIntentId,
-      paymentIntentId,
-      cycleId,
-      txHash,
-    }),
+    body: JSON.stringify(payload),
   });
 }
 

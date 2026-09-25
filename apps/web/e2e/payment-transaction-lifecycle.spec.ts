@@ -156,7 +156,10 @@ async function installPaymentScenario(page: Page, scenario: PaymentScenario) {
           contributionAmountWei: contribution.amountWei,
         },
       };
-    } else if (path === "/api/payments/confirm") {
+    } else if (
+      path === "/api/payments/confirm" ||
+      path === "/api/contributions/confirm"
+    ) {
       confirmRequests += 1;
       if (scenario === "backend-error" && confirmRequests === 1) {
         status = 503;
